@@ -607,21 +607,24 @@ function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<Cus
 
 // ── Tariffs / Rules ───────────────────────────────────────────────────────────────
 function TariffsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
-  // Rate cards come from the tariffs database (Tariffs screen).
+  // Rate cards come from the tariffs database (Tariffs screen). We store tariff IDs
+  // (two tariffs can share a name) and show "Name · ID" in the pickers.
   const tariffs = useTariffsStore((s) => s.tariffs)
-  const names = tariffs.map((t) => t.name)
-  const defaultOptions = d.assignedTariffs.length ? d.assignedTariffs : names
+  const ids = tariffs.map((t) => t.id)
+  const labels = Object.fromEntries(tariffs.map((t) => [t.id, `${t.name} · ${t.id}`]))
+  // The default tariff can only be one the account is assigned (else all of them).
+  const defaultIds = d.assignedTariffs.length ? d.assignedTariffs : ids
   return (
     <Section title="Tariffs" hint="rate cards come from the Tariffs database">
       <div className="fld" style={{ maxWidth: 480 }}>
         <label>Assigned tariffs</label>
-        <MultiSelect options={names} selected={d.assignedTariffs} placeholder="Select the rate cards this account can use…" onChange={(v) => set({ assignedTariffs: v })} />
+        <MultiSelect options={ids} labels={labels} selected={d.assignedTariffs} placeholder="Select the rate cards this account can use…" onChange={(v) => set({ assignedTariffs: v })} />
       </div>
-      <div className="fld" style={{ maxWidth: 320 }}>
+      <div className="fld" style={{ maxWidth: 360 }}>
         <label>Default tariff</label>
         <select value={d.defaultTariff} onChange={(e) => set({ defaultTariff: e.target.value })}>
           <option value="">— Select —</option>
-          {defaultOptions.map((t) => <option key={t}>{t}</option>)}
+          {defaultIds.map((id) => <option key={id} value={id}>{labels[id] ?? id}</option>)}
         </select>
       </div>
       <div className="cf-hint">Manage rate cards (and their pricing) on the Tariffs screen in the left rail.</div>

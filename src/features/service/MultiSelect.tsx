@@ -9,13 +9,17 @@ export function MultiSelect({
   selected,
   placeholder,
   onChange,
+  labels,
 }: {
   options: string[]
   selected: string[]
   placeholder: string
   onChange: (sel: string[]) => void
+  /** Optional display labels keyed by value (defaults to the value itself). */
+  labels?: Record<string, string>
 }) {
   const [open, setOpen] = useState(false)
+  const label = (v: string) => labels?.[v] ?? v
 
   function toggle(opt: string) {
     onChange(selected.includes(opt) ? selected.filter((s) => s !== opt) : [...selected, opt])
@@ -27,7 +31,7 @@ export function MultiSelect({
         {selected.length === 0 && <span className="ms-ph">{placeholder}</span>}
         {selected.map((s) => (
           <span key={s} className="ms-chip">
-            {s}
+            {label(s)}
             <i
               onClick={(e) => {
                 e.stopPropagation()
@@ -46,7 +50,7 @@ export function MultiSelect({
           return (
             <div key={o} className={'ms-opt' + (on ? ' on' : '')} onClick={() => toggle(o)}>
               <span className="ms-tick">{on ? '✓' : ''}</span>
-              {o}
+              {label(o)}
             </div>
           )
         })}
