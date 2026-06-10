@@ -33,6 +33,8 @@ export interface BookingState {
   jobStatus: JobStatus
   /** Quick Quote mode — simplifies the form to postcode + vehicle (spec: feature). */
   quickQuote: boolean
+  /** Internal job notes (not shown to the driver). Shared by both layouts. */
+  jobNotes: string
 }
 
 export interface BookingActions {
@@ -75,6 +77,7 @@ export interface BookingActions {
   // --- Job lifecycle ---
   setJobStatus(status: JobStatus): void
   setQuickQuote(on: boolean): void
+  setJobNotes(notes: string): void
   reset(): void
 }
 

@@ -142,6 +142,11 @@ export const useBookingStore = create<BookingStore>()(
         s.quickQuote = on
       }),
 
+    setJobNotes: (notes) =>
+      set((s) => {
+        s.jobNotes = notes
+      }),
+
     reset: () =>
       set((s) => {
         Object.assign(s, createInitialState())

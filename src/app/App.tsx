@@ -8,6 +8,7 @@ import { Header } from './Header.tsx'
 import { Footer } from './Footer.tsx'
 import { JobNotes } from './JobNotes.tsx'
 import { RoutePanel } from '@/features/route/RoutePanel.tsx'
+import { QuickQuotePanel } from '@/features/route/QuickQuotePanel.tsx'
 import { RequirementsPanel } from '@/features/service/RequirementsPanel.tsx'
 import { ServiceRail } from '@/features/service/ServiceRail.tsx'
 import { DriverSection } from '@/features/driver/DriverSection.tsx'
@@ -29,22 +30,25 @@ export function App() {
       <div className="app">
         <div className="work">
           <Header />
-          <div className="main">
-            <div className="left">
-              <RoutePanel />
-              <div className="botrow">
-                <JobNotes />
-                {/* Requirements come from specifics, which are full-quote only */}
-                {!quickQuote && <RequirementsPanel />}
+          {quickQuote ? (
+            // Quick Quote: a purpose-built condensed middle (top bar / rails / footer stay)
+            <QuickQuotePanel />
+          ) : (
+            <div className="main">
+              <div className="left">
+                <RoutePanel />
+                <div className="botrow">
+                  <JobNotes />
+                  <RequirementsPanel />
+                </div>
+              </div>
+              <div className="rail">
+                <ServiceRail />
+                <DriverSection />
+                <OtherCharges />
               </div>
             </div>
-            <div className="rail">
-              <ServiceRail />
-              {/* Driver + other charges aren't relevant to a quick quote */}
-              {!quickQuote && <DriverSection />}
-              {!quickQuote && <OtherCharges />}
-            </div>
-          </div>
+          )}
           <Footer />
         </div>
       </div>

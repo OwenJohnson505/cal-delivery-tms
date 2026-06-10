@@ -37,5 +37,6 @@ export function createInitialState(): BookingState {
     assign: {},
     jobStatus: 'Draft',
     quickQuote: false,
+    jobNotes: '',
   }
 }
