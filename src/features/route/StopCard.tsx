@@ -72,7 +72,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
             <Icon name="edit" size={13} /> Edit
           </button>
           {stops.length > 1 && (
-            <button className="btn sm iconbtn" title="Remove stop" onClick={() => removeStop(stop.id)}>
+            <button className="btn sm iconbtn danger" title="Remove stop" onClick={() => removeStop(stop.id)}>
               <Icon name="trash" size={14} />
             </button>
           )}

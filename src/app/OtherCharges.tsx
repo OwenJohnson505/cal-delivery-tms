@@ -70,7 +70,7 @@ export function OtherCharges({ grow = false }: { grow?: boolean }) {
                 <td>{c.label}</td>
                 <td className="num">£{c.rate.toFixed(2)}</td>
                 <td style={{ width: 28, textAlign: 'right' }}>
-                  <button className="btn sm iconbtn" title="Remove charge" onClick={() => removeCharge(c.id)}>
+                  <button className="btn sm iconbtn danger" title="Remove charge" onClick={() => removeCharge(c.id)}>
                     <Icon name="trash" size={14} />
                   </button>
                 </td>

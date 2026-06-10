@@ -7,6 +7,47 @@
   height: 100%;
 }
 
+/* ============================================================
+ * CALM PASS — pill language + lighter borders + ghost icon buttons
+ * Intentional, documented deviation from the verbatim prototype to reduce
+ * visual busyness. Booking-essential buttons (primary) stay solid; secondary,
+ * icon and action buttons are de-emphasised so they don't compete.
+ * ============================================================ */
+
+/* One rounded language — the When/ASAP pills the user liked — for all buttons
+ * and tags. Inputs and panels deliberately stay rectangular. */
+.btn, .btn.sm, .btn.add, .add-stop, .cf-btn, .qq-toggle, .navbtn, .stepdot,
+.cf-seg-btn, .cf-tab {
+  border-radius: 999px;
+}
+.cc-tag, .itag, .req-s, .aelse, .afree, .src, .daychip, .ms-chip, .ms-chip i,
+.eqbtn, .cf-chip, .stat .pill, .ac-row .tag, .cf-btn-badge, .stop-ref-tag {
+  border-radius: 999px;
+}
+
+/* Secondary (white) buttons: bold label carries them, so the border drops to a
+ * much lighter line. Primary keeps its solid fill — it's the essential action. */
+.btn:not(.primary) { border-color: var(--line); }
+.btn:not(.primary):hover { background: var(--field); }
+
+/* Icon-only / action buttons → ghost: no border or fill, muted, soft hover.
+ * Covers the header tools (docs / audit / map / print) and in-row icons. */
+.btn.iconbtn { border: none; background: transparent; color: var(--muted); }
+.btn.iconbtn:hover { background: var(--field); color: var(--ink); }
+
+/* Destructive (bin / remove) icons read red. */
+.btn.iconbtn.danger { color: #dc2626; }
+.btn.iconbtn.danger:hover { background: #fdecec; color: #dc2626; }
+
+/* Buttons sitting on a stop head blend into that surface (no white-on-grey). */
+.stop-head .btn { background: transparent; border-color: transparent; }
+.stop-head .btn:hover { background: rgba(15, 23, 42, .06); }
+
+/* Header route-tools are non-essential — keep them quiet so the booking
+ * controls dominate. */
+.bar-tools .iconbtn { color: var(--muted); opacity: .82; }
+.bar-tools .iconbtn:hover { opacity: 1; }
+
 /* Let the route panel take the available height (so the editor fits + several
  * collapsed stops show at once); the job-notes/requirements row is kept thin. */
 .left .route { flex: 1 1 auto; height: auto; min-height: 240px; }

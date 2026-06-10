@@ -259,7 +259,7 @@ function AccountTab({ d, set, setKind, setStartDate, accountCode, applyCompany }
                   <div className="fld"><label>Phone</label><input value={c.phone} onChange={(e) => updContact(c.id, { phone: e.target.value })} /></div>
                   <div className="fld"><label>Default PO (for this contact)</label><input value={c.defaultPo} onChange={(e) => updContact(c.id, { defaultPo: e.target.value })} placeholder="optional" /></div>
                 </div>
-                <button className="btn sm iconbtn" title="Remove" onClick={() => removeContact(c.id)}><Icon name="trash" size={14} /></button>
+                <button className="btn sm iconbtn danger" title="Remove" onClick={() => removeContact(c.id)}><Icon name="trash" size={14} /></button>
               </div>
             ))
           )}
@@ -476,7 +476,7 @@ function AddressesTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerD
               <div className="fld"><label>Label</label><input value={a.label} onChange={(e) => upd(a.id, { label: e.target.value })} placeholder="e.g. Main depot" /></div>
               <div className="fld span2"><label>Shorthands (searchable nicknames)</label><ChipList values={a.shorthands} placeholder='e.g. "North Depot"' onChange={(v) => upd(a.id, { shorthands: v })} /></div>
             </div>
-            <button className="btn sm iconbtn" title="Remove" onClick={() => remove(a.id)}><Icon name="trash" size={14} /></button>
+            <button className="btn sm iconbtn danger" title="Remove" onClick={() => remove(a.id)}><Icon name="trash" size={14} /></button>
           </div>
         ))
       )}
@@ -526,7 +526,7 @@ function CustomFieldsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<Custom
                 <label className="chk"><input type="checkbox" checked={f.required} onChange={(e) => upd(f.id, { required: e.target.checked })} /> Required on every booking</label>
               </div>
             </div>
-            <button className="btn sm iconbtn" title="Remove field" onClick={() => remove(f.id)}><Icon name="trash" size={14} /></button>
+            <button className="btn sm iconbtn danger" title="Remove field" onClick={() => remove(f.id)}><Icon name="trash" size={14} /></button>
           </div>
         ))
       )}
@@ -582,7 +582,7 @@ function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<Cus
             <div className="cf-band" key={b.id}>
               <div className="fld"><label>From (£)</label><input type="number" value={b.from} onChange={(e) => updBand(b.id, { from: +e.target.value })} /></div>
               <div className="fld"><label>Rate (%)</label><input type="number" value={b.rate} onChange={(e) => updBand(b.id, { rate: +e.target.value })} /></div>
-              <button className="btn sm iconbtn" title="Remove" onClick={() => removeBand(b.id)}><Icon name="trash" size={14} /></button>
+              <button className="btn sm iconbtn danger" title="Remove" onClick={() => removeBand(b.id)}><Icon name="trash" size={14} /></button>
             </div>
           ))
         )}

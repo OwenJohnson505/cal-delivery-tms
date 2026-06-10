@@ -146,7 +146,7 @@ function QuickRouteRow({
           <Icon name="clock" size={15} />
         </button>
         {canRemove ? (
-          <button className="btn sm iconbtn" title="Remove stop" onClick={onRemove}>
+          <button className="btn sm iconbtn danger" title="Remove stop" onClick={onRemove}>
             <Icon name="trash" size={15} />
           </button>
         ) : (

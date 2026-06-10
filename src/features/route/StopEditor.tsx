@@ -106,7 +106,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
         <div className="sh-actions">
           <StopCustomFieldsButton stopId={stop.id} />
           {stops.length > 1 && (
-            <button className="btn sm iconbtn" title="Remove stop" onClick={() => removeStop(stop.id)}>
+            <button className="btn sm iconbtn danger" title="Remove stop" onClick={() => removeStop(stop.id)}>
               <Icon name="trash" size={14} />
             </button>
           )}
