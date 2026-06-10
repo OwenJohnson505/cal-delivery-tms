@@ -11,6 +11,7 @@ import { useEffectiveAssign } from '@/store/selectors.ts'
 import { parseGoods, fmtItem } from '@/lib/index.ts'
 import { EditableCell } from './EditableCell.tsx'
 import { StopCustomFieldsButton } from './StopCustomFieldsButton.tsx'
+import { StatusPill } from '@/app/StatusPill.tsx'
 import { previewGoods, whenLabel, whenValue } from './format.ts'
 import type { Address, Stop, StopType, TimeMode } from '@/types/index.ts'
 
@@ -58,7 +59,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
         <h3>{a.co || a.pc || 'New address'}</h3>
         {stop.reference && <span className="stop-ref-tag" title="Reference">{stop.reference}</span>}
         <div className="sh-actions">
-          <span className="itag">{STATUS_LABEL[stop.status] || stop.status}</span>
+          <StatusPill status={STATUS_LABEL[stop.status] || stop.status} />
           {stop.status === 'enroute' && stop.eta && <span className="cc-tag">ETA {stop.eta}</span>}
           {stop.pod && (
             <button className="btn sm iconbtn" title="View proof" onClick={() => viewPod(stop.id)}>

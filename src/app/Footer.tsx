@@ -5,6 +5,7 @@
  * Quick Quote offers Draft / Quick Quote only.
  */
 import { RefHistory } from '@/features/customer/RefHistory.tsx'
+import { StatusPill } from '@/app/StatusPill.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useJobsStore, captureSnapshot } from '@/store/jobsStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
@@ -56,7 +57,9 @@ export function Footer() {
         </div>
         <RefHistory />
         <div id="footActions" className="saveas">
-          <span className="foot-lbl" style={{ marginRight: 8 }}>Status: {jobStatus}</span>
+          <span className="foot-lbl" style={{ marginRight: 8 }}>Status</span>
+          <StatusPill status={jobStatus} />
+          <span style={{ width: 8 }} />
           {quickQuote ? (
             <>
               <button className="btn" onClick={() => save('Draft')}>Save as draft</button>

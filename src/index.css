@@ -184,6 +184,15 @@
 }
 .ed-compact .pdel:hover { color: var(--deliver); border-color: var(--deliver); }
 .parsed-empty { color: var(--muted); font-size: 12px; padding: 2px 0; }
+
+/* Status pill — one badge for every status (document + job lifecycle). Colour is
+ * supplied inline from lib/statusColors; shape/typography are standardised here. */
+.status-pill {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  font-size: 11px; font-weight: 700; letter-spacing: .01em;
+  border-radius: 999px; padding: 2px 10px;
+}
+
 /* Stop number: the number alone identifies the stop — keep the badge one calm,
  * consistent faint blue (no per-type colour, which double-encoded the type). */
 .stop-head .num { background: var(--accent-soft); color: var(--accent); font-weight: 800; }
@@ -434,9 +443,9 @@
 .cf-seg-btn {
   height: 28px;
   padding: 0 12px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: #fff;
-  border-radius: 6px;
+  border-radius: 999px;
   font: inherit;
   font-size: 12px;
   font-weight: 600;

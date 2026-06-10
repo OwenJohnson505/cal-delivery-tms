@@ -83,6 +83,7 @@
   .chip { display:inline-flex; align-items:center; gap:6px; font-size:calc(var(--fs) - 1px); font-weight:600; color:var(--accent); background:var(--accent-soft); border-radius:var(--r-tag); padding:3px 6px 3px 11px; }
   .chip b { cursor:pointer; opacity:.65; }
   .status { font-size:calc(var(--fs) - 2.5px); font-weight:700; color:#fff; border-radius:999px; padding:2px 9px; }
+  .status-pill { display:inline-flex; align-items:center; font-size:11px; font-weight:700; border-radius:999px; padding:2px 10px; white-space:nowrap; }
   .num { width:21px; height:21px; border-radius:50%; display:inline-grid; place-items:center; font-size:calc(var(--fs) - 1px); font-weight:800; background:var(--accent-soft); color:var(--accent); flex:none; }
   .seg { display:inline-flex; gap:5px; }
   .seg button { height:calc(var(--btn-h) - 4px); padding:0 11px; border:var(--bw) solid var(--line); background:#fff; color:var(--ink); border-radius:var(--r-btn); font-weight:600; font-size:calc(var(--fs) - 1px); cursor:pointer; font-family:inherit; }
@@ -295,6 +296,16 @@
 
     </div>
 
+    <div class="mock" style="margin-top:18px">
+      <div class="mock-cap">Status colours — each status unique; partials share their base colour (fixed system, independent of the accent)</div>
+      <div class="mock-body">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px">Document statuses</div>
+        <div class="row wrap" id="doc-statuses" style="gap:8px;margin-bottom:18px"></div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px">Job lifecycle statuses</div>
+        <div class="row wrap" id="job-statuses" style="gap:8px"></div>
+      </div>
+    </div>
+
     <div class="out">
       <div class="top"><h3>:root — paste these back to me and I'll apply them site-wide</h3><button class="copy" id="copy">Copy</button></div>
       <pre id="out"></pre>
@@ -365,6 +376,14 @@
   document.getElementById('copy').addEventListener('click',()=>{navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('out').textContent); const b=document.getElementById('copy'); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200);});
 
   apply();
+
+  // Status colour reference (fixed palette — mirrors src/lib/statusColors.ts).
+  const SPAL = { grey:['#475569','#eef1f5'], indigo:['#4f46e5','#e9e8fd'], blue:['#1d4ed8','#e3edff'], cyan:['#0e7490','#d7f1f6'], amber:['#b45309','#fdeccb'], green:['#15803d','#dcf3e3'], violet:['#6d28d9','#ece4fd'], rose:['#be123c','#fce4ea'], teal:['#0f766e','#d2efeb'], deepGreen:['#0e7a57','#ccecdc'] };
+  const DOCST = [['Draft','grey'],['Quote','amber'],['Quick Quote','teal'],['Booking','deepGreen']];
+  const JOBST = [['Waiting','grey'],['Posted','indigo'],['Allocated','blue'],['On route to collection','cyan'],['At collection','amber'],['Collected','green'],['Collected 1 of 3','green'],['On route to delivery','violet'],['At delivery','rose'],['Delivered','deepGreen']];
+  const spill = ([label,key]) => { const [c,b]=SPAL[key]; return `<span class="status-pill" style="color:${c};background:${b}">${label}</span>`; };
+  document.getElementById('doc-statuses').innerHTML = DOCST.map(spill).join('');
+  document.getElementById('job-statuses').innerHTML = JOBST.map(spill).join('');
 </script>
 </body>
 </html>

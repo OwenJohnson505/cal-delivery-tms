@@ -47,7 +47,7 @@ export function ChipList({ values, placeholder, onChange }: { values: string[]; 
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())}
         />
-        <button type="button" className="btn" onClick={add} disabled={!draft.trim()}>
+        <button type="button" className="btn sm" onClick={add} disabled={!draft.trim()}>
           <Icon name="plus" size={14} /> Add
         </button>
       </div>

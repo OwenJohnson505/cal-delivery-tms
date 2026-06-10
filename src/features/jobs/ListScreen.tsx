@@ -5,6 +5,7 @@
  */
 import { useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
+import { StatusPill } from '@/app/StatusPill.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
@@ -109,7 +110,7 @@ export function ListScreen() {
                   <td>{j.customer}</td>
                   <td>{j.route}</td>
                   <td>{j.vehicle}</td>
-                  <td><span className="itag">{j.status}</span></td>
+                  <td><StatusPill status={j.status} /></td>
                   <td className="num">£{j.revenue.toFixed(2)}</td>
                   <td>{j.createdAt}</td>
                   <td className="list-actions">
