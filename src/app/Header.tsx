@@ -11,6 +11,10 @@ import { useViewStore } from '@/store/viewStore.ts'
 import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.ts'
 import type { Stop } from '@/types/index.ts'
 
+// Stable empty reference so the Zustand selector doesn't return a new [] each render
+// (a fresh array fails Object.is and triggers an infinite update loop).
+const NO_FIELDS: CustomFieldDef[] = []
+
 export function Header() {
   const reset = useBookingStore((s) => s.reset)
   const quickQuote = useBookingStore((s) => s.quickQuote)
@@ -22,7 +26,7 @@ export function Header() {
   const custId = useBookingStore((s) => s.book.cust)
   const stops = useBookingStore((s) => s.stops)
   const customJob = useBookingStore((s) => s.customJob)
-  const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields ?? [])
+  const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields) ?? NO_FIELDS
   const cf = customFieldStatus(fields, stops, customJob)
 
   return (

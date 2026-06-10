@@ -13,6 +13,9 @@ import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.t
 import type { AuditEntry, BookingDocument } from '@/api/index.ts'
 import type { Pod, Stop } from '@/types/index.ts'
 
+// Stable empty reference (see Header.tsx) — avoids an infinite render loop.
+const NO_FIELDS: CustomFieldDef[] = []
+
 export function Modals() {
   const modal = useUiStore((s) => s.modal)
   const closeModal = useUiStore((s) => s.closeModal)
@@ -209,7 +212,7 @@ function CustomFieldsModal() {
   const customJob = useBookingStore((s) => s.customJob)
   const setCustomJob = useBookingStore((s) => s.setCustomJob)
   const updateStop = useBookingStore((s) => s.updateStop)
-  const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields ?? [])
+  const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields) ?? NO_FIELDS
 
   const jobFields = fields.filter((f) => f.scope === 'job')
   const stopFields = fields.filter((f) => f.scope === 'stop')
