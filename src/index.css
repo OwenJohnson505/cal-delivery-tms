@@ -78,18 +78,47 @@
   color: var(--muted) !important;
 }
 
-/* ── Customer form modal (wide, tabbed, scrolling body) ── */
-.customer-modal {
-  width: min(760px, 96vw);
+/* ── Customer form (full page) ── */
+.cf-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+}
+.cf-page-head {
   display: flex;
-  flex-direction: column;
-  max-height: 88vh;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.cf-back {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--ink);
+  transform: scaleX(-1); /* the 'copy' glyph reads as a back arrow flipped */
+}
+.cf-back:hover { background: #f1f4f8; }
+.cf-page-head h1 { margin: 0; font-size: 20px; font-weight: 800; }
+.cf-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.cf-page-actions { margin-left: auto; display: flex; gap: 8px; }
+.cf-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 .cf-tabs {
   display: flex;
-  gap: 4px;
-  padding: 0 16px;
+  gap: 2px;
+  padding: 0 14px;
+  background: #f8fafc;
   border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
 }
 .cf-tab {
   background: none;
@@ -106,10 +135,10 @@
 .cf-tab:hover { color: var(--ink); }
 .cf-tab.on { color: var(--accent); border-bottom-color: var(--accent); }
 .cf-body {
-  overflow: auto;
+  padding: 18px 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 .cf-section {
   display: flex;
@@ -126,8 +155,9 @@
   letter-spacing: 0.06em;
   color: var(--accent);
   border-top: 1px solid var(--line);
-  padding-top: 12px;
+  padding-top: 14px;
 }
+.cf-section-action { margin-left: auto; }
 .cf-section:first-child .cf-section-h { border-top: none; padding-top: 0; }
 .cf-hint {
   font-size: 10px;
@@ -165,6 +195,64 @@
   padding: 9px 12px;
 }
 .cf-credit-vals { display: flex; gap: 16px; font-size: 12.5px; }
+.cf-empty {
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+/* chip list (emails, prefixes, alt names) */
+.cf-chiplist { display: flex; flex-direction: column; gap: 7px; }
+.cf-chip-input { display: flex; gap: 6px; }
+.cf-chip-input input { flex: 1; }
+.cf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 2px 6px 2px 10px;
+}
+.cf-chip i { cursor: pointer; font-style: normal; font-weight: 700; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; }
+.cf-chip i:hover { background: #cfe0fb; }
+/* contact / address repeater cards */
+.cf-contact, .cf-addr {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.cf-contact-grid, .cf-addr-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.cf-contact-grid { grid-template-columns: 1fr 1fr; }
+.cf-addr-grid .span2 { grid-column: span 2; }
+.cf-star {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #c4cbd4;
+  font-size: 15px;
+}
+.cf-star.on { color: #f5b301; border-color: #f5b301; background: #fffbeb; }
+.cf-band { display: flex; align-items: flex-end; gap: 8px; }
+.cf-band .fld { width: 140px; }
 .list-toolbar {
   display: flex;
   align-items: center;

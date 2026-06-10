@@ -1,23 +1,34 @@
 /**
- * CustomerForm — the Add Customer modal, with Account and Invoicing tabs. Covers the
- * full account model (customersStore). HMRC company lookup (by trading name or reg
- * number) pre-fills the registered name + address; CreditSafe lookup fills credit score
- * + limit. Both are dummied (api/mock/companyLookup).
+ * CustomerForm — full-page New Customer form. Restructured, de-duplicated tabs:
+ *   Account · Invoicing · Addresses · Sales · Tariffs · Rules · Notes
+ * The company/billing address lives only on Invoicing; Addresses holds collection/
+ * delivery points. HMRC company lookup + CreditSafe credit lookup are dummied.
  */
 import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
+import { Section, Segmented, ChipList } from './formBits.tsx'
 import {
+  ACCOUNT_TYPES,
   blankCustomerDraft,
   type CustomerDraft,
-  type InvoiceFrequencyMode,
+  type Contact,
+  type SavedCustomerAddress,
+  type CommissionBand,
+  type AddressKind,
 } from '@/store/customersStore.ts'
 import type { CompanyAddress } from '@/api/mock/companyLookup.ts'
 import { lookupCompany, lookupCredit } from '@/api/mock/companyLookup.ts'
 
-type Tab = 'account' | 'invoicing'
-
+type Tab = 'account' | 'invoicing' | 'addresses' | 'sales' | 'tariffs' | 'rules' | 'notes'
+const TABS: Array<[Tab, string]> = [
+  ['account', 'Account'], ['invoicing', 'Invoicing'], ['addresses', 'Addresses'],
+  ['sales', 'Sales'], ['tariffs', 'Tariffs'], ['rules', 'Rules'], ['notes', 'Notes'],
+]
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const CURRENCIES = ['GBP', 'EUR', 'USD']
+const TARIFFS = ['Standard', 'Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
+
+const uid = () => crypto.randomUUID()
 
 function toISO(dmy: string): string {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dmy)
@@ -28,120 +39,166 @@ function fromISO(iso: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
 }
 
-export function CustomerForm({
-  onClose,
-  onSave,
-}: {
-  onClose: () => void
-  onSave: (draft: CustomerDraft) => void
-}) {
+export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave: (d: CustomerDraft) => void }) {
   const [tab, setTab] = useState<Tab>('account')
   const [d, setD] = useState<CustomerDraft>(blankCustomerDraft())
   const [companyQuery, setCompanyQuery] = useState('')
 
   const set = (patch: Partial<CustomerDraft>) => setD((p) => ({ ...p, ...patch }))
-  const setAddr = (patch: Partial<CompanyAddress>) => setD((p) => ({ ...p, address: { ...p.address, ...patch } }))
-  const setInv = (patch: Partial<CustomerDraft['invoicing']>) =>
-    setD((p) => ({ ...p, invoicing: { ...p.invoicing, ...patch } }))
-  const setInvAddr = (patch: Partial<CompanyAddress>) =>
-    setD((p) => ({ ...p, invoicing: { ...p.invoicing, address: { ...p.invoicing.address, ...patch } } }))
+  const setInv = (patch: Partial<CustomerDraft['invoicing']>) => setD((p) => ({ ...p, invoicing: { ...p.invoicing, ...patch } }))
+  const setInvAddr = (patch: Partial<CompanyAddress>) => setD((p) => ({ ...p, invoicing: { ...p.invoicing, address: { ...p.invoicing.address, ...patch } } }))
+  const setSales = (patch: Partial<CustomerDraft['sales']>) => setD((p) => ({ ...p, sales: { ...p.sales, ...patch } }))
+  const setRules = (patch: Partial<CustomerDraft['rules']>) => setD((p) => ({ ...p, rules: { ...p.rules, ...patch } }))
 
   function runCompanyLookup() {
-    const r = lookupCompany(companyQuery || d.tradingName)
+    const r = lookupCompany(companyQuery || d.companyName)
     if (!r) return
-    set({
-      tradingName: r.tradingName,
-      displayName: d.displayName || r.tradingName,
-      companyRegNumber: r.companyRegNumber,
-      address: { ...r.address },
-    })
+    setD((p) => ({
+      ...p,
+      companyName: p.companyName || r.tradingName,
+      invoicing: { ...p.invoicing, tradingName: r.tradingName, companyReg: r.companyRegNumber, address: { ...r.address } },
+    }))
   }
-
   function runCreditLookup() {
-    const reg = d.invoicing.companyRegNumber || d.companyRegNumber
-    if (!reg) return
-    const c = lookupCredit(reg)
+    if (!d.invoicing.companyReg) return
+    const c = lookupCredit(d.invoicing.companyReg)
     setInv({ creditScore: c.creditScore, creditLimit: c.creditLimit })
   }
 
   function save() {
-    if (!d.tradingName.trim() && !d.displayName.trim()) return
-    const draft: CustomerDraft = {
-      ...d,
-      invoicing: {
-        ...d.invoicing,
-        tradingName: d.invoicing.mirrorTradingName ? d.tradingName : d.invoicing.tradingName,
-        address: d.invoicing.addressMode === 'registered' ? { ...d.address } : d.invoicing.address,
-      },
+    if (!d.companyName.trim()) {
+      setTab('account')
+      return
     }
-    onSave(draft)
+    onSave({
+      ...d,
+      invoicing: { ...d.invoicing, tradingName: d.invoicing.sameAsCompany ? d.companyName : d.invoicing.tradingName },
+    })
   }
 
   return (
-    <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal customer-modal">
-        <div className="modal-h">
-          New customer
-          <span className="x" onClick={onClose}>✕</span>
-        </div>
-
-        <div className="cf-tabs">
-          <button className={'cf-tab' + (tab === 'account' ? ' on' : '')} onClick={() => setTab('account')}>Account</button>
-          <button className={'cf-tab' + (tab === 'invoicing' ? ' on' : '')} onClick={() => setTab('invoicing')}>Invoicing</button>
-        </div>
-
-        <div className="modal-b cf-body">
-          {tab === 'account' ? (
-            <AccountTab
-              d={d}
-              set={set}
-              setAddr={setAddr}
-              companyQuery={companyQuery}
-              setCompanyQuery={setCompanyQuery}
-              runCompanyLookup={runCompanyLookup}
-            />
-          ) : (
-            <InvoicingTab d={d} setInv={setInv} setInvAddr={setInvAddr} runCreditLookup={runCreditLookup} />
-          )}
-        </div>
-
-        <div className="modal-f">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={save} disabled={!d.tradingName.trim() && !d.displayName.trim()}>
-            Add customer
+      <div className="cf-page">
+        <div className="cf-page-head">
+          <button className="cf-back" onClick={onClose} title="Back to customers">
+            <Icon name="copy" size={18} />
           </button>
+          <div>
+            <h1>New Customer</h1>
+            <div className="cf-sub">Create a new customer account</div>
+          </div>
+          <div className="cf-page-actions">
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn primary" onClick={save} disabled={!d.companyName.trim()}>Save customer</button>
+          </div>
+        </div>
+
+        <div className="cf-card">
+          <div className="cf-tabs">
+            {TABS.map(([t, label]) => (
+              <button key={t} className={'cf-tab' + (t === tab ? ' on' : '')} onClick={() => setTab(t)}>{label}</button>
+            ))}
+          </div>
+
+          <div className="cf-body">
+            {tab === 'account' && (
+              <AccountTab d={d} set={set} companyQuery={companyQuery} setCompanyQuery={setCompanyQuery} runCompanyLookup={runCompanyLookup} />
+            )}
+            {tab === 'invoicing' && (
+              <InvoicingTab d={d} setInv={setInv} setInvAddr={setInvAddr} runCreditLookup={runCreditLookup} />
+            )}
+            {tab === 'addresses' && <AddressesTab d={d} set={set} />}
+            {tab === 'sales' && <SalesTab d={d} setSales={setSales} />}
+            {tab === 'tariffs' && <TariffsTab d={d} set={set} />}
+            {tab === 'rules' && <RulesTab d={d} setRules={setRules} />}
+            {tab === 'notes' && (
+              <Section title="Notes" hint="internal">
+                <div className="fld">
+                  <textarea rows={8} placeholder="Anything the team should know about this account…" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />
+                </div>
+              </Section>
+            )}
+          </div>
         </div>
       </div>
-    </div>
   )
 }
 
-// ── segmented control ──────────────────────────────────────────────────────
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: Array<[T, string]>; onChange: (v: T) => void }) {
+// ── Account ───────────────────────────────────────────────────────────────────
+function AccountTab({ d, set, companyQuery, setCompanyQuery, runCompanyLookup }: {
+  d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void
+  companyQuery: string; setCompanyQuery: (v: string) => void; runCompanyLookup: () => void
+}) {
+  const addContact = () => set({ contacts: [...d.contacts, { id: uid(), name: '', email: '', phone: '', role: '', isMain: d.contacts.length === 0 }] })
+  const updContact = (id: string, patch: Partial<Contact>) => set({ contacts: d.contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
+  const setMain = (id: string) => set({ contacts: d.contacts.map((c) => ({ ...c, isMain: c.id === id })) })
+  const removeContact = (id: string) => set({ contacts: d.contacts.filter((c) => c.id !== id) })
+
   return (
-    <div className="cf-seg">
-      {options.map(([v, label]) => (
-        <button key={v} className={'cf-seg-btn' + (value === v ? ' on' : '')} onClick={() => onChange(v)}>
-          {label}
-        </button>
-      ))}
-    </div>
+    <>
+      <Section title="Find company" hint="HMRC lookup (dummy) — by name or reg number">
+        <div className="cf-lookup">
+          <input placeholder="Company name or reg number…" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runCompanyLookup()} />
+          <button className="btn" onClick={runCompanyLookup}><Icon name="search" size={14} /> Look up</button>
+        </div>
+        <div className="cf-hint">Pre-fills the company name, registration number and invoicing address.</div>
+      </Section>
+
+      <Section title="Account">
+        <div className="g2">
+          <div className="fld"><label>Company name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Shown across the system" /></div>
+          <div className="fld"><label>Account code</label><input value="Auto — generated on save" disabled /></div>
+        </div>
+        <div className="fld">
+          <label>Alternative / reference names</label>
+          <ChipList values={d.altNames} placeholder="Other names / nicknames this customer is known by…" onChange={(v) => set({ altNames: v })} />
+        </div>
+        <div className="g2">
+          <div className="fld">
+            <label>Account type</label>
+            <select value={d.accountType} onChange={(e) => set({ accountType: e.target.value })}>
+              {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="fld"><label>Status</label><Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} /></div>
+        </div>
+        <div className="g2">
+          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} /></div>
+          <div className="fld"><label>Assigned to (admin user)</label><input value={d.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} placeholder="e.g. Owen Johnson" /></div>
+        </div>
+        <div className="g2">
+          <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
+          <div className="fld"><label>Loyalty</label>
+            <label className="chk" style={{ height: 28 }}>
+              <input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points
+            </label>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Contacts" hint="star the main contact" action={<button className="btn sm" onClick={addContact}><Icon name="plus" size={13} /> Add contact</button>}>
+        {d.contacts.length === 0 ? (
+          <div className="cf-empty">No contacts yet.</div>
+        ) : (
+          d.contacts.map((c) => (
+            <div className="cf-contact" key={c.id}>
+              <button className={'cf-star' + (c.isMain ? ' on' : '')} title="Main contact" onClick={() => setMain(c.id)}>★</button>
+              <div className="cf-contact-grid">
+                <div className="fld"><label>Name</label><input value={c.name} onChange={(e) => updContact(c.id, { name: e.target.value })} /></div>
+                <div className="fld"><label>Role</label><input value={c.role} onChange={(e) => updContact(c.id, { role: e.target.value })} placeholder="e.g. Accounts" /></div>
+                <div className="fld"><label>Email</label><input value={c.email} onChange={(e) => updContact(c.id, { email: e.target.value })} /></div>
+                <div className="fld"><label>Phone</label><input value={c.phone} onChange={(e) => updContact(c.id, { phone: e.target.value })} /></div>
+              </div>
+              <button className="btn sm iconbtn" title="Remove" onClick={() => removeContact(c.id)}><Icon name="trash" size={14} /></button>
+            </div>
+          ))
+        )}
+      </Section>
+    </>
   )
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="cf-section">
-      <div className="cf-section-h">
-        {title}
-        {hint && <span className="cf-hint">{hint}</span>}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function AddressFields({ addr, onChange }: { addr: CompanyAddress; onChange: (patch: Partial<CompanyAddress>) => void }) {
+// ── Invoicing ───────────────────────────────────────────────────────────────────
+function AddressFields({ addr, onChange }: { addr: CompanyAddress; onChange: (p: Partial<CompanyAddress>) => void }) {
   return (
     <>
       <div className="g-cpc">
@@ -158,197 +215,187 @@ function AddressFields({ addr, onChange }: { addr: CompanyAddress; onChange: (pa
   )
 }
 
-// ── Account tab ──────────────────────────────────────────────────────────────
-function AccountTab({
-  d, set, setAddr, companyQuery, setCompanyQuery, runCompanyLookup,
-}: {
+function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
   d: CustomerDraft
-  set: (p: Partial<CustomerDraft>) => void
-  setAddr: (p: Partial<CompanyAddress>) => void
-  companyQuery: string
-  setCompanyQuery: (v: string) => void
-  runCompanyLookup: () => void
+  setInv: (p: Partial<CustomerDraft['invoicing']>) => void; setInvAddr: (p: Partial<CompanyAddress>) => void; runCreditLookup: () => void
 }) {
+  const inv = d.invoicing
   return (
     <>
-      <Section title="Account">
+      <Section title="Invoicing name & address" hint="the company / billing address lives here">
+        <label className="chk"><input type="checkbox" checked={inv.sameAsCompany} onChange={(e) => setInv({ sameAsCompany: e.target.checked })} /> Trading name same as company name</label>
+        {!inv.sameAsCompany && <div className="fld"><label>Trading name (on invoices)</label><input value={inv.tradingName} onChange={(e) => setInv({ tradingName: e.target.value })} /></div>}
+        <AddressFields addr={inv.address} onChange={setInvAddr} />
+      </Section>
+
+      <Section title="Identifiers">
+        <div className="g-cpc">
+          <div className="fld"><label>Company reg</label><input value={inv.companyReg} onChange={(e) => setInv({ companyReg: e.target.value })} /></div>
+          <div className="fld"><label>VAT number</label><input value={inv.vat} onChange={(e) => setInv({ vat: e.target.value })} /></div>
+          <div className="fld"><label>EORI number</label><input value={inv.eori} onChange={(e) => setInv({ eori: e.target.value })} /></div>
+        </div>
+      </Section>
+
+      <Section title="Payment">
+        <div className="g2">
+          <div className="fld"><label>Payment type</label><Segmented value={inv.paymentType} onChange={(v) => setInv({ paymentType: v })} options={[['card', 'Upfront card'], ['invoice', 'Invoice terms']]} /></div>
+          {inv.paymentType === 'invoice' && (
+            <div className="fld">
+              <label>Payment terms</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input type="number" min={0} style={{ width: 80 }} value={inv.termsDays} onChange={(e) => setInv({ termsDays: +e.target.value })} />
+                <select value={inv.termsBasis} onChange={(e) => setInv({ termsBasis: e.target.value as typeof inv.termsBasis })}>
+                  <option value="net">days net</option>
+                  <option value="eow">end of week</option>
+                  <option value="eom">end of month</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="g2">
           <div className="fld">
-            <label>Account type</label>
-            <Segmented value={d.accountType} onChange={(v) => set({ accountType: v })} options={[['company', 'Company'], ['personal', 'Personal']]} />
+            <label>Invoice frequency</label>
+            <select value={inv.frequency} onChange={(e) => setInv({ frequency: e.target.value as typeof inv.frequency })}>
+              <option value="per-job">Per job</option><option value="per-day">Per day</option>
+              <option value="weekly">Weekly</option><option value="bi-weekly">Bi-weekly</option><option value="monthly">Monthly</option>
+            </select>
           </div>
-          <div className="fld">
-            <label>Status</label>
-            <Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} />
-          </div>
+          <div className="fld"><label>Currency</label><select value={inv.currency} onChange={(e) => setInv({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
         </div>
+        {(inv.frequency === 'weekly' || inv.frequency === 'bi-weekly') && (
+          <div className="cf-weekdays">
+            {WEEKDAYS.map((wd) => {
+              const on = inv.weekdays.includes(wd)
+              return <button key={wd} type="button" className={'cf-seg-btn' + (on ? ' on' : '')} onClick={() => setInv({ weekdays: on ? inv.weekdays.filter((x) => x !== wd) : [...inv.weekdays, wd] })}>{wd}</button>
+            })}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Emails">
+        <div className="fld"><label>Invoice emails</label><ChipList values={inv.invoiceEmails} placeholder="finance@example.com" onChange={(v) => setInv({ invoiceEmails: v })} /></div>
+        <div className="fld"><label>Statement emails</label><ChipList values={inv.statementEmails} placeholder="statements@example.com" onChange={(v) => setInv({ statementEmails: v })} /></div>
+      </Section>
+
+      <Section title="Invoice rules">
+        <label className="chk"><input type="checkbox" checked={inv.poRequired} onChange={(e) => setInv({ poRequired: e.target.checked })} /> Requires a PO number before invoicing</label>
+        <label className="chk"><input type="checkbox" checked={inv.attachPods} onChange={(e) => setInv({ attachPods: e.target.checked })} /> Attach PODs to invoices</label>
+        <label className="chk"><input type="checkbox" checked={inv.separatePerRef} onChange={(e) => setInv({ separatePerRef: e.target.checked })} /> Separate invoice per unique customer ref / PO</label>
         <div className="g2">
-          <div className="fld">
-            <label>Start date</label>
-            <input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} />
-          </div>
-          <div className="fld">
-            <label>Account code</label>
-            <input value="Auto — generated on save" disabled />
-          </div>
+          <div className="fld"><label>Max value per invoice (£)</label><input type="number" value={inv.maxValuePerInvoice ?? ''} onChange={(e) => setInv({ maxValuePerInvoice: e.target.value === '' ? null : +e.target.value })} placeholder="e.g. 5000" /></div>
+          <div className="fld"><label>Invoice prefixes</label><ChipList values={inv.prefixes} placeholder="e.g. ACME-" onChange={(v) => setInv({ prefixes: v })} /></div>
         </div>
       </Section>
 
-      <Section title="Find company" hint="HMRC lookup (dummy) — by name or reg number">
-        <div className="cf-lookup">
-          <input
-            placeholder="Trading name or company reg number…"
-            value={companyQuery}
-            onChange={(e) => setCompanyQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && runCompanyLookup()}
-          />
-          <button className="btn" onClick={runCompanyLookup}><Icon name="search" size={14} /> Look up</button>
-        </div>
-      </Section>
-
-      <Section title="Names">
+      <Section title="Credit" hint="CreditSafe (dummy)" action={<button className="btn sm" onClick={runCreditLookup} disabled={!inv.companyReg}><Icon name="search" size={13} /> Check credit</button>}>
         <div className="g2">
-          <div className="fld"><label>Trading name (used on invoicing)</label><input value={d.tradingName} onChange={(e) => set({ tradingName: e.target.value })} /></div>
-          <div className="fld"><label>Display name (shown on the system)</label><input value={d.displayName} onChange={(e) => set({ displayName: e.target.value })} /></div>
+          <div className="fld"><label>Credit limit (£)</label><input type="number" value={inv.creditLimit ?? ''} onChange={(e) => setInv({ creditLimit: e.target.value === '' ? null : +e.target.value })} /></div>
+          <div className="fld"><label>Credit score</label><input type="number" value={inv.creditScore ?? ''} onChange={(e) => setInv({ creditScore: e.target.value === '' ? null : +e.target.value })} /></div>
         </div>
-        <div className="fld">
-          <label>Nicknames (comma-separated, searchable)</label>
-          <input
-            placeholder="e.g. OT Limited, OTL"
-            value={d.nicknames.join(', ')}
-            onChange={(e) => set({ nicknames: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-          />
-        </div>
-      </Section>
-
-      <Section title="Department & team" hint="coming soon">
-        <div className="g2 cf-disabled">
-          <div className="fld"><label>Department</label><select disabled><option>—</option></select></div>
-          <div className="fld"><label>Team</label><select disabled><option>—</option></select></div>
-        </div>
-        <div className="cf-hint">Assigning customers to departments/teams will be enabled once that schema exists.</div>
-      </Section>
-
-      <Section title="Company address">
-        <AddressFields addr={d.address} onChange={setAddr} />
-        <div className="fld"><label>Company registration number</label><input value={d.companyRegNumber} onChange={(e) => set({ companyRegNumber: e.target.value })} /></div>
       </Section>
     </>
   )
 }
 
-// ── Invoicing tab ─────────────────────────────────────────────────────────────
-function InvoicingTab({
-  d, setInv, setInvAddr, runCreditLookup,
-}: {
-  d: CustomerDraft
-  setInv: (p: Partial<CustomerDraft['invoicing']>) => void
-  setInvAddr: (p: Partial<CompanyAddress>) => void
-  runCreditLookup: () => void
-}) {
-  const inv = d.invoicing
+// ── Addresses ───────────────────────────────────────────────────────────────────
+function AddressesTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
+  const add = () => set({ addresses: [...d.addresses, { id: uid(), label: '', kind: 'delivery', postcode: '', line1: '', city: '' }] })
+  const upd = (id: string, patch: Partial<SavedCustomerAddress>) => set({ addresses: d.addresses.map((a) => (a.id === id ? { ...a, ...patch } : a)) })
+  const remove = (id: string) => set({ addresses: d.addresses.filter((a) => a.id !== id) })
+  return (
+    <Section title="Delivery / collection addresses" hint="saved with the customer" action={<button className="btn sm" onClick={add}><Icon name="plus" size={13} /> Add address</button>}>
+      {d.addresses.length === 0 ? (
+        <div className="cf-empty">No saved addresses yet.</div>
+      ) : (
+        d.addresses.map((a) => (
+          <div className="cf-addr" key={a.id}>
+            <div className="cf-addr-grid">
+              <div className="fld"><label>Label</label><input value={a.label} onChange={(e) => upd(a.id, { label: e.target.value })} placeholder="e.g. Main depot" /></div>
+              <div className="fld"><label>Type</label><select value={a.kind} onChange={(e) => upd(a.id, { kind: e.target.value as AddressKind })}><option value="collection">Collection</option><option value="delivery">Delivery</option><option value="both">Both</option></select></div>
+              <div className="fld"><label>Postcode</label><input value={a.postcode} onChange={(e) => upd(a.id, { postcode: e.target.value })} /></div>
+              <div className="fld span2"><label>Address line 1</label><input value={a.line1} onChange={(e) => upd(a.id, { line1: e.target.value })} /></div>
+              <div className="fld"><label>City</label><input value={a.city} onChange={(e) => upd(a.id, { city: e.target.value })} /></div>
+            </div>
+            <button className="btn sm iconbtn" title="Remove" onClick={() => remove(a.id)}><Icon name="trash" size={14} /></button>
+          </div>
+        ))
+      )}
+    </Section>
+  )
+}
+
+// ── Sales ───────────────────────────────────────────────────────────────────────
+function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<CustomerDraft['sales']>) => void }) {
+  const s = d.sales
+  const addBand = () => setSales({ bands: [...s.bands, { id: uid(), from: 0, rate: 0 }] })
+  const updBand = (id: string, patch: Partial<CommissionBand>) => setSales({ bands: s.bands.map((b) => (b.id === id ? { ...b, ...patch } : b)) })
+  const removeBand = (id: string) => setSales({ bands: s.bands.filter((b) => b.id !== id) })
   return (
     <>
-      <Section title="Invoicing name & address">
-        <label className="chk">
-          <input type="checkbox" checked={inv.mirrorTradingName} onChange={(e) => setInv({ mirrorTradingName: e.target.checked })} /> Mirror trading name from account
-        </label>
-        {!inv.mirrorTradingName && (
-          <div className="fld"><label>Invoicing trading name</label><input value={inv.tradingName} onChange={(e) => setInv({ tradingName: e.target.value })} /></div>
-        )}
-        <div className="fld">
-          <label>Invoicing address</label>
-          <Segmented value={inv.addressMode} onChange={(v) => setInv({ addressMode: v })} options={[['registered', 'Use registered address'], ['different', 'Different address']]} />
-        </div>
-        {inv.addressMode === 'different' && <AddressFields addr={inv.address} onChange={setInvAddr} />}
-      </Section>
-
-      <Section title="Contacts">
-        <div className="fld"><label>Invoice email(s) — comma-separated</label><input value={inv.invoiceEmails} onChange={(e) => setInv({ invoiceEmails: e.target.value })} placeholder="ap@acme.co.uk, finance@acme.co.uk" /></div>
-        <div className="fld"><label>Statement email(s) — comma-separated</label><input value={inv.statementEmails} onChange={(e) => setInv({ statementEmails: e.target.value })} /></div>
-      </Section>
-
-      <Section title="Identifiers">
+      <Section title="Attribution">
         <div className="g2">
-          <div className="fld">
-            <label>Company reg number</label>
-            <div className="cf-lookup">
-              <input value={inv.companyRegNumber} onChange={(e) => setInv({ companyRegNumber: e.target.value })} />
-              <button className="btn sm" title="Copy from account" onClick={() => setInv({ companyRegNumber: d.companyRegNumber })}>Copy</button>
-            </div>
-          </div>
-          <div className="fld"><label>VAT number</label><input value={inv.vatNumber} onChange={(e) => setInv({ vatNumber: e.target.value })} /></div>
+          <div className="fld"><label>Converted by</label><input value={s.convertedBy} onChange={(e) => setSales({ convertedBy: e.target.value })} /></div>
+          <div className="fld"><label>Lead by</label><input value={s.leadBy} onChange={(e) => setSales({ leadBy: e.target.value })} /></div>
         </div>
-        <div className="fld"><label>EORI number</label><input value={inv.eoriNumber} onChange={(e) => setInv({ eoriNumber: e.target.value })} /></div>
-      </Section>
-
-      <Section title="Payment terms">
-        <Segmented value={inv.paymentTerms.mode} onChange={(v) => setInv({ paymentTerms: { ...inv.paymentTerms, mode: v } })} options={[['card', 'Upfront card'], ['invoice', 'Invoice terms']]} />
-        {inv.paymentTerms.mode === 'invoice' && (
-          <div className="g2" style={{ marginTop: 8 }}>
-            <div className="fld"><label>Days</label><input type="number" min={0} value={inv.paymentTerms.days} onChange={(e) => setInv({ paymentTerms: { ...inv.paymentTerms, days: +e.target.value } })} /></div>
-            <div className="fld">
-              <label>Basis</label>
-              <select value={inv.paymentTerms.basis} onChange={(e) => setInv({ paymentTerms: { ...inv.paymentTerms, basis: e.target.value as typeof inv.paymentTerms.basis } })}>
-                <option value="net">days net</option>
-                <option value="eow">end of week</option>
-                <option value="eom">end of month</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </Section>
-
-      <Section title="Invoice frequency">
-        <select value={inv.invoiceFrequency.mode} onChange={(e) => setInv({ invoiceFrequency: { ...inv.invoiceFrequency, mode: e.target.value as InvoiceFrequencyMode } })}>
-          <option value="per-job">Per job</option>
-          <option value="per-day">Per day</option>
-          <option value="weekly">Weekly</option>
-          <option value="bi-weekly">Bi-weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-        {(inv.invoiceFrequency.mode === 'weekly' || inv.invoiceFrequency.mode === 'bi-weekly') && (
-          <div className="cf-weekdays">
-            {WEEKDAYS.map((wd) => {
-              const on = inv.invoiceFrequency.weekdays.includes(wd)
-              return (
-                <button
-                  key={wd}
-                  className={'cf-seg-btn' + (on ? ' on' : '')}
-                  onClick={() => setInv({ invoiceFrequency: { ...inv.invoiceFrequency, weekdays: on ? inv.invoiceFrequency.weekdays.filter((x) => x !== wd) : [...inv.invoiceFrequency.weekdays, wd] } })}
-                >
-                  {wd}
-                </button>
-              )
-            })}
-          </div>
-        )}
-        <label className="chk" style={{ marginTop: 8 }}>
-          <input type="checkbox" checked={inv.poRequired} onChange={(e) => setInv({ poRequired: e.target.checked })} /> Requires a PO number before invoicing
-        </label>
-        <label className="chk">
-          <input type="checkbox" checked={inv.separateInvoicePerPo} onChange={(e) => setInv({ separateInvoicePerPo: e.target.checked })} /> Separate invoice per unique PO number
-        </label>
-      </Section>
-
-      <Section title="Commercials">
         <div className="g2">
-          <div className="fld">
-            <label>Currency</label>
-            <select value={inv.currency} onChange={(e) => setInv({ currency: e.target.value })}>
-              {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="fld"><label>Invoice prefixes (comma-separated)</label><input value={inv.invoicePrefixes} onChange={(e) => setInv({ invoicePrefixes: e.target.value })} placeholder="e.g. ACME, AC-" /></div>
+          <div className="fld"><label>Source</label><input value={s.source} onChange={(e) => setSales({ source: e.target.value })} placeholder="e.g. Referral, Web" /></div>
+          <div className="fld"><label>Estimated annual spend (£)</label><input type="number" value={s.estAnnualSpend ?? ''} onChange={(e) => setSales({ estAnnualSpend: e.target.value === '' ? null : +e.target.value })} /></div>
         </div>
-        <div className="cf-credit">
-          <button className="btn" onClick={runCreditLookup}><Icon name="search" size={14} /> Check credit (CreditSafe)</button>
-          <div className="cf-credit-vals">
-            <span><b>Score:</b> {inv.creditScore ?? '—'}</span>
-            <span><b>Limit:</b> {inv.creditLimit != null ? `£${inv.creditLimit.toLocaleString()}` : '—'}</span>
-          </div>
+      </Section>
+
+      <Section title="Commission">
+        <div className="g2">
+          <div className="fld"><label>Commission start</label><input value="Auto — starts on first job" disabled /></div>
+          <div className="fld"><label>Commission end</label><input type="date" value={toISO(s.commissionEnd)} onChange={(e) => setSales({ commissionEnd: fromISO(e.target.value) })} /></div>
         </div>
+        <div className="g2">
+          <div className="fld"><label>Calculated on</label><select value={s.calculatedOn} onChange={(e) => setSales({ calculatedOn: e.target.value as typeof s.calculatedOn })}><option value="revenue">Revenue</option><option value="margin">Margin</option></select><div className="cf-hint">What the rate is multiplied by.</div></div>
+          <div className="fld"><label>Based on</label><select value={s.basedOn} onChange={(e) => setSales({ basedOn: e.target.value as typeof s.basedOn })}><option value="margin">Margin</option><option value="revenue">Revenue</option></select><div className="cf-hint">What band thresholds are checked against.</div></div>
+        </div>
+      </Section>
+
+      <Section title="Bands" action={<button className="btn sm" onClick={addBand}><Icon name="plus" size={13} /> Add band</button>}>
+        {s.bands.length === 0 ? (
+          <div className="cf-empty">No bands yet — add a rate bracket.</div>
+        ) : (
+          s.bands.map((b) => (
+            <div className="cf-band" key={b.id}>
+              <div className="fld"><label>From (£)</label><input type="number" value={b.from} onChange={(e) => updBand(b.id, { from: +e.target.value })} /></div>
+              <div className="fld"><label>Rate (%)</label><input type="number" value={b.rate} onChange={(e) => updBand(b.id, { rate: +e.target.value })} /></div>
+              <button className="btn sm iconbtn" title="Remove" onClick={() => removeBand(b.id)}><Icon name="trash" size={14} /></button>
+            </div>
+          ))
+        )}
+        <div className="fld"><label>Commission cap (£)</label><input type="number" value={s.cap ?? ''} onChange={(e) => setSales({ cap: e.target.value === '' ? null : +e.target.value })} /></div>
       </Section>
     </>
+  )
+}
+
+// ── Tariffs / Rules ───────────────────────────────────────────────────────────────
+function TariffsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
+  return (
+    <Section title="Tariffs" hint="customer-specific rate cards coming soon">
+      <div className="fld">
+        <label>Default tariff</label>
+        <select value={d.defaultTariff} onChange={(e) => set({ defaultTariff: e.target.value })}>
+          <option value="">— Select —</option>
+          {TARIFFS.map((t) => <option key={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="cf-hint">Per-customer rate cards and overrides will be added once the tariff schema is built.</div>
+    </Section>
+  )
+}
+
+function RulesTab({ d, setRules }: { d: CustomerDraft; setRules: (p: Partial<CustomerDraft['rules']>) => void }) {
+  const r = d.rules
+  return (
+    <Section title="Operating rules" hint="more coming soon">
+      <label className="chk"><input type="checkbox" checked={r.requireBookingRef} onChange={(e) => setRules({ requireBookingRef: e.target.checked })} /> Require a booking reference on every job</label>
+      <label className="chk"><input type="checkbox" checked={r.preferredDriversOnly} onChange={(e) => setRules({ preferredDriversOnly: e.target.checked })} /> Allocate to preferred drivers only</label>
+      <label className="chk"><input type="checkbox" checked={r.blockOverCreditLimit} onChange={(e) => setRules({ blockOverCreditLimit: e.target.checked })} /> Block new bookings when over credit limit</label>
+    </Section>
   )
 }

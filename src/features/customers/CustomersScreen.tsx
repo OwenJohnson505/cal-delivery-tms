@@ -1,7 +1,6 @@
 /**
- * CustomersScreen — accounts list with an "Add customer" button that opens the full
- * CustomerForm modal (Account + Invoicing tabs). To be built out (detail/edit view,
- * department/team, more tabs) later.
+ * CustomersScreen — accounts list, plus the full-page New Customer form (shown in place
+ * of the list while creating).
  */
 import { useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
@@ -16,7 +15,7 @@ export function CustomersScreen() {
   const jobs = useJobsStore((s) => s.jobs)
 
   const [query, setQuery] = useState('')
-  const [formOpen, setFormOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   const jobCount = useMemo(() => {
     const c: Record<string, number> = {}
@@ -29,16 +28,30 @@ export function CustomersScreen() {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     return customers.filter(
-      (c) => !q || `${c.displayName} ${c.tradingName} ${c.nicknames.join(' ')} ${c.accountCode}`.toLowerCase().includes(q),
+      (c) => !q || `${c.companyName} ${c.altNames.join(' ')} ${c.accountCode}`.toLowerCase().includes(q),
     )
   }, [customers, query])
+
+  if (creating) {
+    return (
+      <div className="list-app">
+        <CustomerForm
+          onClose={() => setCreating(false)}
+          onSave={(draft) => {
+            addCustomer(draft)
+            setCreating(false)
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="list-app">
       <div className="list-work">
         <div className="list-head">
           <h1>Customers</h1>
-          <button className="btn primary" onClick={() => setFormOpen(true)}>
+          <button className="btn primary" onClick={() => setCreating(true)}>
             <Icon name="plus" size={15} /> Add customer
           </button>
         </div>
@@ -47,7 +60,7 @@ export function CustomersScreen() {
           <div className="ac" style={{ maxWidth: 320 }}>
             <input
               type="text"
-              placeholder="Search name, trading name, nickname or code…"
+              placeholder="Search name, alt name or code…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -59,8 +72,8 @@ export function CustomersScreen() {
           <table className="list-table">
             <thead>
               <tr>
-                <th>Display name</th>
-                <th>Trading name</th>
+                <th>Company</th>
+                <th>Type</th>
                 <th>Code</th>
                 <th>Status</th>
                 <th className="num">Jobs</th>
@@ -70,17 +83,17 @@ export function CustomersScreen() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id}>
-                  <td><b>{c.displayName}</b></td>
-                  <td>{c.tradingName || '—'}</td>
+                  <td><b>{c.companyName}</b></td>
+                  <td>{c.accountType}</td>
                   <td>{c.accountCode}</td>
                   <td><span className={'itag' + (c.status === 'inactive' ? ' itag-muted' : '')}>{c.status === 'active' ? 'Active' : 'Inactive'}</span></td>
-                  <td className="num">{jobCount[c.displayName] || 0}</td>
+                  <td className="num">{jobCount[c.companyName] || 0}</td>
                   <td className="list-actions">
                     <button
                       className="btn sm iconbtn"
                       title="Delete"
                       onClick={() => {
-                        if (confirm(`Delete ${c.displayName}?`)) deleteCustomer(c.id)
+                        if (confirm(`Delete ${c.companyName}?`)) deleteCustomer(c.id)
                       }}
                     >
                       <Icon name="trash" size={14} />
@@ -99,16 +112,6 @@ export function CustomersScreen() {
           </table>
         </div>
       </div>
-
-      {formOpen && (
-        <CustomerForm
-          onClose={() => setFormOpen(false)}
-          onSave={(draft) => {
-            addCustomer(draft)
-            setFormOpen(false)
-          }}
-        />
-      )}
     </div>
   )
 }

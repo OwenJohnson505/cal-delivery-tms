@@ -1,72 +1,129 @@
 /**
  * Customers store — accounts shown on the Customers screen and (later) used by the booking
- * wizard. Rich account + invoicing model; in-memory + seeded for now (a real impl would
- * use the CRM/accounts service, §5). Lookups (HMRC/CreditSafe) are dummied in
+ * wizard. Rich account model captured across the New Customer page tabs. In-memory +
+ * seeded for now (real impl → CRM/accounts service, §5). Lookups dummied in
  * api/mock/companyLookup.
+ *
+ * Design notes (de-duplication): the company/billing address lives ONLY on Invoicing
+ * (`invoicing.address`); the Addresses tab holds collection/delivery points only.
+ * `companyName` is the system/display name; `invoicing.tradingName` is the legal/
+ * invoicing name (defaults to the company name via `sameAsCompany`).
  */
 import { create } from 'zustand'
 import { CUSTOMERS } from '@/api/mock/data.ts'
 import type { CompanyAddress } from '@/api/mock/companyLookup.ts'
 
-export type AccountType = 'company' | 'personal'
 export type AccountStatus = 'active' | 'inactive'
-export type PaymentMode = 'card' | 'invoice'
-/** net N days, end-of-week, or end-of-month. */
+export type PaymentType = 'card' | 'invoice'
 export type PaymentBasis = 'net' | 'eow' | 'eom'
-export type InvoiceFrequencyMode = 'per-job' | 'per-day' | 'weekly' | 'bi-weekly' | 'monthly'
-export type AddressMode = 'registered' | 'different'
+export type InvoiceFrequency = 'per-job' | 'per-day' | 'weekly' | 'bi-weekly' | 'monthly'
+export type AddressKind = 'collection' | 'delivery' | 'both'
+export type CommissionMetric = 'revenue' | 'margin'
 
-export interface PaymentTerms {
-  mode: PaymentMode
-  days: number
-  basis: PaymentBasis
+export const ACCOUNT_TYPES = [
+  'Private Limited Company',
+  'Public Limited Company (PLC)',
+  'Sole Trader',
+  'Partnership',
+  'LLP',
+  'Personal',
+  'Other',
+]
+
+export interface Contact {
+  id: string
+  name: string
+  email: string
+  phone: string
+  role: string
+  isMain: boolean
 }
 
-export interface InvoiceFrequency {
-  mode: InvoiceFrequencyMode
-  /** Used when weekly/bi-weekly, e.g. ['Mon']. */
-  weekdays: string[]
+export interface SavedCustomerAddress {
+  id: string
+  label: string
+  kind: AddressKind
+  postcode: string
+  line1: string
+  city: string
 }
 
-export interface Invoicing {
-  mirrorTradingName: boolean
+export interface CommissionBand {
+  id: string
+  /** Threshold this band applies from (in the "based on" metric). */
+  from: number
+  /** Rate %. */
+  rate: number
+}
+
+export interface InvoicingInfo {
   tradingName: string
-  addressMode: AddressMode
+  sameAsCompany: boolean
+  /** The company / billing / registered address — the single source of truth. */
   address: CompanyAddress
-  invoiceEmails: string // comma-separated
-  statementEmails: string // comma-separated
-  companyRegNumber: string
-  vatNumber: string
-  eoriNumber: string
-  paymentTerms: PaymentTerms
-  invoiceFrequency: InvoiceFrequency
-  poRequired: boolean
-  separateInvoicePerPo: boolean
+  companyReg: string
+  vat: string
+  eori: string
+  paymentType: PaymentType
+  termsDays: number
+  termsBasis: PaymentBasis
+  invoiceEmails: string[]
+  statementEmails: string[]
+  frequency: InvoiceFrequency
+  weekdays: string[]
   currency: string
-  creditScore: number | null
+  prefixes: string[]
+  poRequired: boolean
+  attachPods: boolean
+  separatePerRef: boolean
+  maxValuePerInvoice: number | null
   creditLimit: number | null
-  invoicePrefixes: string // comma-separated
+  creditScore: number | null
+}
+
+export interface SalesInfo {
+  convertedBy: string
+  leadBy: string
+  source: string
+  estAnnualSpend: number | null
+  commissionEnd: string
+  calculatedOn: CommissionMetric
+  basedOn: CommissionMetric
+  bands: CommissionBand[]
+  cap: number | null
+}
+
+export interface RulesInfo {
+  requireBookingRef: boolean
+  preferredDriversOnly: boolean
+  blockOverCreditLimit: boolean
 }
 
 export interface Customer {
   id: string
-  accountType: AccountType
+  accountCode: string
+  // Account
+  companyName: string // system / display name
+  altNames: string[] // alternative / reference names + nicknames
+  accountType: string
   status: AccountStatus
-  startDate: string // 'dd-mm-yyyy'
-  accountCode: string // system-generated
-  /** Registered company name — used on invoicing + searchable. */
-  tradingName: string
-  /** How the customer is shown across the system. */
-  displayName: string
-  nicknames: string[]
-  department: string
-  team: string
-  address: CompanyAddress
-  companyRegNumber: string
-  invoicing: Invoicing
+  startDate: string // dd-mm-yyyy
+  assignedTo: string
+  team: string // coming soon
+  loyaltyEnabled: boolean // CalClub
+  contacts: Contact[]
+  // Invoicing
+  invoicing: InvoicingInfo
+  // Addresses (collection / delivery)
+  addresses: SavedCustomerAddress[]
+  // Sales
+  sales: SalesInfo
+  // Tariffs / Rules / Notes
+  defaultTariff: string
+  rules: RulesInfo
+  notes: string
 }
 
-/** Form draft = a Customer without its generated id/accountCode. */
 export type CustomerDraft = Omit<Customer, 'id' | 'accountCode'>
 
 function emptyAddress(): CompanyAddress {
@@ -75,35 +132,53 @@ function emptyAddress(): CompanyAddress {
 
 export function blankCustomerDraft(): CustomerDraft {
   return {
-    accountType: 'company',
+    companyName: '',
+    altNames: [],
+    accountType: ACCOUNT_TYPES[0],
     status: 'active',
     startDate: '',
-    tradingName: '',
-    displayName: '',
-    nicknames: [],
-    department: '',
+    assignedTo: '',
     team: '',
-    address: emptyAddress(),
-    companyRegNumber: '',
+    loyaltyEnabled: false,
+    contacts: [],
     invoicing: {
-      mirrorTradingName: true,
       tradingName: '',
-      addressMode: 'registered',
+      sameAsCompany: true,
       address: emptyAddress(),
-      invoiceEmails: '',
-      statementEmails: '',
-      companyRegNumber: '',
-      vatNumber: '',
-      eoriNumber: '',
-      paymentTerms: { mode: 'invoice', days: 30, basis: 'net' },
-      invoiceFrequency: { mode: 'per-job', weekdays: [] },
-      poRequired: false,
-      separateInvoicePerPo: false,
+      companyReg: '',
+      vat: '',
+      eori: '',
+      paymentType: 'invoice',
+      termsDays: 30,
+      termsBasis: 'net',
+      invoiceEmails: [],
+      statementEmails: [],
+      frequency: 'per-job',
+      weekdays: [],
       currency: 'GBP',
-      creditScore: null,
+      prefixes: [],
+      poRequired: false,
+      attachPods: false,
+      separatePerRef: false,
+      maxValuePerInvoice: null,
       creditLimit: null,
-      invoicePrefixes: '',
+      creditScore: null,
     },
+    addresses: [],
+    sales: {
+      convertedBy: '',
+      leadBy: '',
+      source: '',
+      estAnnualSpend: null,
+      commissionEnd: '',
+      calculatedOn: 'revenue',
+      basedOn: 'margin',
+      bands: [],
+      cap: null,
+    },
+    defaultTariff: '',
+    rules: { requireBookingRef: false, preferredDriversOnly: false, blockOverCreditLimit: false },
+    notes: '',
   }
 }
 
@@ -115,16 +190,17 @@ interface CustomersState {
 }
 
 function seedCustomers(): Customer[] {
-  return CUSTOMERS.map((c, i) => ({
-    ...blankCustomerDraft(),
-    id: c.id,
-    accountCode: `CUS-${1001 + i}`,
-    tradingName: c.name,
-    displayName: c.name,
-    status: 'active',
-    startDate: '01-04-2025',
-    invoicing: { ...blankCustomerDraft().invoicing, tradingName: c.name },
-  }))
+  return CUSTOMERS.map((c, i) => {
+    const base = blankCustomerDraft()
+    return {
+      ...base,
+      id: c.id,
+      accountCode: `CUS-${1001 + i}`,
+      companyName: c.name,
+      startDate: '01-04-2025',
+      invoicing: { ...base.invoicing, tradingName: c.name },
+    }
+  })
 }
 
 export const useCustomersStore = create<CustomersState>((set, get) => ({
@@ -133,12 +209,7 @@ export const useCustomersStore = create<CustomersState>((set, get) => ({
 
   addCustomer: (draft) => {
     const seq = get().seq + 1
-    const customer: Customer = {
-      ...draft,
-      id: crypto.randomUUID(),
-      accountCode: `CUS-${seq}`,
-      displayName: draft.displayName.trim() || draft.tradingName.trim(),
-    }
+    const customer: Customer = { ...draft, id: crypto.randomUUID(), accountCode: `CUS-${seq}` }
     set((s) => ({ customers: [customer, ...s.customers], seq }))
     return customer
   },
