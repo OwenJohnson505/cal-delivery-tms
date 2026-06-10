@@ -613,7 +613,7 @@ function TariffsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDra
   const defaultOptions = d.assignedTariffs.length ? d.assignedTariffs : names
   return (
     <Section title="Tariffs" hint="rate cards come from the Tariffs database">
-      <div className="fld">
+      <div className="fld" style={{ maxWidth: 480 }}>
         <label>Assigned tariffs</label>
         <MultiSelect options={names} selected={d.assignedTariffs} placeholder="Select the rate cards this account can use…" onChange={(v) => set({ assignedTariffs: v })} />
       </div>
