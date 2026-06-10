@@ -1,12 +1,13 @@
 /**
- * CustomersScreen — a simple accounts list with an "Add customer" button that opens a
- * modal form (name only for now), in the same style as the rest of the app's modals.
- * To be built out (contacts, terms, references, …) later.
+ * CustomersScreen — accounts list with an "Add customer" button that opens the full
+ * CustomerForm modal (Account + Invoicing tabs). To be built out (detail/edit view,
+ * department/team, more tabs) later.
  */
 import { useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useCustomersStore } from '@/store/customersStore.ts'
 import { useJobsStore } from '@/store/jobsStore.ts'
+import { CustomerForm } from './CustomerForm.tsx'
 
 export function CustomersScreen() {
   const customers = useCustomersStore((s) => s.customers)
@@ -27,7 +28,9 @@ export function CustomersScreen() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return customers.filter((c) => !q || c.name.toLowerCase().includes(q))
+    return customers.filter(
+      (c) => !q || `${c.displayName} ${c.tradingName} ${c.nicknames.join(' ')} ${c.accountCode}`.toLowerCase().includes(q),
+    )
   }, [customers, query])
 
   return (
@@ -44,7 +47,7 @@ export function CustomersScreen() {
           <div className="ac" style={{ maxWidth: 320 }}>
             <input
               type="text"
-              placeholder="Search customers…"
+              placeholder="Search name, trading name, nickname or code…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -56,7 +59,10 @@ export function CustomersScreen() {
           <table className="list-table">
             <thead>
               <tr>
-                <th>Customer</th>
+                <th>Display name</th>
+                <th>Trading name</th>
+                <th>Code</th>
+                <th>Status</th>
                 <th className="num">Jobs</th>
                 <th></th>
               </tr>
@@ -64,14 +70,17 @@ export function CustomersScreen() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id}>
-                  <td><b>{c.name}</b></td>
-                  <td className="num">{jobCount[c.name] || 0}</td>
+                  <td><b>{c.displayName}</b></td>
+                  <td>{c.tradingName || '—'}</td>
+                  <td>{c.accountCode}</td>
+                  <td><span className={'itag' + (c.status === 'inactive' ? ' itag-muted' : '')}>{c.status === 'active' ? 'Active' : 'Inactive'}</span></td>
+                  <td className="num">{jobCount[c.displayName] || 0}</td>
                   <td className="list-actions">
                     <button
                       className="btn sm iconbtn"
                       title="Delete"
                       onClick={() => {
-                        if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.id)
+                        if (confirm(`Delete ${c.displayName}?`)) deleteCustomer(c.id)
                       }}
                     >
                       <Icon name="trash" size={14} />
@@ -81,7 +90,7 @@ export function CustomersScreen() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td className="empty" colSpan={3}>
+                  <td className="empty" colSpan={6}>
                     No customers {query ? 'match your search' : 'yet'}.
                   </td>
                 </tr>
@@ -92,57 +101,14 @@ export function CustomersScreen() {
       </div>
 
       {formOpen && (
-        <NewCustomerModal
+        <CustomerForm
           onClose={() => setFormOpen(false)}
-          onCreate={(name) => {
-            addCustomer(name)
+          onSave={(draft) => {
+            addCustomer(draft)
             setFormOpen(false)
           }}
         />
       )}
-    </div>
-  )
-}
-
-function NewCustomerModal({
-  onClose,
-  onCreate,
-}: {
-  onClose: () => void
-  onCreate: (name: string) => void
-}) {
-  const [name, setName] = useState('')
-  const submit = () => {
-    if (name.trim()) onCreate(name.trim())
-  }
-
-  return (
-    <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-h">
-          New customer
-          <span className="x" onClick={onClose}>✕</span>
-        </div>
-        <div className="modal-b">
-          <div className="fld">
-            <label>Customer name</label>
-            <input
-              type="text"
-              autoFocus
-              placeholder="e.g. Acme Freight Ltd"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submit()}
-            />
-          </div>
-        </div>
-        <div className="modal-f">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={submit} disabled={!name.trim()}>
-            Add customer
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

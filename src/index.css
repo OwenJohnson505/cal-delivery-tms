@@ -73,6 +73,98 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
+.itag-muted {
+  background: #eef1f5 !important;
+  color: var(--muted) !important;
+}
+
+/* ── Customer form modal (wide, tabbed, scrolling body) ── */
+.customer-modal {
+  width: min(760px, 96vw);
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+.cf-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.cf-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 9px 14px;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cf-tab:hover { color: var(--ink); }
+.cf-tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.cf-body {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.cf-section-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.cf-section:first-child .cf-section-h { border-top: none; padding-top: 0; }
+.cf-hint {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+.cf-lookup { display: flex; gap: 6px; }
+.cf-lookup input { flex: 1; }
+.cf-disabled { opacity: 0.55; pointer-events: none; }
+.cf-seg { display: inline-flex; gap: 4px; }
+.cf-seg-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.cf-seg-btn:hover { background: #f1f4f8; }
+.cf-seg-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cf-weekdays { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.cf-credit {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.cf-credit-vals { display: flex; gap: 16px; font-size: 12.5px; }
 .list-toolbar {
   display: flex;
   align-items: center;
