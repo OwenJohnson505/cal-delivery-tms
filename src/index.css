@@ -28,10 +28,27 @@
 /* allow fields to shrink so grids don't overflow the column */
 .ed-2col .fld { min-width: 0; }
 .ed-2col input, .ed-2col select, .ed-2col textarea { min-width: 0; }
-/* let the goods "reads as" line wrap instead of overflowing */
-.ed-compact .parsed { overflow: hidden; }
-.ed-compact .pitem { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+/* goods: a single-line "add an item" row + optional bulk-paste box */
+.goods-add-row { display: flex; gap: 6px; align-items: center; }
+.goods-add { flex: 1 1 auto; min-width: 0; }
+.goods-bulk { margin-top: 6px; }
+.goods-bulk-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+/* "reads as": capped height with its own scroll so the input never gets squashed */
+.ed-compact .parsed { max-height: 168px; overflow-y: auto; overflow-x: hidden; }
+.ed-compact .pitem {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+  padding: 3px 0; border-top: 1px solid #eef1f5;
+}
+.ed-compact .pitem:first-of-type { border-top: none; }
+.ed-compact .pitem-txt { flex: 1 1 auto; min-width: 0; }
 .ed-compact .eqtog { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ed-compact .pdel {
+  flex: none; margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 6px;
+  background: #fff; color: var(--muted); cursor: pointer;
+}
+.ed-compact .pdel:hover { color: var(--deliver); border-color: var(--deliver); }
 .parsed-empty { color: var(--muted); font-size: 12px; padding: 2px 0; }
 
 /* reference input lives in the stop head (alongside the type selector) */

@@ -4,6 +4,7 @@
  * deliveries. Rendered in place of the collapsed stop card while a stop is being edited;
  * "Done" collapses it back to the preview.
  */
+import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useEffectiveAssign } from '@/store/selectors.ts'
@@ -14,6 +15,8 @@ import {
 import type { Address, Stop, StopType, TimeMode } from '@/types/index.ts'
 
 const PRODUCT_EQUIP = ['Straps', 'Blanket']
+// Same separators parseGoods uses, so one added line == one parsed item.
+const GOODS_SEP = /[\n,;/+]|\band\b|&/i
 
 // 'dd-mm-yyyy HH:MM' <-> datetime-local 'yyyy-MM-ddTHH:mm'
 function toLocal(s?: string): string {
@@ -51,6 +54,10 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
   const unassignUnit = useBookingStore((s) => s.unassignUnit)
   const assignAllTo = useBookingStore((s) => s.assignAllTo)
   const clearStopAssign = useBookingStore((s) => s.clearStopAssign)
+  // single-line "add an item" draft + optional bulk-paste box
+  const [draft, setDraft] = useState('')
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkText, setBulkText] = useState('')
 
   const stop = stops.find((s) => s.id === stopId)
   if (!stop) return null
@@ -64,6 +71,20 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
 
   function onPickAddr(addr: Address) {
     set({ addr, q: addr.co })
+  }
+
+  // Goods are stored as the raw string parseGoods reads. We keep it normalised to
+  // one segment per line so the "reads as" rows map 1:1 to lines (for remove).
+  const goodsSegs = (t: string) => t.split(GOODS_SEP).map((x) => x.trim()).filter(Boolean)
+  const addGoods = (text: string) => {
+    const adds = goodsSegs(text)
+    if (!adds.length) return
+    set({ goods: [...goodsSegs(stop.goods), ...adds].join('\n'), goodsTouched: true })
+  }
+  const removeGoods = (ix: number) => {
+    const segs = goodsSegs(stop.goods)
+    segs.splice(ix, 1)
+    set({ goods: segs.join('\n'), goodsTouched: true })
   }
 
   return (
@@ -162,8 +183,33 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
           <div className="edhead">{isColl(stop) ? 'Goods' : 'Items'} &amp; handling</div>
           {isColl(stop) && (
             <>
-              <div className="fld"><textarea rows={2} placeholder="e.g. 2 pallets at 400kg total, 1 box" value={stop.goods} onChange={(e) => set({ goods: e.target.value, goodsTouched: true })} /></div>
-              <GoodsPreview stop={stop} eq={eq} onToggleEq={toggleProductEq} />
+              <div className="goods-add-row">
+                <input
+                  className="goods-add"
+                  placeholder="Add an item — e.g. 2 pallets @ 400kg — then Enter"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGoods(draft); setDraft('') } }}
+                />
+                <button type="button" className="btn sm" disabled={!draft.trim()} onClick={() => { addGoods(draft); setDraft('') }}>Add</button>
+                <button type="button" className={'btn sm' + (bulkOpen ? ' primary' : '')} title="Paste a list of items" onClick={() => setBulkOpen((o) => !o)}>Paste list</button>
+              </div>
+              {bulkOpen && (
+                <div className="goods-bulk">
+                  <textarea
+                    rows={4}
+                    autoFocus
+                    placeholder="Paste items — one per line or comma-separated (e.g. straight from an email)…"
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                  />
+                  <div className="goods-bulk-actions">
+                    <button type="button" className="btn sm primary" disabled={!bulkText.trim()} onClick={() => { addGoods(bulkText); setBulkText(''); setBulkOpen(false) }}>Add all</button>
+                    <button type="button" className="btn sm" onClick={() => { setBulkText(''); setBulkOpen(false) }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              <GoodsPreview stop={stop} eq={eq} onToggleEq={toggleProductEq} onRemove={removeGoods} />
             </>
           )}
           {isDel(stop) && (
@@ -194,38 +240,41 @@ function GoodsPreview({
   stop,
   eq,
   onToggleEq,
+  onRemove,
 }: {
   stop: Stop
   eq: Record<string, Record<string, boolean>>
   onToggleEq: (stopId: number, itemIndex: number, key: string) => void
+  onRemove: (itemIndex: number) => void
 }) {
   const items = parseGoods(stop.goods)
   return (
     <div className="parsed">
-      <div className="parsed-h">Reads as</div>
-      {!items.length && <div className="parsed-empty">Type the goods above and they’ll be itemised here.</div>}
+      <div className="parsed-h">Reads as{items.length ? ` · ${items.length}` : ''}</div>
+      {!items.length && <div className="parsed-empty">Add items above (one at a time, or paste a list) and they’ll be itemised here.</div>}
       {items.map((it, ix) => {
         const e = eq[`${stop.id}:${ix}`] || {}
         return (
           <div className="pitem" key={ix}>
-            <span dangerouslySetInnerHTML={{ __html: fmtItem(it) }} />
-            {it.unit && (
-              <span className="eqtog" style={{ marginLeft: 8 }}>
-                {PRODUCT_EQUIP.map((k) => {
-                  const on = e[k] || e[k.toLowerCase()]
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      className={'eqbtn' + (on ? ' on' : '')}
-                      onClick={() => onToggleEq(stop.id, ix, k)}
-                    >
-                      {k}
-                    </button>
-                  )
-                })}
-              </span>
-            )}
+            <span className="pitem-txt" dangerouslySetInnerHTML={{ __html: fmtItem(it) }} />
+            <span className="eqtog">
+              {PRODUCT_EQUIP.map((k) => {
+                const on = e[k] || e[k.toLowerCase()]
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    className={'eqbtn' + (on ? ' on' : '')}
+                    onClick={() => onToggleEq(stop.id, ix, k)}
+                  >
+                    {k}
+                  </button>
+                )
+              })}
+            </span>
+            <button type="button" className="pdel" title="Remove item" onClick={() => onRemove(ix)}>
+              <Icon name="trash" size={12} />
+            </button>
           </div>
         )
       })}
