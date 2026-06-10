@@ -1,5 +1,6 @@
 export { useBookingStore } from './bookingStore.ts'
-export { createInitialState } from './initialState.ts'
+export { createInitialState, createSeededState } from './initialState.ts'
+export { seedStops, seedEq } from './seed.ts'
 export type {
   BookingState,
   BookingActions,

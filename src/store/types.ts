@@ -14,6 +14,7 @@ import type {
   MultiSelectState,
   ProductEquipment,
   Stop,
+  StopService,
   Tariff,
 } from '@/types/index.ts'
 
@@ -39,9 +40,27 @@ export interface BookingActions {
   removeStop(id: number): void
   moveStop(id: number, toIndex: number): void
 
+  // --- Customer ---
+  setBook(patch: Partial<Book>): void
+
+  // --- Service & vehicle ---
+  /** Replace a multi-select group's selection (body | equip | service). */
+  setMsSelection(group: keyof MultiSelectState, sel: string[]): void
+  setTariff(q: string): void
+
+  // --- Stop-scope service + product equipment ---
+  toggleStopSvc(id: number, key: keyof StopService): void
+  /** Apply two-man to all stops (and set the default for new stops). */
+  setAllTwoman(on: boolean): void
+  toggleProductEq(stopId: number, itemIndex: number, key: string): void
+
   // --- Allocation ---
   assignUnit(unitIdx: number, deliveryStopId: number): void
   unassignUnit(unitIdx: number): void
+  /** Assign every available unit to a delivery (prototype assignAll). */
+  assignAllTo(deliveryStopId: number, unitIdxs: number[]): void
+  /** Clear all units owned by a stop (prototype clearStop). */
+  clearStopAssign(deliveryStopId: number): void
 
   // --- Driver ---
   setAllocatedDriver(driver: AllocatedDriver): void

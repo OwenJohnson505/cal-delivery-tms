@@ -4,10 +4,21 @@
  * selections, so the app opens in the same state the reference build does.
  */
 import type { BookingState } from './types.ts'
+import { seedStops, seedEq } from './seed.ts'
 
 const BODY_TYPES = ['Curtain side', 'Box', 'Flatbed', 'Low loader']
 const EQUIPMENT = ['Tail lift', 'Pump truck']
 const SERVICE_TYPES = ['Dedicated', 'ADR']
+
+/** The demo booking the app opens with (prototype seed). */
+export function createSeededState(): BookingState {
+  return {
+    ...createInitialState(),
+    stops: seedStops(),
+    eq: seedEq(),
+    book: { cust: 'brightway', contact: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk', tel: '0113 555 0148' } },
+  }
+}
 
 export function createInitialState(): BookingState {
   return {

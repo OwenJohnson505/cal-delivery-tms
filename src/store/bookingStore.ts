@@ -7,11 +7,11 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { BookingStore } from './types.ts'
-import { createInitialState } from './initialState.ts'
+import { createInitialState, createSeededState } from './initialState.ts'
 
 export const useBookingStore = create<BookingStore>()(
   immer((set) => ({
-    ...createInitialState(),
+    ...createSeededState(),
 
     // --- Route / stops ---
     addStop: (stop) =>
@@ -40,15 +40,71 @@ export const useBookingStore = create<BookingStore>()(
         // against the new order via src/lib/allocation once that is ported.
       }),
 
+    // --- Customer ---
+    setBook: (patch) =>
+      set((s) => {
+        Object.assign(s.book, patch)
+      }),
+
+    // --- Service & vehicle ---
+    setMsSelection: (group, sel) =>
+      set((s) => {
+        s.ms[group].sel = sel
+      }),
+
+    setTariff: (q) =>
+      set((s) => {
+        s.tariff.q = q
+      }),
+
+    // --- Stop-scope service + product equipment ---
+    toggleStopSvc: (id, key) =>
+      set((s) => {
+        const stop = s.stops.find((st) => st.id === id)
+        if (stop) stop.svc[key] = !stop.svc[key]
+      }),
+
+    setAllTwoman: (on) =>
+      set((s) => {
+        s.stops.forEach((st) => {
+          st.svc.twoman = on ? true : st.svc.twoman
+        })
+      }),
+
+    toggleProductEq: (stopId, itemIndex, key) =>
+      set((s) => {
+        const k = `${stopId}:${itemIndex}`
+        s.eq[k] = s.eq[k] || {}
+        s.eq[k][key] = !s.eq[k][key]
+      }),
+
     // --- Allocation ---
     assignUnit: (unitIdx, deliveryStopId) =>
       set((s) => {
+        s.assignTouched = true
         s.assign[unitIdx] = deliveryStopId
       }),
 
     unassignUnit: (unitIdx) =>
       set((s) => {
+        s.assignTouched = true
         delete s.assign[unitIdx]
+      }),
+
+    assignAllTo: (deliveryStopId, unitIdxs) =>
+      set((s) => {
+        s.assignTouched = true
+        unitIdxs.forEach((i) => {
+          s.assign[i] = deliveryStopId
+        })
+      }),
+
+    clearStopAssign: (deliveryStopId) =>
+      set((s) => {
+        s.assignTouched = true
+        Object.keys(s.assign).forEach((k) => {
+          if (s.assign[+k] === deliveryStopId) delete s.assign[+k]
+        })
       }),
 
     // --- Driver ---

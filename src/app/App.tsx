@@ -1,22 +1,57 @@
 /**
- * App shell — placeholder.
- *
- * Per the handover migration strategy, the UI is rebuilt subsystem by subsystem
- * (Route/Stops -> Address -> Goods -> Service -> Driver -> CX -> POD -> Audit/Docs)
- * AFTER the pure logic in src/lib/ is ported and tested. This component is an
- * intentionally empty shell so the scaffold runs; do not build UI here until the
- * prototype (reference/booking-form-modern.html) is on disk and the lib/ modules
- * are ported.
+ * App — the Delivery Booking screen shell (prototype body, lines 478-576), composing
+ * the feature subsystems. Layout/markup mirror the reference build; behaviour is driven
+ * by the typed store + ported lib + mock API.
  */
+import { LeftRail, RightRail } from './Rails.tsx'
+import { Header } from './Header.tsx'
+import { Footer } from './Footer.tsx'
+import { JobNotes } from './JobNotes.tsx'
+import { RoutePanel } from '@/features/route/RoutePanel.tsx'
+import { RequirementsPanel } from '@/features/service/RequirementsPanel.tsx'
+import { ServiceRail } from '@/features/service/ServiceRail.tsx'
+import { DriverSection } from '@/features/driver/DriverSection.tsx'
+import { OtherCharges } from './OtherCharges.tsx'
+import { HistoryDrawer } from '@/features/audit/HistoryDrawer.tsx'
+import { ProvidersDrawer } from '@/features/driver/ProvidersDrawer.tsx'
+import { Modals } from './Modals.tsx'
+import { useUiStore } from '@/store/uiStore.ts'
+
 export function App() {
+  const drawerOpen = useUiStore((s) => s.drawer !== null)
+  const closeDrawers = useUiStore((s) => s.closeDrawers)
+
   return (
-    <main style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
-      <h1>Cal Delivery — Booking Wizard</h1>
-      <p>
-        Scaffold is up. Pure-logic modules in <code>src/lib/</code> are stubbed and
-        awaiting the prototype as their behavioural source of truth. See{' '}
-        <code>reference/README.md</code>.
-      </p>
-    </main>
+    <>
+      <LeftRail />
+      <div className="app">
+        <div className="work">
+          <Header />
+          <div className="main">
+            <div className="left">
+              <RoutePanel />
+              <div className="botrow">
+                <JobNotes />
+                <RequirementsPanel />
+              </div>
+            </div>
+            <div className="rail">
+              <ServiceRail />
+              <DriverSection />
+              <OtherCharges />
+            </div>
+          </div>
+          <Footer />
+        </div>
+      </div>
+      <RightRail />
+      <div
+        className={'drawer-overlay' + (drawerOpen ? ' open' : '')}
+        onClick={closeDrawers}
+      />
+      <HistoryDrawer />
+      <ProvidersDrawer />
+      <Modals />
+    </>
   )
 }
