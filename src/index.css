@@ -159,9 +159,13 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
-/* compact dot-and-postcode route with a connecting rail */
+/* compact dot-and-postcode route. Fixed height so the box stays the same size
+ * whether there are 2 stops or 7; beyond that it scrolls. */
 .qq-route {
   position: relative;
+  height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .qq-stop-row {
   display: flex;
