@@ -1,7 +1,8 @@
 /**
- * Route panel (prototype .route): the vertical stop list. Each stop is either the
- * collapsed preview (StopCard) or the inline full editor (StopEditor). New/incomplete
- * stops start expanded; "Done" collapses to the preview, "Edit" re-expands.
+ * Route panel (prototype .route): the vertical stop list. One stop at a time is shown in
+ * the inline full editor (so it fits without scrolling); the rest are collapsed previews.
+ * A new booking opens on its first incomplete stop; "Done" advances to the next incomplete
+ * stop (then collapses everything); "Edit" opens a collapsed stop.
  */
 import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
@@ -17,17 +18,17 @@ export function RoutePanel() {
   const stops = useBookingStore((s) => s.stops)
   const addStop = useBookingStore((s) => s.addStop)
 
-  // Stops shown in the full editor. Start with any incomplete stops expanded.
-  const [expanded, setExpanded] = useState<Set<number>>(
-    () => new Set(stops.filter(isIncomplete).map((s) => s.id)),
+  // Exactly one stop is editable at a time — start on the first incomplete one.
+  const [editingId, setEditingId] = useState<number | null>(
+    () => stops.find(isIncomplete)?.id ?? null,
   )
-  const expand = (id: number) => setExpanded((prev) => new Set(prev).add(id))
-  const collapse = (id: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
-    })
+
+  const done = (id: number) => {
+    // advance to the next incomplete stop, else collapse all
+    const i = stops.findIndex((s) => s.id === id)
+    const next = stops.slice(i + 1).find(isIncomplete)
+    setEditingId(next ? next.id : null)
+  }
 
   return (
     <div className="route">
@@ -35,10 +36,10 @@ export function RoutePanel() {
         <div className="rtitle">Route · stops</div>
         <div className="stops-list">
           {stops.map((s, i) =>
-            expanded.has(s.id) ? (
-              <StopEditor key={s.id} stopId={s.id} index={i} onDone={() => collapse(s.id)} />
+            s.id === editingId ? (
+              <StopEditor key={s.id} stopId={s.id} index={i} onDone={() => done(s.id)} />
             ) : (
-              <StopCard key={s.id} stop={s} index={i} onEdit={() => expand(s.id)} />
+              <StopCard key={s.id} stop={s} index={i} onEdit={() => setEditingId(s.id)} />
             ),
           )}
         </div>
@@ -47,7 +48,7 @@ export function RoutePanel() {
           onClick={() => {
             const s = newStop(stops)
             addStop(s)
-            expand(s.id)
+            setEditingId(s.id)
           }}
         >
           <Icon name="plus" size={15} /> Add another address

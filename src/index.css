@@ -7,6 +7,26 @@
   height: 100%;
 }
 
+/* Let the route panel take the available height (so the editor fits); the
+ * job-notes/requirements row keeps a fixed, smaller footprint. */
+.left .route { flex: 1 1 auto; height: auto; min-height: 240px; }
+.left .botrow { flex: 0 0 auto; height: 168px; min-height: 0; }
+
+/* Compact inline stop editor — fit the whole form without scrolling */
+.ed-compact { padding: 6px 12px 12px; }
+.ed-compact .edsec { padding: 10px 0 4px; gap: 6px; border-top: none; }
+.ed-compact .edhead { margin-bottom: 1px; }
+.ed-compact .fld > label { margin-bottom: 1px; }
+.ed-compact textarea { line-height: 1.3; }
+/* two columns side by side so the whole form fits without scrolling */
+.ed-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+.ed-2col .ed-col { display: flex; flex-direction: column; min-width: 0; }
+.ed-2col .ed-col + .ed-col { border-left: 1px solid #e7ebf0; padding-left: 20px; }
+.ed-2col .ed-col:first-child { padding-right: 0; }
+/* in the narrower columns, drop 3-col grids to 2-col */
+.ed-2col .g-cpc, .ed-2col .g-cte { grid-template-columns: 1fr 1fr; }
+.ed-2col .g-cte .span2 { grid-column: span 2; }
+
 /* ============================================================
  * LIST SCREENS (Bookings / Quotes / Drafts)
  * ============================================================ */

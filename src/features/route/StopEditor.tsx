@@ -79,187 +79,92 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
         </div>
       </div>
 
-      <div className="ed">
-          {/* Address find */}
-          <div className="edsec">
-            <div className="edhead">Find address</div>
-            <AddressFind value={stop.q} onPick={onPickAddr} />
+      <div className="ed ed-compact ed-2col">
+       <div className="ed-col">
+        {/* Address */}
+        <div className="edsec">
+          <div className="edhead">Address {stop.addr.src && <span className="cc-tag" style={{ marginLeft: 8 }}>{stop.addr.src}</span>}</div>
+          <AddressFind value={stop.q} onPick={onPickAddr} />
+          <div className="g2">
+            <div className="fld"><label>Company</label><input value={stop.addr.co} onChange={(e) => setAddr({ co: e.target.value })} /></div>
+            <div className="fld"><label>Address</label><input value={stop.addr.address} onChange={(e) => setAddr({ address: e.target.value })} /></div>
           </div>
-
-          {/* Address — individual fields (prototype editHtml) */}
-          <div className="edsec">
-            <div className="edhead">
-              Address {stop.addr.src && <span className="cc-tag" style={{ marginLeft: 8 }}>{stop.addr.src}</span>}
-            </div>
-            <div className="fld">
-              <label>Company</label>
-              <input value={stop.addr.co} onChange={(e) => setAddr({ co: e.target.value })} />
-            </div>
-            <div className="fld">
-              <label>Address</label>
-              <input value={stop.addr.address} onChange={(e) => setAddr({ address: e.target.value })} />
-            </div>
-            <div className="g-cpc">
-              <div className="fld">
-                <label>City</label>
-                <input value={stop.addr.city} onChange={(e) => setAddr({ city: e.target.value })} />
-              </div>
-              <div className="fld">
-                <label>Postcode</label>
-                <input value={stop.addr.pc} onChange={(e) => setAddr({ pc: e.target.value })} />
-              </div>
-              <div className="fld">
-                <label>Country</label>
-                <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
-                  <option>England</option>
-                  <option>Scotland</option>
-                  <option>Wales</option>
-                  <option>N. Ireland</option>
-                </select>
-              </div>
+          <div className="g-cpc">
+            <div className="fld"><label>City</label><input value={stop.addr.city} onChange={(e) => setAddr({ city: e.target.value })} /></div>
+            <div className="fld"><label>Postcode</label><input value={stop.addr.pc} onChange={(e) => setAddr({ pc: e.target.value })} /></div>
+            <div className="fld"><label>Country</label>
+              <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
+                <option>England</option><option>Scotland</option><option>Wales</option><option>N. Ireland</option>
+              </select>
             </div>
           </div>
-
-          {/* Contact */}
-          <div className="edsec">
-            <div className="edhead">Site contact</div>
-            <div className="g-cte">
-              <div className="fld">
-                <label>Name</label>
-                <input value={stop.contact?.name || ''} onChange={(e) => setContact({ name: e.target.value })} />
+        </div>
+       </div>
+       <div className="ed-col">
+        {/* Contact & timing */}
+        <div className="edsec">
+          <div className="edhead">Contact &amp; timing</div>
+          <div className="g-cte">
+            <div className="fld"><label>Contact name</label><input value={stop.contact?.name || ''} onChange={(e) => setContact({ name: e.target.value })} /></div>
+            <div className="fld"><label>Phone</label><input value={stop.contact?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
+            <div className="fld"><label>Email</label><input value={stop.contact?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
+          </div>
+          <div className="g-cte">
+            <div className="fld"><label>Reference</label><input value={stop.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
+            <div className="fld span2">
+              <label>When</label>
+              <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
+                  <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
+                    {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
+                {stop.time.mode === 'at' && (
+                  <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} />
+                )}
+                {stop.time.mode === 'by' && (
+                  <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} />
+                )}
+                {stop.time.mode === 'between' && (
+                  <>
+                    <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} />
+                    <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} />
+                  </>
+                )}
               </div>
-              <div className="fld">
-                <label>Phone</label>
-                <input value={stop.contact?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} />
-              </div>
-              <div className="fld">
-                <label>Email</label>
-                <input value={stop.contact?.email || ''} onChange={(e) => setContact({ email: e.target.value })} />
-              </div>
-            </div>
-            <div className="fld">
-              <label>Reference</label>
-              <input value={stop.reference} onChange={(e) => set({ reference: e.target.value })} />
-            </div>
-            <div className="fld">
-              <label>Instruction / note (shown to driver &amp; on CX)</label>
-              <textarea rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} />
             </div>
           </div>
+          <div className="fld"><label>Instruction / note (shown to driver &amp; on CX)</label><input value={stop.note} onChange={(e) => set({ note: e.target.value })} /></div>
+        </div>
 
-          {/* Timing */}
-          <div className="edsec">
-            <div className="edhead">Timing</div>
-            <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
-                <button
-                  key={m}
-                  className={'stepdot' + (stop.time.mode === m ? ' on' : '')}
-                  onClick={() => setTime(m)}
-                >
-                  {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
-            {stop.time.mode === 'at' && (
-              <div className="fld">
-                <label>At</label>
-                <input
-                  type="datetime-local"
-                  value={toLocal(stop.time.at)}
-                  onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })}
-                />
-              </div>
-            )}
-            {stop.time.mode === 'by' && (
-              <div className="fld">
-                <label>By</label>
-                <input
-                  type="datetime-local"
-                  value={toLocal(stop.time.by)}
-                  onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })}
-                />
-              </div>
-            )}
-            {stop.time.mode === 'between' && (
-              <div className="g2">
-                <div className="fld">
-                  <label>From</label>
-                  <input
-                    type="datetime-local"
-                    value={toLocal(stop.time.from)}
-                    onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })}
-                  />
-                </div>
-                <div className="fld">
-                  <label>To</label>
-                  <input
-                    type="datetime-local"
-                    value={toLocal(stop.time.to)}
-                    onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Goods (collection / both) */}
+        {/* Goods / items & crew */}
+        <div className="edsec">
+          <div className="edhead">{isColl(stop) ? 'Goods' : 'Items'} &amp; handling</div>
           {isColl(stop) && (
-            <div className="edsec">
-              <div className="edhead">Goods</div>
-              <div className="fld">
-                <textarea
-                  rows={2}
-                  placeholder="e.g. 2 pallets at 400kg total, 1 box"
-                  value={stop.goods}
-                  onChange={(e) => set({ goods: e.target.value, goodsTouched: true })}
-                />
-              </div>
+            <>
+              <div className="fld"><textarea rows={2} placeholder="e.g. 2 pallets at 400kg total, 1 box" value={stop.goods} onChange={(e) => set({ goods: e.target.value, goodsTouched: true })} /></div>
               <GoodsPreview stop={stop} eq={eq} onToggleEq={toggleProductEq} />
-            </div>
+            </>
           )}
-
-          {/* Allocation (delivery / both) */}
           {isDel(stop) && (
-            <div className="edsec">
-              <div className="edhead">Items — assign to this drop</div>
-              <Allocation
-                stop={stop}
-                stops={stops}
-                assign={assign}
-                onToggle={(unitIdx, owned) => (owned ? unassignUnit(unitIdx) : assignUnit(unitIdx, stop.id))}
-                onAll={(idxs) => assignAllTo(stop.id, idxs)}
-                onClear={() => clearStopAssign(stop.id)}
-              />
-            </div>
+            <Allocation
+              stop={stop}
+              stops={stops}
+              assign={assign}
+              onToggle={(unitIdx, owned) => (owned ? unassignUnit(unitIdx) : assignUnit(unitIdx, stop.id))}
+              onAll={(idxs) => assignAllTo(stop.id, idxs)}
+              onClear={() => clearStopAssign(stop.id)}
+            />
           )}
-
-          {/* Crew & handling */}
-          <div className="edsec">
-            <div className="edhead">Crew &amp; special handling</div>
-            <div className="svc-row" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-              <label className="chk">
-                <input type="checkbox" checked={!!stop.svc.twoman} onChange={() => toggleStopSvc(stop.id, 'twoman')} /> Two-man
-              </label>
-              <label className="chk">
-                <input
-                  type="checkbox"
-                  onChange={(e) => setAllTwoman(e.target.checked)}
-                /> Set for all stops
-              </label>
-              {stop.type === 'Both' && index === stops.length - 1 && (
-                <label className="chk">
-                  <input type="checkbox" checked={!!stop.svc.wait} onChange={() => toggleStopSvc(stop.id, 'wait')} /> Wait &amp; return
-                </label>
-              )}
-            </div>
+          <div className="svc-row" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <label className="chk"><input type="checkbox" checked={!!stop.svc.twoman} onChange={() => toggleStopSvc(stop.id, 'twoman')} /> Two-man</label>
+            <label className="chk"><input type="checkbox" onChange={(e) => setAllTwoman(e.target.checked)} /> Set for all stops</label>
+            {stop.type === 'Both' && index === stops.length - 1 && (
+              <label className="chk"><input type="checkbox" checked={!!stop.svc.wait} onChange={() => toggleStopSvc(stop.id, 'wait')} /> Wait &amp; return</label>
+            )}
           </div>
-
-          <div className="ed-foot" style={{ borderRadius: 0, boxShadow: 'none' }}>
-            <button className="btn primary" onClick={onDone}>
-              <Icon name="check" size={14} /> Done
-            </button>
-          </div>
+        </div>
+       </div>
       </div>
     </div>
   )
