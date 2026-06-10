@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cal Delivery — Design Language Picker</title>
+<style>
+  :root {
+    /* live tokens — overwritten by JS from the controls */
+    --accent:#2563eb; --accent-soft:#e8f0fe; --accent-hover:#1d4fd7; --on-accent:#ffffff;
+    --sub:#0e9f6e; --sub-soft:#e9f3ee;
+    --ink:#1f2733; --muted:#6b7686; --line:#e3e7ed; --line-strong:#d4dae2;
+    --field:#f6f8fa; --panel:#ffffff; --bg:#eceff3;
+    --ok:#0e9f6e; --warn:#d97706; --warn-soft:#fff7e6; --danger:#dc2626; --danger-soft:#fdecec;
+    --head:#1e2a3a;
+    --r-btn:999px; --r-field:10px; --r-tag:999px; --r-card:14px;
+    --fs:13px; --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --btn-h:30px; --btn-px:14px; --bw:1px;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:var(--fs); }
+  .app { display:grid; grid-template-columns:340px 1fr; min-height:100vh; }
+
+  /* ── controls rail ───────────────────────────────── */
+  .rail { background:#0f172a; color:#e2e8f0; padding:18px 18px 40px; overflow:auto; }
+  .rail h1 { font-size:15px; margin:0 0 2px; }
+  .rail .sub { font-size:11px; color:#94a3b8; margin-bottom:16px; }
+  .grp { border-top:1px solid #1e293b; padding:14px 0 4px; }
+  .grp h2 { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#7c8aa0; margin:0 0 10px; }
+  .ctl { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .ctl label { font-size:12px; color:#cbd5e1; }
+  .ctl .val { font-size:11px; color:#7c8aa0; min-width:42px; text-align:right; }
+  input[type=color] { width:34px; height:24px; border:1px solid #334155; border-radius:6px; background:none; padding:0; cursor:pointer; }
+  input[type=range] { width:130px; accent-color:#60a5fa; }
+  select.pick { background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; height:26px; font-size:12px; padding:0 6px; }
+  .swatchline { display:flex; gap:8px; align-items:center; }
+  .chk2 { display:flex; align-items:center; gap:7px; font-size:12px; color:#cbd5e1; cursor:pointer; }
+  .presets { display:flex; flex-wrap:wrap; gap:6px; }
+  .presets button { background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:999px; font-size:11px; padding:4px 11px; cursor:pointer; }
+  .presets button:hover { border-color:#60a5fa; }
+
+  /* ── preview canvas ──────────────────────────────── */
+  .canvas { padding:26px 30px; overflow:auto; }
+  .canvas h2.section { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:26px 0 12px; }
+  .canvas h2.section:first-child { margin-top:0; }
+  .card { background:var(--panel); border:var(--bw) solid var(--line); border-radius:var(--r-card); padding:18px 20px; margin-bottom:18px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .row + .row { margin-top:12px; }
+
+  /* component tokens reused from the app */
+  .btn {
+    height:var(--btn-h); padding:0 var(--btn-px); border:var(--bw) solid var(--line);
+    background:#fff; color:var(--ink); border-radius:var(--r-btn); font-weight:600; font-size:calc(var(--fs) - 0.5px);
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-family:inherit;
+  }
+  .btn:hover { background:var(--field); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  .btn.primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+  .btn.ghost { border-color:transparent; background:transparent; color:var(--muted); }
+  .btn.ghost:hover { background:var(--field); color:var(--ink); }
+  .btn.danger { color:var(--danger); border-color:var(--line); }
+  .btn.danger:hover { background:var(--danger-soft); border-color:var(--danger); }
+  .btn.sm { height:calc(var(--btn-h) - 4px); padding:0 calc(var(--btn-px) - 4px); font-size:calc(var(--fs) - 1.5px); }
+  .btn.icon { width:var(--btn-h); padding:0; justify-content:center; border-color:transparent; background:transparent; color:var(--muted); }
+  .btn.icon:hover { background:var(--field); color:var(--ink); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  .fld { display:flex; flex-direction:column; gap:4px; }
+  .fld label { font-size:calc(var(--fs) - 2px); color:var(--muted); font-weight:600; }
+  .fld.up label { text-transform:uppercase; letter-spacing:.04em; }
+  input.f, select.f, textarea.f {
+    height:var(--btn-h); border:var(--bw) solid var(--line); border-radius:var(--r-field);
+    background:var(--field); color:var(--ink); padding:0 10px; font:inherit; font-size:var(--fs); outline:none; min-width:200px;
+  }
+  textarea.f { height:auto; padding:7px 10px; }
+  input.f:focus, select.f:focus, textarea.f:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:#fff; }
+  input.f.needs { background:var(--warn-soft); }
+
+  .tag { font-size:calc(var(--fs) - 2.5px); font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:var(--r-tag); padding:2px 9px; }
+  .tag.sub { color:var(--sub); background:var(--sub-soft); }
+  .tag.muted { color:var(--muted); background:var(--field); }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:calc(var(--fs) - 1px); font-weight:600; color:var(--accent); background:var(--accent-soft); border-radius:var(--r-tag); padding:3px 6px 3px 11px; }
+  .chip b { cursor:pointer; opacity:.7; font-weight:700; }
+  .pill-status { font-size:calc(var(--fs) - 2px); font-weight:700; color:#fff; background:var(--ok); border-radius:999px; padding:3px 10px; }
+  .num { width:22px; height:22px; border-radius:50%; display:inline-grid; place-items:center; font-size:calc(var(--fs) - 1px); font-weight:800; background:var(--accent-soft); color:var(--accent); }
+
+  .seg { display:inline-flex; gap:6px; }
+  .seg button { height:calc(var(--btn-h) - 4px); padding:0 12px; border:var(--bw) solid var(--line); background:#fff; color:var(--ink); border-radius:var(--r-btn); font-weight:600; font-size:calc(var(--fs) - 1px); cursor:pointer; font-family:inherit; }
+  .seg button.on { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+
+  .hdr-demo .sec { font-size:calc(var(--fs) - 1.5px); font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:var(--head); margin-bottom:6px; }
+  .typescale > div { margin-bottom:6px; }
+  .t-h1 { font-size:calc(var(--fs) + 9px); font-weight:800; }
+  .t-h2 { font-size:calc(var(--fs) + 4px); font-weight:700; }
+  .t-body { font-size:var(--fs); }
+  .t-small { font-size:calc(var(--fs) - 2px); color:var(--muted); }
+
+  .swatches { display:flex; flex-wrap:wrap; gap:10px; }
+  .sw { width:88px; }
+  .sw .chip2 { height:46px; border-radius:10px; border:1px solid rgba(0,0,0,.08); }
+  .sw .nm { font-size:10px; color:var(--muted); margin-top:4px; }
+  .sw .hex { font-size:10px; font-weight:700; }
+
+  /* output */
+  .out { background:#0f172a; color:#e2e8f0; border-radius:12px; padding:14px 16px; }
+  .out .top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .out h3 { font-size:12px; margin:0; color:#cbd5e1; }
+  .out pre { margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; line-height:1.5; white-space:pre-wrap; color:#a5d6ff; }
+  .copy { background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:999px; font-size:11px; padding:4px 12px; cursor:pointer; }
+  .copy:hover { border-color:#60a5fa; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ╔═ CONTROLS ═══════════════════════════════════╗ -->
+  <aside class="rail">
+    <h1>Design language</h1>
+    <div class="sub">Cal Delivery TMS — pick it here, I'll apply it everywhere.</div>
+
+    <div class="grp">
+      <h2>Quick presets</h2>
+      <div class="presets" id="presets">
+        <button data-preset="current">Current app</button>
+        <button data-preset="calm">Calm</button>
+        <button data-preset="sharp">Sharp &amp; pro</button>
+        <button data-preset="friendly">Friendly</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>Colours</h2>
+      <div class="ctl"><label>Accent (primary)</label><input type="color" data-k="accent"></div>
+      <div class="ctl"><label>Sub-accent</label><input type="color" data-k="sub"></div>
+      <div class="ctl"><label>Section headers</label><input type="color" data-k="head"></div>
+      <div class="ctl"><label>Ink (text)</label><input type="color" data-k="ink"></div>
+      <div class="ctl"><label>Muted (labels)</label><input type="color" data-k="muted"></div>
+      <div class="ctl"><label>Border line</label><input type="color" data-k="line"></div>
+      <div class="ctl"><label>Field fill</label><input type="color" data-k="field"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Semantic</h2>
+      <div class="ctl"><label>Success / revenue</label><input type="color" data-k="ok"></div>
+      <div class="ctl"><label>Warning / prompt</label><input type="color" data-k="warn"></div>
+      <div class="ctl"><label>Danger / delete</label><input type="color" data-k="danger"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Shape</h2>
+      <div class="ctl"><label>Buttons</label>
+        <select class="pick" data-shape="r-btn"><option value="6">Square</option><option value="10">Soft</option><option value="16">Rounded</option><option value="999">Pill</option></select>
+      </div>
+      <div class="ctl"><label>Field boxes</label>
+        <select class="pick" data-shape="r-field"><option value="6">Square</option><option value="10">Soft</option><option value="16">Rounded</option><option value="999">Pill</option></select>
+      </div>
+      <div class="ctl"><label>Tags / chips</label>
+        <select class="pick" data-shape="r-tag"><option value="6">Square</option><option value="10">Soft</option><option value="16">Rounded</option><option value="999">Pill</option></select>
+      </div>
+      <div class="ctl"><label>Cards</label>
+        <select class="pick" data-shape="r-card"><option value="8">Square</option><option value="12">Soft</option><option value="16">Rounded</option></select>
+      </div>
+      <div class="ctl"><label>Border width</label><input type="range" data-k="bw" min="1" max="2" step="1"><span class="val" id="v-bw"></span></div>
+    </div>
+
+    <div class="grp">
+      <h2>Typography</h2>
+      <div class="ctl"><label>Base size</label><input type="range" data-k="fs" min="12" max="16" step="0.5"><span class="val" id="v-fs"></span></div>
+      <div class="ctl"><label>Font</label>
+        <select class="pick" id="font">
+          <option value='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'>System UI</option>
+          <option value='"Inter","Segoe UI",Roboto,sans-serif'>Inter-style</option>
+          <option value='"Helvetica Neue",Arial,sans-serif'>Helvetica / Arial</option>
+          <option value='Georgia,"Times New Roman",serif'>Serif (Georgia)</option>
+        </select>
+      </div>
+      <label class="chk2"><input type="checkbox" id="upper" checked> Uppercase field labels</label>
+    </div>
+
+    <div class="grp">
+      <h2>Density</h2>
+      <div class="ctl"><label>Control height</label><input type="range" data-k="btn-h-raw" min="26" max="40" step="1"><span class="val" id="v-btn-h"></span></div>
+      <div class="ctl"><label>Button padding</label><input type="range" data-k="btn-px-raw" min="8" max="22" step="1"><span class="val" id="v-btn-px"></span></div>
+    </div>
+  </aside>
+
+  <!-- ╔═ PREVIEW ════════════════════════════════════╗ -->
+  <main class="canvas" id="preview">
+    <h2 class="section">Buttons — main &amp; sub</h2>
+    <div class="card">
+      <div class="row">
+        <button class="btn primary">Save as booking</button>
+        <button class="btn">Save draft</button>
+        <button class="btn ghost">Browse</button>
+        <button class="btn danger">Delete</button>
+        <button class="btn" disabled>Disabled</button>
+      </div>
+      <div class="row">
+        <button class="btn sm primary">Done</button>
+        <button class="btn sm">Edit</button>
+        <button class="btn icon" title="icon">✎</button>
+        <button class="btn icon" title="icon">🗑</button>
+        <span class="seg"><button class="on">ASAP</button><button>At</button><button>Between</button><button>By</button></span>
+      </div>
+    </div>
+
+    <h2 class="section">Field boxes</h2>
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <div class="fld up"><label>Company</label><input class="f" placeholder="Acme Widgets Ltd"></div>
+        <div class="fld up"><label>Vehicle / tariff</label>
+          <select class="f"><option>Select a vehicle…</option><option>18t</option><option>Luton</option></select>
+        </div>
+        <div class="fld up"><label>Cust. ref</label><input class="f needs" placeholder="PO / reference…"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="fld up" style="flex:1"><label>Driver instruction</label><textarea class="f" rows="2" placeholder=""></textarea></div>
+      </div>
+    </div>
+
+    <h2 class="section">Tags, chips, badges</h2>
+    <div class="card">
+      <div class="row">
+        <span class="num">1</span><span class="num">2</span>
+        <span class="tag">Curtain side</span>
+        <span class="tag">Tail lift</span>
+        <span class="tag sub">whole job</span>
+        <span class="tag muted">CUS-1001</span>
+        <span class="pill-status">Booked</span>
+        <span class="chip">Brightway <b>×</b></span>
+      </div>
+    </div>
+
+    <h2 class="section">Header vs label hierarchy</h2>
+    <div class="card hdr-demo">
+      <div class="sec">Address &amp; timing</div>
+      <div class="row" style="align-items:flex-end">
+        <div class="fld up"><label>City</label><input class="f" value="Warrington"></div>
+        <div class="fld up"><label>Postcode</label><input class="f" value="WA2 7NE"></div>
+      </div>
+    </div>
+
+    <h2 class="section">Typography</h2>
+    <div class="card typescale">
+      <div class="t-h1">Delivery booking</div>
+      <div class="t-h2">Route · stops</div>
+      <div class="t-body">Body text — the quick brown fox delivered 2 pallets at 400&nbsp;kg total to WA2&nbsp;7NE.</div>
+      <div class="t-small">Small / muted — internal note, not shown to driver.</div>
+    </div>
+
+    <h2 class="section">Palette</h2>
+    <div class="card"><div class="swatches" id="swatches"></div></div>
+
+    <h2 class="section">Your tokens</h2>
+    <div class="out">
+      <div class="top"><h3>:root — paste these back to me and I'll apply them site-wide</h3><button class="copy" id="copy">Copy</button></div>
+      <pre id="out"></pre>
+    </div>
+  </main>
+</div>
+
+<script>
+  const PRESETS = {
+    current:  { accent:'#2563eb', sub:'#0e9f6e', head:'#1e2a3a', ink:'#1f2733', muted:'#6b7686', line:'#e3e7ed', field:'#f6f8fa', ok:'#0e9f6e', warn:'#d97706', danger:'#dc2626', 'r-btn':999, 'r-field':10, 'r-tag':999, 'r-card':14, bw:1, fs:13, btnH:30, btnPx:14, upper:true, font:'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif' },
+    calm:     { accent:'#3457d5', sub:'#0e9f6e', head:'#283449', ink:'#222b37', muted:'#737d8c', line:'#e7ebf0', field:'#f7f9fb', ok:'#0e9f6e', warn:'#d98a18', danger:'#d64545', 'r-btn':999, 'r-field':12, 'r-tag':999, 'r-card':16, bw:1, fs:13.5, btnH:32, btnPx:15, upper:true, font:'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif' },
+    sharp:    { accent:'#1f3a8a', sub:'#0b7a55', head:'#0f1722', ink:'#15202b', muted:'#5f6b7a', line:'#dce1e8', field:'#ffffff', ok:'#0b7a55', warn:'#b8740f', danger:'#c0392b', 'r-btn':6, 'r-field':6, 'r-tag':6, 'r-card':8, bw:1, fs:13, btnH:30, btnPx:14, upper:true, font:'"Helvetica Neue",Arial,sans-serif' },
+    friendly: { accent:'#4f46e5', sub:'#0ea5a0', head:'#37324a', ink:'#2a2740', muted:'#7a7690', line:'#ece9f3', field:'#f8f7fc', ok:'#10b981', warn:'#f59e0b', danger:'#ef4444', 'r-btn':999, 'r-field':16, 'r-tag':999, 'r-card':18, bw:1, fs:14, btnH:34, btnPx:18, upper:false, font:'"Inter","Segoe UI",Roboto,sans-serif' },
+  };
+
+  const C = { ...PRESETS.current };
+
+  // colour helpers
+  const h2n = h => { h=h.replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); };
+  const n2h = a => '#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+  const mix = (hex,t,amt)=>{ const a=h2n(hex),b=h2n(t); return n2h(a.map((v,i)=>v+(b[i]-v)*amt)); };
+
+  const root = document.getElementById('preview');
+  const set = (k,v)=>root.style.setProperty('--'+k, v);
+
+  function apply(){
+    set('accent',C.accent); set('accent-soft',mix(C.accent,'#ffffff',.88)); set('accent-hover',mix(C.accent,'#000000',.14));
+    set('on-accent', (h2n(C.accent).reduce((s,v,i)=>s+v*[.299,.587,.114][i],0) > 150) ? '#11202e' : '#ffffff');
+    set('sub',C.sub); set('sub-soft',mix(C.sub,'#ffffff',.88));
+    set('head',C.head); set('ink',C.ink); set('muted',C.muted); set('line',C.line); set('line-strong',mix(C.line,'#000000',.10));
+    set('field',C.field);
+    set('ok',C.ok); set('warn',C.warn); set('warn-soft',mix(C.warn,'#ffffff',.9)); set('danger',C.danger); set('danger-soft',mix(C.danger,'#ffffff',.9));
+    set('r-btn',px(C['r-btn'])); set('r-field',px(C['r-field'])); set('r-tag',px(C['r-tag'])); set('r-card',px(C['r-card']));
+    set('bw',C.bw+'px'); set('fs',C.fs+'px'); set('font',C.font);
+    set('btn-h',C.btnH+'px'); set('btn-px',C.btnPx+'px');
+    document.querySelectorAll('.fld').forEach(f=>f.classList.toggle('up',C.upper));
+    paintSwatches(); writeOut(); syncInputs();
+  }
+  const px = v => (+v>=900?'999px':v+'px');
+
+  function paintSwatches(){
+    const items = [['Accent',getComputedStyle(root).getPropertyValue('--accent')],['Accent soft',gp('--accent-soft')],['Sub-accent',C.sub],['Ink',C.ink],['Muted',C.muted],['Line',C.line],['Field',C.field],['Success',C.ok],['Warning',C.warn],['Danger',C.danger]];
+    document.getElementById('swatches').innerHTML = items.map(([n,c])=>`<div class="sw"><div class="chip2" style="background:${c.trim()}"></div><div class="nm">${n}</div><div class="hex">${c.trim()}</div></div>`).join('');
+  }
+  const gp = k => getComputedStyle(root).getPropertyValue(k);
+
+  function writeOut(){
+    const soft = gp('--accent-soft').trim(), hov = gp('--accent-hover').trim(), on = gp('--on-accent').trim(), subSoft = gp('--sub-soft').trim();
+    document.getElementById('out').textContent =
+`:root {
+  --accent:${C.accent}; --accent-soft:${soft}; --accent-hover:${hov}; --on-accent:${on};
+  --sub:${C.sub}; --sub-soft:${subSoft};
+  --ink:${C.ink}; --muted:${C.muted}; --line:${C.line}; --field:${C.field}; --head:${C.head};
+  --ok:${C.ok}; --warn:${C.warn}; --danger:${C.danger};
+  --r-btn:${px(C['r-btn'])}; --r-field:${px(C['r-field'])}; --r-tag:${px(C['r-tag'])}; --r-card:${px(C['r-card'])};
+  --bw:${C.bw}px; --fs:${C.fs}px; --btn-h:${C.btnH}px; --btn-px:${C.btnPx}px;
+  --label-case:${C.upper?'uppercase':'none'};
+  --font:${C.font};
+}`;
+  }
+
+  function syncInputs(){
+    document.querySelectorAll('input[type=color][data-k]').forEach(i=>i.value=C[i.dataset.k]);
+    setRange('bw',C.bw); setRange('fs',C.fs); setRange('btn-h-raw',C.btnH); setRange('btn-px-raw',C.btnPx);
+    document.getElementById('v-bw').textContent=C.bw+'px';
+    document.getElementById('v-fs').textContent=C.fs+'px';
+    document.getElementById('v-btn-h').textContent=C.btnH+'px';
+    document.getElementById('v-btn-px').textContent=C.btnPx+'px';
+    document.querySelectorAll('select.pick[data-shape]').forEach(s=>s.value=String(C[s.dataset.shape]));
+    document.getElementById('font').value=C.font;
+    document.getElementById('upper').checked=C.upper;
+  }
+  const setRange = (k,v)=>{ const el=document.querySelector(`input[data-k="${k}"]`); if(el) el.value=v; };
+
+  // wiring
+  document.querySelectorAll('input[type=color][data-k]').forEach(i=>i.addEventListener('input',()=>{C[i.dataset.k]=i.value; apply();}));
+  document.querySelector('input[data-k="bw"]').addEventListener('input',e=>{C.bw=+e.target.value; apply();});
+  document.querySelector('input[data-k="fs"]').addEventListener('input',e=>{C.fs=+e.target.value; apply();});
+  document.querySelector('input[data-k="btn-h-raw"]').addEventListener('input',e=>{C.btnH=+e.target.value; apply();});
+  document.querySelector('input[data-k="btn-px-raw"]').addEventListener('input',e=>{C.btnPx=+e.target.value; apply();});
+  document.querySelectorAll('select.pick[data-shape]').forEach(s=>s.addEventListener('change',()=>{C[s.dataset.shape]=+s.value; apply();}));
+  document.getElementById('font').addEventListener('change',e=>{C.font=e.target.value; apply();});
+  document.getElementById('upper').addEventListener('change',e=>{C.upper=e.target.checked; apply();});
+  document.querySelectorAll('#presets button').forEach(b=>b.addEventListener('click',()=>{Object.assign(C,PRESETS[b.dataset.preset]); apply();}));
+  document.getElementById('copy').addEventListener('click',()=>{navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('out').textContent); const b=document.getElementById('copy'); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200);});
+
+  apply();
+</script>
+</body>
+</html>
