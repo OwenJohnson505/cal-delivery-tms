@@ -20,6 +20,8 @@ export interface CompanyLookupResult {
   tradingName: string
   companyRegNumber: string
   address: CompanyAddress
+  /** true when this is a "use what you typed" entry, not a registry match. */
+  generated?: boolean
 }
 
 /** A few canned companies; any other query returns a generated stub so search always "works". */
@@ -35,21 +37,24 @@ function genReg(seed: string): string {
   return String(10000000 + (n % 89999999))
 }
 
-/** Look a company up by trading name (fuzzy) or exact-ish reg number. */
-export function lookupCompany(query: string): CompanyLookupResult | null {
+/**
+ * Type-ahead company search — returns up to a few registry matches as you type (by name
+ * or reg number). Always appends a "use what you typed" entry so any input can proceed.
+ */
+export function searchCompanies(query: string): CompanyLookupResult[] {
   const q = query.trim().toLowerCase()
-  if (!q) return null
-  const byReg = KNOWN.find((c) => c.companyRegNumber === query.trim())
-  if (byReg) return byReg
-  const byName = KNOWN.find((c) => c.tradingName.toLowerCase().includes(q))
-  if (byName) return byName
-  // generated stub so any search returns something to demo the pre-fill
+  if (q.length < 2) return []
+  const matches = KNOWN.filter(
+    (c) => c.tradingName.toLowerCase().includes(q) || c.companyRegNumber.includes(query.trim()),
+  ).slice(0, 6)
   const titled = query.trim().replace(/\b\w/g, (m) => m.toUpperCase())
-  return {
+  const typed: CompanyLookupResult = {
     tradingName: /ltd|limited|plc/i.test(titled) ? titled : `${titled} Ltd`,
     companyRegNumber: genReg(q),
     address: { postcode: '', line1: '', line2: '', city: '', town: '', country: 'United Kingdom' },
+    generated: true,
   }
+  return [...matches, typed]
 }
 
 export interface CreditResult {

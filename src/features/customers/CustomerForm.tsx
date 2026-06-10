@@ -17,8 +17,9 @@ import {
   type CommissionBand,
   type AddressKind,
 } from '@/store/customersStore.ts'
-import type { CompanyAddress } from '@/api/mock/companyLookup.ts'
-import { lookupCompany, lookupCredit } from '@/api/mock/companyLookup.ts'
+import type { CompanyAddress, CompanyLookupResult } from '@/api/mock/companyLookup.ts'
+import { searchCompanies, lookupCredit } from '@/api/mock/companyLookup.ts'
+import { useCustomersStore } from '@/store/customersStore.ts'
 
 type Tab = 'account' | 'invoicing' | 'addresses' | 'sales' | 'tariffs' | 'rules' | 'notes'
 const TABS: Array<[Tab, string]> = [
@@ -43,7 +44,8 @@ function fromISO(iso: string): string {
 export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave: (d: CustomerDraft) => void }) {
   const [tab, setTab] = useState<Tab>('account')
   const [d, setD] = useState<CustomerDraft>(blankCustomerDraft())
-  const [companyQuery, setCompanyQuery] = useState('')
+  // Show the account code immediately (the same one addCustomer will assign on save).
+  const accountCode = useCustomersStore((s) => s.peekCode())
 
   const set = (patch: Partial<CustomerDraft>) => setD((p) => ({ ...p, ...patch }))
   const setInv = (patch: Partial<CustomerDraft['invoicing']>) => setD((p) => ({ ...p, invoicing: { ...p.invoicing, ...patch } }))
@@ -59,12 +61,11 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
       invoicing: { ...p.invoicing, paymentType: kind === 'personal' ? 'card' : p.invoicing.paymentType },
     }))
 
-  function runCompanyLookup() {
-    const r = lookupCompany(companyQuery || d.companyName)
-    if (!r) return
+  // Apply a chosen company match — fills name, reg and the invoicing address.
+  function applyCompany(r: CompanyLookupResult) {
     setD((p) => ({
       ...p,
-      companyName: p.companyName || r.tradingName,
+      companyName: r.tradingName,
       invoicing: { ...p.invoicing, tradingName: r.tradingName, companyReg: r.companyRegNumber, address: { ...r.address } },
     }))
   }
@@ -110,7 +111,7 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
 
           <div className="cf-body">
             {tab === 'account' && (
-              <AccountTab d={d} set={set} setKind={setKind} companyQuery={companyQuery} setCompanyQuery={setCompanyQuery} runCompanyLookup={runCompanyLookup} />
+              <AccountTab d={d} set={set} setKind={setKind} accountCode={accountCode} applyCompany={applyCompany} />
             )}
             {tab === 'invoicing' && (
               <InvoicingTab d={d} setInv={setInv} setInvAddr={setInvAddr} runCreditLookup={runCreditLookup} />
@@ -133,9 +134,9 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
 }
 
 // ── Account ───────────────────────────────────────────────────────────────────
-function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompanyLookup }: {
+function AccountTab({ d, set, setKind, accountCode, applyCompany }: {
   d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void; setKind: (k: AccountKind) => void
-  companyQuery: string; setCompanyQuery: (v: string) => void; runCompanyLookup: () => void
+  accountCode: string; applyCompany: (r: CompanyLookupResult) => void
 }) {
   const isCompany = d.accountKind === 'company'
   const addContact = () => set({ contacts: [...d.contacts, { id: uid(), name: '', email: '', phone: '', role: '', isMain: d.contacts.length === 0 }] })
@@ -145,7 +146,7 @@ function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompany
 
   return (
     <>
-      {/* Step 1 — what kind of account is this? Drives the rest of the form. */}
+      {/* Step 1 — type, then sub-type / start date / code. This drives the rest. */}
       <Section title="What kind of account is this?">
         <div className="cf-kind">
           <button className={'cf-kind-card' + (isCompany ? ' on' : '')} onClick={() => setKind('company')}>
@@ -163,27 +164,27 @@ function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompany
             </div>
           </button>
         </div>
-        {isCompany && (
-          <div className="fld" style={{ maxWidth: 320 }}>
-            <label>Company type</label>
-            <select value={d.companyType} onChange={(e) => set({ companyType: e.target.value })}>
-              {COMPANY_TYPES.map((t) => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-        )}
+        <div className="g-cpc">
+          {isCompany ? (
+            <div className="fld"><label>Company type</label>
+              <select value={d.companyType} onChange={(e) => set({ companyType: e.target.value })}>
+                {COMPANY_TYPES.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          ) : <div />}
+          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} /></div>
+          <div className="fld"><label>Account code</label><input value={accountCode} disabled /></div>
+        </div>
       </Section>
 
       {/* Step 2 — identify the account (adapts to type) */}
       {isCompany ? (
-        <Section title="Company" hint="HMRC lookup (dummy) pre-fills name, reg number & invoicing address">
-          <div className="cf-lookup">
-            <input placeholder="Search company name or reg number…" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runCompanyLookup()} />
-            <button className="btn" onClick={runCompanyLookup}><Icon name="search" size={14} /> Look up</button>
+        <Section title="Company" hint="HMRC lookup (dummy) — pick a match to fill name, reg & invoicing address">
+          <div className="fld">
+            <label>Find company</label>
+            <CompanySearch onPick={applyCompany} />
           </div>
-          <div className="g2">
-            <div className="fld"><label>Company name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Shown across the system" /></div>
-            <div className="fld"><label>Account code</label><input value="Auto — generated on save" disabled /></div>
-          </div>
+          <div className="fld"><label>Company name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Shown across the system" /></div>
           <div className="fld">
             <label>Alternative / reference names</label>
             <ChipList values={d.altNames} placeholder="Other names / nicknames this customer is known by…" onChange={(v) => set({ altNames: v })} />
@@ -191,10 +192,7 @@ function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompany
         </Section>
       ) : (
         <Section title="Person">
-          <div className="g2">
-            <div className="fld"><label>Full name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="e.g. Sarah Doyle" /></div>
-            <div className="fld"><label>Account code</label><input value="Auto — generated on save" disabled /></div>
-          </div>
+          <div className="fld"><label>Full name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="e.g. Sarah Doyle" /></div>
           <div className="g2">
             <div className="fld"><label>Email</label><input value={d.personalEmail} onChange={(e) => set({ personalEmail: e.target.value })} /></div>
             <div className="fld"><label>Phone</label><input value={d.personalPhone} onChange={(e) => set({ personalPhone: e.target.value })} /></div>
@@ -210,13 +208,14 @@ function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompany
       <Section title="Account details">
         <div className="g2">
           <div className="fld"><label>Status</label><Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} /></div>
-          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} /></div>
+          <div className="fld"><label>Assigned to (admin user)</label><input value={d.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} placeholder="e.g. Owen Johnson" /></div>
         </div>
         <div className="g2">
-          <div className="fld"><label>Assigned to (admin user)</label><input value={d.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} placeholder="e.g. Owen Johnson" /></div>
           <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
+          <div className="fld"><label>Loyalty</label>
+            <label className="chk" style={{ height: 28 }}><input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points</label>
+          </div>
         </div>
-        <label className="chk"><input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points</label>
       </Section>
 
       {/* Step 4 — contacts (company only; a personal account is its own contact) */}
@@ -241,6 +240,44 @@ function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompany
         </Section>
       )}
     </>
+  )
+}
+
+// Type-ahead company finder — shows matches as you type; pick one to apply.
+function CompanySearch({ onPick }: { onPick: (r: CompanyLookupResult) => void }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const matches = q.trim().length >= 2 ? searchCompanies(q) : []
+  return (
+    <div className="ac">
+      <div className="cf-lookup">
+        <input
+          placeholder="Start typing a company name or reg number…"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+      </div>
+      {open && matches.length > 0 && (
+        <div className="ac-menu open" style={{ position: 'static', marginTop: 6 }}>
+          {matches.map((m, i) => (
+            <div
+              key={i}
+              className={'cb-opt' + (m.generated ? ' cb-sug' : '')}
+              onMouseDown={() => { onPick(m); setQ(''); setOpen(false) }}
+            >
+              <div className="co">{m.tradingName}</div>
+              <div className="ad">
+                {m.generated
+                  ? 'Use as typed — no registry match'
+                  : `Reg ${m.companyRegNumber} · ${[m.address.city, m.address.postcode].filter(Boolean).join(' ')}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

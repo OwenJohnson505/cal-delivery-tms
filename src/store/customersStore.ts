@@ -194,6 +194,8 @@ export function blankCustomerDraft(): CustomerDraft {
 interface CustomersState {
   customers: Customer[]
   seq: number
+  /** The next account code, without mutating (for showing it before save). */
+  peekCode(): string
   addCustomer(draft: CustomerDraft): Customer
   deleteCustomer(id: string): void
 }
@@ -216,6 +218,8 @@ function seedCustomers(): Customer[] {
 export const useCustomersStore = create<CustomersState>((set, get) => ({
   customers: seedCustomers(),
   seq: 1004,
+
+  peekCode: () => `CUS-${get().seq + 1}`,
 
   addCustomer: (draft) => {
     const seq = get().seq + 1
