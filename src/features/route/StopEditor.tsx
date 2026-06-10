@@ -165,7 +165,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
         {/* Driver instructions (kept on the left to free goods space on the right) */}
         <div className="edsec">
           <div className="edhead">Driver instruction</div>
-          <div className="fld"><input value={stop.note} placeholder="Shown to the driver &amp; on CX…" onChange={(e) => set({ note: e.target.value })} /></div>
+          <div className="fld"><input value={stop.note} placeholder="" onChange={(e) => set({ note: e.target.value })} /></div>
         </div>
        </div>
        <div className="ed-col">
@@ -257,10 +257,23 @@ function GoodsPreview({
   onRemove: (itemIndex: number) => void
 }) {
   const items = parseGoods(stop.goods)
+  const [infoOpen, setInfoOpen] = useState(false)
   return (
     <div className="parsed">
-      <div className="parsed-h">Formatted goods{items.length ? ` · ${items.length}` : ''}</div>
-      {!items.length && <div className="parsed-empty">Add items above (one at a time, or paste a list) and they’ll be itemised here.</div>}
+      <div className="parsed-h">
+        <span>Formatted goods{items.length ? ` · ${items.length}` : ''}</span>
+        <span className="fg-info-wrap">
+          <button type="button" className="dsec-info" title="About formatted goods" onClick={() => setInfoOpen((o) => !o)}>
+            <Icon name="info" size={13} />
+          </button>
+          {infoOpen && (
+            <>
+              <div className="cc-pop-scrim" onClick={() => setInfoOpen(false)} />
+              <div className="fg-info-pop">Add items above — one at a time, or paste a list — and they’ll be itemised here.</div>
+            </>
+          )}
+        </span>
+      </div>
       {items.map((it, ix) => {
         const e = eq[`${stop.id}:${ix}`] || {}
         return (

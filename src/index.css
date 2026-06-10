@@ -91,9 +91,10 @@
 }
 
 /* ── Sparser blue ──────────────────────────────────────────────
- * Reserve the deep accent for key actions/selections. Section labels go
- * muted, and the service/equipment/body chips use a much fainter blue. */
-.edhead { color: #64748b; }
+ * Reserve the deep accent for key actions/selections. Section headers get a
+ * strong dark ink so they clearly anchor each block (vs the light-grey field
+ * labels below them); the service/equipment/body chips use a fainter blue. */
+.edhead { color: #1e2a3a; font-weight: 800; }
 .ms-chip { background: #eef2f8; color: #5b667f; }
 .ms-chip i:hover { background: #dde4ef; }
 /* Close-to-list button: pill like everything else (kept its red intent). */
@@ -129,7 +130,9 @@
 /* Compact inline stop editor — fit the whole form without scrolling */
 .ed-compact { padding: 6px 12px 12px; }
 .ed-compact .edsec { margin: 0; padding: 10px 0 4px; gap: 6px; border-top: none; }
-.ed-compact .edhead { margin-bottom: 1px; }
+.ed-compact .edhead { margin-bottom: 4px; }
+/* lighten field labels a touch so the dark section header clearly leads */
+.ed-compact .fld > label { color: #8a93a3; font-weight: 600; }
 .ed-compact .fld > label { margin-bottom: 1px; }
 .ed-compact textarea { line-height: 1.3; }
 /* two columns side by side so the whole form fits without scrolling */
@@ -164,6 +167,16 @@
 }
 .ed-compact .pdel:hover { color: var(--deliver); border-color: var(--deliver); }
 .parsed-empty { color: var(--muted); font-size: 12px; padding: 2px 0; }
+/* Formatted-goods header + info popover (mirrors the driver info button) */
+.ed-compact .parsed-h { display: flex; align-items: center; gap: 6px; }
+.fg-info-wrap { position: relative; display: inline-flex; }
+.fg-info-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 481;
+  width: 230px; background: #fff; border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: 0 12px 32px rgba(16, 24, 40, .18);
+  padding: 9px 11px; font-size: 11.5px; font-weight: 400; line-height: 1.45;
+  color: var(--ink); text-transform: none; letter-spacing: 0;
+}
 
 /* reference input lives in the stop head (alongside the type selector) */
 .stop-ref {
