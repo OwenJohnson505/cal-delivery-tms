@@ -8,9 +8,10 @@ import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { Section, Segmented, ChipList } from './formBits.tsx'
 import {
-  ACCOUNT_TYPES,
+  COMPANY_TYPES,
   blankCustomerDraft,
   type CustomerDraft,
+  type AccountKind,
   type Contact,
   type SavedCustomerAddress,
   type CommissionBand,
@@ -49,6 +50,14 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
   const setInvAddr = (patch: Partial<CompanyAddress>) => setD((p) => ({ ...p, invoicing: { ...p.invoicing, address: { ...p.invoicing.address, ...patch } } }))
   const setSales = (patch: Partial<CustomerDraft['sales']>) => setD((p) => ({ ...p, sales: { ...p.sales, ...patch } }))
   const setRules = (patch: Partial<CustomerDraft['rules']>) => setD((p) => ({ ...p, rules: { ...p.rules, ...patch } }))
+
+  // Account type drives the rest of the form. Personal accounts default to card payment.
+  const setKind = (kind: AccountKind) =>
+    setD((p) => ({
+      ...p,
+      accountKind: kind,
+      invoicing: { ...p.invoicing, paymentType: kind === 'personal' ? 'card' : p.invoicing.paymentType },
+    }))
 
   function runCompanyLookup() {
     const r = lookupCompany(companyQuery || d.companyName)
@@ -101,7 +110,7 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
 
           <div className="cf-body">
             {tab === 'account' && (
-              <AccountTab d={d} set={set} companyQuery={companyQuery} setCompanyQuery={setCompanyQuery} runCompanyLookup={runCompanyLookup} />
+              <AccountTab d={d} set={set} setKind={setKind} companyQuery={companyQuery} setCompanyQuery={setCompanyQuery} runCompanyLookup={runCompanyLookup} />
             )}
             {tab === 'invoicing' && (
               <InvoicingTab d={d} setInv={setInv} setInvAddr={setInvAddr} runCreditLookup={runCreditLookup} />
@@ -124,10 +133,11 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
 }
 
 // ── Account ───────────────────────────────────────────────────────────────────
-function AccountTab({ d, set, companyQuery, setCompanyQuery, runCompanyLookup }: {
-  d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void
+function AccountTab({ d, set, setKind, companyQuery, setCompanyQuery, runCompanyLookup }: {
+  d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void; setKind: (k: AccountKind) => void
   companyQuery: string; setCompanyQuery: (v: string) => void; runCompanyLookup: () => void
 }) {
+  const isCompany = d.accountKind === 'company'
   const addContact = () => set({ contacts: [...d.contacts, { id: uid(), name: '', email: '', phone: '', role: '', isMain: d.contacts.length === 0 }] })
   const updContact = (id: string, patch: Partial<Contact>) => set({ contacts: d.contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const setMain = (id: string) => set({ contacts: d.contacts.map((c) => ({ ...c, isMain: c.id === id })) })
@@ -135,64 +145,101 @@ function AccountTab({ d, set, companyQuery, setCompanyQuery, runCompanyLookup }:
 
   return (
     <>
-      <Section title="Find company" hint="HMRC lookup (dummy) — by name or reg number">
-        <div className="cf-lookup">
-          <input placeholder="Company name or reg number…" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runCompanyLookup()} />
-          <button className="btn" onClick={runCompanyLookup}><Icon name="search" size={14} /> Look up</button>
+      {/* Step 1 — what kind of account is this? Drives the rest of the form. */}
+      <Section title="What kind of account is this?">
+        <div className="cf-kind">
+          <button className={'cf-kind-card' + (isCompany ? ' on' : '')} onClick={() => setKind('company')}>
+            <Icon name="building" size={20} />
+            <div>
+              <div className="cf-kind-t">Company</div>
+              <div className="cf-kind-d">A business — has a reg number, VAT, invoicing terms.</div>
+            </div>
+          </button>
+          <button className={'cf-kind-card' + (!isCompany ? ' on' : '')} onClick={() => setKind('personal')}>
+            <Icon name="user" size={20} />
+            <div>
+              <div className="cf-kind-t">Personal</div>
+              <div className="cf-kind-d">An individual — name and contact details, usually card payment.</div>
+            </div>
+          </button>
         </div>
-        <div className="cf-hint">Pre-fills the company name, registration number and invoicing address.</div>
-      </Section>
-
-      <Section title="Account">
-        <div className="g2">
-          <div className="fld"><label>Company name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Shown across the system" /></div>
-          <div className="fld"><label>Account code</label><input value="Auto — generated on save" disabled /></div>
-        </div>
-        <div className="fld">
-          <label>Alternative / reference names</label>
-          <ChipList values={d.altNames} placeholder="Other names / nicknames this customer is known by…" onChange={(v) => set({ altNames: v })} />
-        </div>
-        <div className="g2">
-          <div className="fld">
-            <label>Account type</label>
-            <select value={d.accountType} onChange={(e) => set({ accountType: e.target.value })}>
-              {ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}
+        {isCompany && (
+          <div className="fld" style={{ maxWidth: 320 }}>
+            <label>Company type</label>
+            <select value={d.companyType} onChange={(e) => set({ companyType: e.target.value })}>
+              {COMPANY_TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
           </div>
-          <div className="fld"><label>Status</label><Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} /></div>
-        </div>
-        <div className="g2">
-          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} /></div>
-          <div className="fld"><label>Assigned to (admin user)</label><input value={d.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} placeholder="e.g. Owen Johnson" /></div>
-        </div>
-        <div className="g2">
-          <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
-          <div className="fld"><label>Loyalty</label>
-            <label className="chk" style={{ height: 28 }}>
-              <input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points
-            </label>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Contacts" hint="star the main contact" action={<button className="btn sm" onClick={addContact}><Icon name="plus" size={13} /> Add contact</button>}>
-        {d.contacts.length === 0 ? (
-          <div className="cf-empty">No contacts yet.</div>
-        ) : (
-          d.contacts.map((c) => (
-            <div className="cf-contact" key={c.id}>
-              <button className={'cf-star' + (c.isMain ? ' on' : '')} title="Main contact" onClick={() => setMain(c.id)}>★</button>
-              <div className="cf-contact-grid">
-                <div className="fld"><label>Name</label><input value={c.name} onChange={(e) => updContact(c.id, { name: e.target.value })} /></div>
-                <div className="fld"><label>Role</label><input value={c.role} onChange={(e) => updContact(c.id, { role: e.target.value })} placeholder="e.g. Accounts" /></div>
-                <div className="fld"><label>Email</label><input value={c.email} onChange={(e) => updContact(c.id, { email: e.target.value })} /></div>
-                <div className="fld"><label>Phone</label><input value={c.phone} onChange={(e) => updContact(c.id, { phone: e.target.value })} /></div>
-              </div>
-              <button className="btn sm iconbtn" title="Remove" onClick={() => removeContact(c.id)}><Icon name="trash" size={14} /></button>
-            </div>
-          ))
         )}
       </Section>
+
+      {/* Step 2 — identify the account (adapts to type) */}
+      {isCompany ? (
+        <Section title="Company" hint="HMRC lookup (dummy) pre-fills name, reg number & invoicing address">
+          <div className="cf-lookup">
+            <input placeholder="Search company name or reg number…" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runCompanyLookup()} />
+            <button className="btn" onClick={runCompanyLookup}><Icon name="search" size={14} /> Look up</button>
+          </div>
+          <div className="g2">
+            <div className="fld"><label>Company name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Shown across the system" /></div>
+            <div className="fld"><label>Account code</label><input value="Auto — generated on save" disabled /></div>
+          </div>
+          <div className="fld">
+            <label>Alternative / reference names</label>
+            <ChipList values={d.altNames} placeholder="Other names / nicknames this customer is known by…" onChange={(v) => set({ altNames: v })} />
+          </div>
+        </Section>
+      ) : (
+        <Section title="Person">
+          <div className="g2">
+            <div className="fld"><label>Full name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="e.g. Sarah Doyle" /></div>
+            <div className="fld"><label>Account code</label><input value="Auto — generated on save" disabled /></div>
+          </div>
+          <div className="g2">
+            <div className="fld"><label>Email</label><input value={d.personalEmail} onChange={(e) => set({ personalEmail: e.target.value })} /></div>
+            <div className="fld"><label>Phone</label><input value={d.personalPhone} onChange={(e) => set({ personalPhone: e.target.value })} /></div>
+          </div>
+          <div className="fld">
+            <label>Alternative / reference names</label>
+            <ChipList values={d.altNames} placeholder="Other names this person is known by…" onChange={(v) => set({ altNames: v })} />
+          </div>
+        </Section>
+      )}
+
+      {/* Step 3 — account details */}
+      <Section title="Account details">
+        <div className="g2">
+          <div className="fld"><label>Status</label><Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} /></div>
+          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} /></div>
+        </div>
+        <div className="g2">
+          <div className="fld"><label>Assigned to (admin user)</label><input value={d.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} placeholder="e.g. Owen Johnson" /></div>
+          <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
+        </div>
+        <label className="chk"><input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points</label>
+      </Section>
+
+      {/* Step 4 — contacts (company only; a personal account is its own contact) */}
+      {isCompany && (
+        <Section title="Contacts" hint="star the main contact" action={<button className="btn sm" onClick={addContact}><Icon name="plus" size={13} /> Add contact</button>}>
+          {d.contacts.length === 0 ? (
+            <div className="cf-empty">No contacts yet.</div>
+          ) : (
+            d.contacts.map((c) => (
+              <div className="cf-contact" key={c.id}>
+                <button className={'cf-star' + (c.isMain ? ' on' : '')} title="Main contact" onClick={() => setMain(c.id)}>★</button>
+                <div className="cf-contact-grid">
+                  <div className="fld"><label>Name</label><input value={c.name} onChange={(e) => updContact(c.id, { name: e.target.value })} /></div>
+                  <div className="fld"><label>Role</label><input value={c.role} onChange={(e) => updContact(c.id, { role: e.target.value })} placeholder="e.g. Accounts" /></div>
+                  <div className="fld"><label>Email</label><input value={c.email} onChange={(e) => updContact(c.id, { email: e.target.value })} /></div>
+                  <div className="fld"><label>Phone</label><input value={c.phone} onChange={(e) => updContact(c.id, { phone: e.target.value })} /></div>
+                </div>
+                <button className="btn sm iconbtn" title="Remove" onClick={() => removeContact(c.id)}><Icon name="trash" size={14} /></button>
+              </div>
+            ))
+          )}
+        </Section>
+      )}
     </>
   )
 }
@@ -220,21 +267,28 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
   setInv: (p: Partial<CustomerDraft['invoicing']>) => void; setInvAddr: (p: Partial<CompanyAddress>) => void; runCreditLookup: () => void
 }) {
   const inv = d.invoicing
+  const isCompany = d.accountKind === 'company'
   return (
     <>
-      <Section title="Invoicing name & address" hint="the company / billing address lives here">
-        <label className="chk"><input type="checkbox" checked={inv.sameAsCompany} onChange={(e) => setInv({ sameAsCompany: e.target.checked })} /> Trading name same as company name</label>
-        {!inv.sameAsCompany && <div className="fld"><label>Trading name (on invoices)</label><input value={inv.tradingName} onChange={(e) => setInv({ tradingName: e.target.value })} /></div>}
+      <Section title={isCompany ? 'Invoicing name & address' : 'Billing address'} hint="the billing address lives here">
+        {isCompany && (
+          <>
+            <label className="chk"><input type="checkbox" checked={inv.sameAsCompany} onChange={(e) => setInv({ sameAsCompany: e.target.checked })} /> Trading name same as company name</label>
+            {!inv.sameAsCompany && <div className="fld"><label>Trading name (on invoices)</label><input value={inv.tradingName} onChange={(e) => setInv({ tradingName: e.target.value })} /></div>}
+          </>
+        )}
         <AddressFields addr={inv.address} onChange={setInvAddr} />
       </Section>
 
-      <Section title="Identifiers">
-        <div className="g-cpc">
-          <div className="fld"><label>Company reg</label><input value={inv.companyReg} onChange={(e) => setInv({ companyReg: e.target.value })} /></div>
-          <div className="fld"><label>VAT number</label><input value={inv.vat} onChange={(e) => setInv({ vat: e.target.value })} /></div>
-          <div className="fld"><label>EORI number</label><input value={inv.eori} onChange={(e) => setInv({ eori: e.target.value })} /></div>
-        </div>
-      </Section>
+      {isCompany && (
+        <Section title="Identifiers">
+          <div className="g-cpc">
+            <div className="fld"><label>Company reg</label><input value={inv.companyReg} onChange={(e) => setInv({ companyReg: e.target.value })} /></div>
+            <div className="fld"><label>VAT number</label><input value={inv.vat} onChange={(e) => setInv({ vat: e.target.value })} /></div>
+            <div className="fld"><label>EORI number</label><input value={inv.eori} onChange={(e) => setInv({ eori: e.target.value })} /></div>
+          </div>
+        </Section>
+      )}
 
       <Section title="Payment">
         <div className="g2">
@@ -288,12 +342,14 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
         </div>
       </Section>
 
-      <Section title="Credit" hint="CreditSafe (dummy)" action={<button className="btn sm" onClick={runCreditLookup} disabled={!inv.companyReg}><Icon name="search" size={13} /> Check credit</button>}>
-        <div className="g2">
-          <div className="fld"><label>Credit limit (£)</label><input type="number" value={inv.creditLimit ?? ''} onChange={(e) => setInv({ creditLimit: e.target.value === '' ? null : +e.target.value })} /></div>
-          <div className="fld"><label>Credit score</label><input type="number" value={inv.creditScore ?? ''} onChange={(e) => setInv({ creditScore: e.target.value === '' ? null : +e.target.value })} /></div>
-        </div>
-      </Section>
+      {isCompany && (
+        <Section title="Credit" hint="CreditSafe (dummy)" action={<button className="btn sm" onClick={runCreditLookup} disabled={!inv.companyReg}><Icon name="search" size={13} /> Check credit</button>}>
+          <div className="g2">
+            <div className="fld"><label>Credit limit (£)</label><input type="number" value={inv.creditLimit ?? ''} onChange={(e) => setInv({ creditLimit: e.target.value === '' ? null : +e.target.value })} /></div>
+            <div className="fld"><label>Credit score</label><input type="number" value={inv.creditScore ?? ''} onChange={(e) => setInv({ creditScore: e.target.value === '' ? null : +e.target.value })} /></div>
+          </div>
+        </Section>
+      )}
     </>
   )
 }

@@ -158,6 +158,27 @@
   padding-top: 14px;
 }
 .cf-section-action { margin-left: auto; }
+/* account-kind chooser (the first decision) */
+.cf-kind { display: flex; gap: 10px; }
+.cf-kind-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: var(--ink);
+  font: inherit;
+}
+.cf-kind-card:hover { background: #f6f8fb; }
+.cf-kind-card.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent) inset; }
+.cf-kind-card .ic-svg { color: var(--accent); flex: none; }
+.cf-kind-t { font-size: 13px; font-weight: 700; }
+.cf-kind-d { font-size: 11px; color: var(--muted); margin-top: 1px; }
 .cf-section:first-child .cf-section-h { border-top: none; padding-top: 0; }
 .cf-hint {
   font-size: 10px;

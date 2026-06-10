@@ -84,7 +84,7 @@ export function CustomersScreen() {
               {rows.map((c) => (
                 <tr key={c.id}>
                   <td><b>{c.companyName}</b></td>
-                  <td>{c.accountType}</td>
+                  <td>{c.accountKind === 'personal' ? 'Personal' : c.companyType}</td>
                   <td>{c.accountCode}</td>
                   <td><span className={'itag' + (c.status === 'inactive' ? ' itag-muted' : '')}>{c.status === 'active' ? 'Active' : 'Inactive'}</span></td>
                   <td className="num">{jobCount[c.companyName] || 0}</td>

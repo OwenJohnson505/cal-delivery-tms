@@ -13,6 +13,7 @@ import { create } from 'zustand'
 import { CUSTOMERS } from '@/api/mock/data.ts'
 import type { CompanyAddress } from '@/api/mock/companyLookup.ts'
 
+export type AccountKind = 'company' | 'personal'
 export type AccountStatus = 'active' | 'inactive'
 export type PaymentType = 'card' | 'invoice'
 export type PaymentBasis = 'net' | 'eow' | 'eom'
@@ -20,13 +21,13 @@ export type InvoiceFrequency = 'per-job' | 'per-day' | 'weekly' | 'bi-weekly' | 
 export type AddressKind = 'collection' | 'delivery' | 'both'
 export type CommissionMetric = 'revenue' | 'margin'
 
-export const ACCOUNT_TYPES = [
+/** Company sub-types (only relevant when accountKind === 'company'). */
+export const COMPANY_TYPES = [
   'Private Limited Company',
   'Public Limited Company (PLC)',
   'Sole Trader',
   'Partnership',
   'LLP',
-  'Personal',
   'Other',
 ]
 
@@ -102,10 +103,15 @@ export interface RulesInfo {
 export interface Customer {
   id: string
   accountCode: string
-  // Account
-  companyName: string // system / display name
+  // Account — type first; it drives the rest of the form
+  accountKind: AccountKind
+  companyType: string // company sub-type (company accounts only)
+  /** System / display name. For a company: the company name; for personal: the full name. */
+  companyName: string
   altNames: string[] // alternative / reference names + nicknames
-  accountType: string
+  /** Personal accounts: the individual's own contact details. */
+  personalEmail: string
+  personalPhone: string
   status: AccountStatus
   startDate: string // dd-mm-yyyy
   assignedTo: string
@@ -132,9 +138,12 @@ function emptyAddress(): CompanyAddress {
 
 export function blankCustomerDraft(): CustomerDraft {
   return {
+    accountKind: 'company',
+    companyType: COMPANY_TYPES[0],
     companyName: '',
     altNames: [],
-    accountType: ACCOUNT_TYPES[0],
+    personalEmail: '',
+    personalPhone: '',
     status: 'active',
     startDate: '',
     assignedTo: '',
@@ -196,6 +205,7 @@ function seedCustomers(): Customer[] {
       ...base,
       id: c.id,
       accountCode: `CUS-${1001 + i}`,
+      accountKind: 'company' as const,
       companyName: c.name,
       startDate: '01-04-2025',
       invoicing: { ...base.invoicing, tradingName: c.name },
