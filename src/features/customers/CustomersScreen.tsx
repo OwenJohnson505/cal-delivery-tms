@@ -1,6 +1,7 @@
 /**
- * CustomersScreen — a simple accounts list with a create form (name only for now). Reuses
- * the list-screen table styling. To be built out (contacts, terms, references, …) later.
+ * CustomersScreen — a simple accounts list with an "Add customer" button that opens a
+ * modal form (name only for now), in the same style as the rest of the app's modals.
+ * To be built out (contacts, terms, references, …) later.
  */
 import { useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
@@ -13,8 +14,8 @@ export function CustomersScreen() {
   const deleteCustomer = useCustomersStore((s) => s.deleteCustomer)
   const jobs = useJobsStore((s) => s.jobs)
 
-  const [name, setName] = useState('')
   const [query, setQuery] = useState('')
+  const [formOpen, setFormOpen] = useState(false)
 
   const jobCount = useMemo(() => {
     const c: Record<string, number> = {}
@@ -29,33 +30,12 @@ export function CustomersScreen() {
     return customers.filter((c) => !q || c.name.toLowerCase().includes(q))
   }, [customers, query])
 
-  function create() {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    addCustomer(trimmed)
-    setName('')
-  }
-
   return (
     <div className="list-app">
       <div className="list-work">
         <div className="list-head">
           <h1>Customers</h1>
-        </div>
-
-        {/* Create form (name only for now) */}
-        <div className="cust-create">
-          <div className="fld" style={{ flex: 1, maxWidth: 360 }}>
-            <label>New customer</label>
-            <input
-              type="text"
-              placeholder="Customer name…"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && create()}
-            />
-          </div>
-          <button className="btn primary" onClick={create} disabled={!name.trim()}>
+          <button className="btn primary" onClick={() => setFormOpen(true)}>
             <Icon name="plus" size={15} /> Add customer
           </button>
         </div>
@@ -108,6 +88,59 @@ export function CustomersScreen() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {formOpen && (
+        <NewCustomerModal
+          onClose={() => setFormOpen(false)}
+          onCreate={(name) => {
+            addCustomer(name)
+            setFormOpen(false)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function NewCustomerModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void
+  onCreate: (name: string) => void
+}) {
+  const [name, setName] = useState('')
+  const submit = () => {
+    if (name.trim()) onCreate(name.trim())
+  }
+
+  return (
+    <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-h">
+          New customer
+          <span className="x" onClick={onClose}>✕</span>
+        </div>
+        <div className="modal-b">
+          <div className="fld">
+            <label>Customer name</label>
+            <input
+              type="text"
+              autoFocus
+              placeholder="e.g. Acme Freight Ltd"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+            />
+          </div>
+        </div>
+        <div className="modal-f">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" onClick={submit} disabled={!name.trim()}>
+            Add customer
+          </button>
         </div>
       </div>
     </div>
