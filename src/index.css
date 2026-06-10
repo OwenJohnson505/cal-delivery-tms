@@ -48,6 +48,34 @@
 .bar-tools .iconbtn { color: var(--muted); opacity: .82; }
 .bar-tools .iconbtn:hover { opacity: 1; }
 
+/* Selected-customer header: name + contact are click targets, not plain text. */
+.cc-name, .cc-contact {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--ink); font: inherit; padding: 2px 4px; border-radius: 6px;
+  min-width: 0; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cc-name:hover, .cc-contact:hover { background: var(--field); }
+.cc-name b { font-weight: 700; }
+.cc-contact-wrap { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.cc-pop-scrim { position: fixed; inset: 0; z-index: 480; }
+.cc-contact-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 481;
+  min-width: 240px; background: #fff; border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: 0 12px 32px rgba(16, 24, 40, .18);
+  padding: 8px; display: flex; flex-direction: column; gap: 2px;
+}
+.cc-contact-pop .ccp-h { font-size: 11px; font-weight: 700; color: var(--muted); padding: 2px 8px 4px; }
+.cc-contact-pop .ccp-row {
+  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px;
+  color: var(--ink); text-decoration: none; font-size: 12.5px;
+}
+.cc-contact-pop .ccp-row:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* Driver heading info eye */
+.dsec-eye { color: var(--muted); cursor: help; display: inline-flex; vertical-align: -2px; margin-left: 3px; }
+.dsec-eye:hover { color: var(--accent); }
+
 /* Let the route panel take the available height (so the editor fits + several
  * collapsed stops show at once); the job-notes/requirements row is kept thin. */
 .left .route { flex: 1 1 auto; height: auto; min-height: 240px; }
@@ -422,7 +450,7 @@
 .cf-btn {
   display: inline-flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 10px; flex: none;
-  border: 1px solid var(--line-strong); border-radius: 8px;
+  border: 1px solid var(--line); border-radius: 999px;
   background: #fff; color: var(--ink); font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
 .cf-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -592,9 +620,9 @@
   gap: 6px;
   height: 27px;
   padding: 0 11px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: #fff;
-  border-radius: 6px;
+  border-radius: 999px;
   font-weight: 600;
   font-size: 11.5px;
   cursor: pointer;

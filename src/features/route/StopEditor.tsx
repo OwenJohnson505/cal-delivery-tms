@@ -225,7 +225,9 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
           )}
           <div className="svc-row" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
             <label className="chk"><input type="checkbox" checked={!!stop.svc.twoman} onChange={() => toggleStopSvc(stop.id, 'twoman')} /> Two-man</label>
-            <label className="chk"><input type="checkbox" onChange={(e) => setAllTwoman(e.target.checked)} /> Set for all stops</label>
+            {stop.svc.twoman && (
+              <label className="chk"><input type="checkbox" onChange={(e) => setAllTwoman(e.target.checked)} /> Set for all stops</label>
+            )}
             {stop.type === 'Both' && index === stops.length - 1 && (
               <label className="chk"><input type="checkbox" checked={!!stop.svc.wait} onChange={() => toggleStopSvc(stop.id, 'wait')} /> Wait &amp; return</label>
             )}
@@ -257,7 +259,7 @@ function GoodsPreview({
   const items = parseGoods(stop.goods)
   return (
     <div className="parsed">
-      <div className="parsed-h">Reads as{items.length ? ` · ${items.length}` : ''}</div>
+      <div className="parsed-h">Formatted goods{items.length ? ` · ${items.length}` : ''}</div>
       {!items.length && <div className="parsed-empty">Add items above (one at a time, or paste a list) and they’ll be itemised here.</div>}
       {items.map((it, ix) => {
         const e = eq[`${stop.id}:${ix}`] || {}

@@ -19,6 +19,8 @@ export function CustomerHeader() {
   const [open, setOpen] = useState(false)
   // When a company is chosen from the search, we step into picking one of its contacts.
   const [picking, setPicking] = useState<Customer | null>(null)
+  // Contact email/phone popover (opened by clicking the contact name).
+  const [contactOpen, setContactOpen] = useState(false)
 
   const { companyHits, contactHits } = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -130,24 +132,39 @@ export function CustomerHeader() {
   const c = book.contact
   return (
     <div className="cc-oneline" style={{ minWidth: 0 }}>
-      <span className="cc-oneinfo" style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {/* Click the company name for the customer-info pack. */}
+      <button className="cc-name" title="View customer info" onClick={() => openModal('custinfo')}>
         <Icon name="building" size={14} /> <b>{accountName(customers, book.cust)}</b>
-        {c && (
-          <>
-            <span className="dotsep">·</span>
-            <Icon name="user" size={14} /> {c.name}
-            <span className="dotsep">·</span>
-            <span className="cpx" title="Click to copy">{c.email}</span>
-            <span className="dotsep">·</span>
-            <span className="cpx" title="Click to copy">{c.tel}</span>
-          </>
-        )}
-      </span>
-      <button className="btn sm iconbtn" title="Customer info" onClick={() => openModal('custinfo')} style={{ flex: 'none' }}>
-        <Icon name="info" size={16} />
       </button>
-      <button className="btn sm" title="Change customer" onClick={() => setBook({ cust: null, contact: null })}>
-        Change
+      {c && (
+        <span className="cc-contact-wrap">
+          <span className="dotsep">·</span>
+          {/* Click the contact name to reveal email + phone (call/email from there). */}
+          <button className="cc-contact" title="Contact details" onClick={() => setContactOpen((o) => !o)}>
+            <Icon name="user" size={14} /> {c.name}
+          </button>
+          {contactOpen && (
+            <>
+              <div className="cc-pop-scrim" onClick={() => setContactOpen(false)} />
+              <div className="cc-contact-pop">
+                <div className="ccp-h">{c.name}</div>
+                {c.email && (
+                  <a className="ccp-row" href={`mailto:${c.email}`} title="Send email">
+                    <Icon name="mail" size={14} /> <span>{c.email}</span>
+                  </a>
+                )}
+                {c.tel && (
+                  <a className="ccp-row" href={`tel:${c.tel}`} title="Call">
+                    <Icon name="phone" size={14} /> <span>{c.tel}</span>
+                  </a>
+                )}
+              </div>
+            </>
+          )}
+        </span>
+      )}
+      <button className="btn sm iconbtn" title="Change customer" onClick={() => setBook({ cust: null, contact: null })}>
+        <Icon name="edit" size={15} />
       </button>
     </div>
   )

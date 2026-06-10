@@ -164,7 +164,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
                 />
               </div>
               <div className="ce-prev">
-                <div className="ce-prev-h">Reads as</div>
+                <div className="ce-prev-h">Formatted goods</div>
                 {parseGoods(stop.goods).length ? (
                   parseGoods(stop.goods).map((it, i) => (
                     <div className="ce-prev-row" key={i} dangerouslySetInnerHTML={{ __html: fmtItem(it) }} />

@@ -4,6 +4,7 @@
  * opens the Providers drawer.
  */
 import { useState } from 'react'
+import { Icon } from '@/app/Icon.tsx'
 import { useApi } from '@/api/ApiProvider.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
@@ -44,6 +45,12 @@ export function DriverSection() {
     <div className="rsec" id="drvSec">
       <h3>
         Driver{' '}
+        <span
+          className="dsec-eye"
+          title="Search to allocate a driver directly, or use “Browse options” to see interested drivers and CX bids."
+        >
+          <Icon name="eye" size={13} />
+        </span>
         <span className="r">
           <span className="discl" onClick={() => openDrawer('providers')}>Browse options</span>
         </span>
@@ -94,9 +101,6 @@ export function DriverSection() {
                   ))}
                 </div>
               )}
-            </div>
-            <div className="hint" style={{ marginTop: 6 }}>
-              Search to allocate directly, or “Browse options” for interested drivers and CX bids.
             </div>
           </div>
         )}
