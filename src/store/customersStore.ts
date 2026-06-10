@@ -10,7 +10,6 @@
  * invoicing name (defaults to the company name via `sameAsCompany`).
  */
 import { create } from 'zustand'
-import { CUSTOMERS } from '@/api/mock/data.ts'
 import type { CompanyAddress } from '@/api/mock/companyLookup.ts'
 
 export type AccountKind = 'company' | 'personal'
@@ -214,8 +213,39 @@ interface CustomersState {
   deleteCustomer(id: string): void
 }
 
+/** Seed accounts with nicknames + contacts so the booking search can be exercised. */
+const SEED: Array<{
+  id: string
+  name: string
+  altNames: string[]
+  contacts: Array<[name: string, email: string, phone: string, role: string]>
+}> = [
+  { id: 'brightway', name: 'Brightway Trading Ltd', altNames: ['Brightway', 'BWT'], contacts: [
+    ['Sarah Doyle', 's.doyle@brightway.co.uk', '0113 555 0148', 'Accounts'],
+    ['James Hill', 'j.hill@brightway.co.uk', '0113 555 0150', 'Logistics'],
+  ] },
+  { id: 'meridian', name: 'Meridian Foods Ltd', altNames: ['Meridian'], contacts: [
+    ['Sarah Doyle', 'sarah@meridianfoods.com', '0161 555 7781', 'Operations'],
+  ] },
+  { id: 'cal', name: 'Cal Logistics', altNames: ['Cal', 'CLL'], contacts: [
+    ['Tom Baker', 'tom@callogistics.co.uk', '0151 555 2200', 'Transport'],
+  ] },
+  { id: 'orbit', name: 'Orbit Retail', altNames: ['Orbit'], contacts: [
+    ['Priya Shah', 'priya@orbitretail.com', '0161 555 9001', 'Buyer'],
+  ] },
+  { id: 'owen', name: 'Owen Transport Limited', altNames: ['OT Limited', 'OTL'], contacts: [
+    ['Owen Reid', 'owen@owentransport.co.uk', '0113 555 3300', 'Director'],
+  ] },
+  { id: 'northgate', name: 'Northgate Logistics', altNames: ['Northgate', 'NGL'], contacts: [
+    ['John Carter', 'j.carter@northgate.co.uk', '0113 496 0021', 'Goods-in'],
+  ] },
+  { id: 'forsyth', name: 'Forsyth Retail Group', altNames: ['Forsyth', 'FRG'], contacts: [
+    ['Emma Watts', 'emma@forsythretail.com', '0161 555 4040', 'Accounts'],
+  ] },
+]
+
 function seedCustomers(): Customer[] {
-  return CUSTOMERS.map((c, i) => {
+  return SEED.map((c, i) => {
     const base = blankCustomerDraft()
     return {
       ...base,
@@ -223,7 +253,11 @@ function seedCustomers(): Customer[] {
       accountCode: `CUS-${1001 + i}`,
       accountKind: 'company' as const,
       companyName: c.name,
+      altNames: c.altNames,
       startDate: '01-04-2025',
+      contacts: c.contacts.map(([name, email, phone, role], ci) => ({
+        id: crypto.randomUUID(), name, email, phone, role, isMain: ci === 0, defaultPo: '',
+      })),
       invoicing: { ...base.invoicing, tradingName: c.name },
     }
   })
@@ -231,7 +265,7 @@ function seedCustomers(): Customer[] {
 
 export const useCustomersStore = create<CustomersState>((set, get) => ({
   customers: seedCustomers(),
-  seq: 1004,
+  seq: 1000 + SEED.length,
 
   peekCode: () => `CUS-${get().seq + 1}`,
 

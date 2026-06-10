@@ -364,6 +364,7 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
         </Section>
       )}
 
+      {/* How they pay */}
       <Section title="Payment">
         <div className="g2">
           <div className="fld"><label>Payment type</label><Segmented value={inv.paymentType} onChange={(v) => setInv({ paymentType: v })} options={[['card', 'Upfront card'], ['invoice', 'Invoice terms']]} /></div>
@@ -381,6 +382,10 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
             </div>
           )}
         </div>
+      </Section>
+
+      {/* How/when invoices are produced */}
+      <Section title="Invoice settings">
         <div className="g2">
           <div className="fld">
             <label>Invoice frequency</label>
@@ -392,20 +397,24 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
           <div className="fld"><label>Currency</label><select value={inv.currency} onChange={(e) => setInv({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
         </div>
         {(inv.frequency === 'weekly' || inv.frequency === 'bi-weekly') && (
-          <div className="cf-weekdays">
-            {WEEKDAYS.map((wd) => {
-              const on = inv.weekdays.includes(wd)
-              return <button key={wd} type="button" className={'cf-seg-btn' + (on ? ' on' : '')} onClick={() => setInv({ weekdays: on ? inv.weekdays.filter((x) => x !== wd) : [...inv.weekdays, wd] })}>{wd}</button>
-            })}
+          <div className="fld">
+            <label>Invoice on</label>
+            <div className="cf-weekdays">
+              {WEEKDAYS.map((wd) => {
+                const on = inv.weekdays.includes(wd)
+                return <button key={wd} type="button" className={'cf-seg-btn' + (on ? ' on' : '')} onClick={() => setInv({ weekdays: on ? inv.weekdays.filter((x) => x !== wd) : [...inv.weekdays, wd] })}>{wd}</button>
+              })}
+            </div>
           </div>
         )}
+        <label className="chk"><input type="checkbox" checked={inv.attachPods} onChange={(e) => setInv({ attachPods: e.target.checked })} /> Attach PODs to invoices</label>
+        <div className="g2">
+          <div className="fld"><label>Max value per invoice (£)</label><input type="number" value={inv.maxValuePerInvoice ?? ''} onChange={(e) => setInv({ maxValuePerInvoice: e.target.value === '' ? null : +e.target.value })} placeholder="e.g. 5000" /></div>
+          <div className="fld"><label>Invoice number prefixes</label><ChipList values={inv.prefixes} placeholder="e.g. ACME-" onChange={(v) => setInv({ prefixes: v })} /></div>
+        </div>
       </Section>
 
-      <Section title="Emails">
-        <div className="fld"><label>Invoice emails</label><ChipList values={inv.invoiceEmails} placeholder="finance@example.com" onChange={(v) => setInv({ invoiceEmails: v })} /></div>
-        <div className="fld"><label>Statement emails</label><ChipList values={inv.statementEmails} placeholder="statements@example.com" onChange={(v) => setInv({ statementEmails: v })} /></div>
-      </Section>
-
+      {/* PO validation rules */}
       <Section title="PO rules" hint="used to validate POs entered on the booking screen">
         <label className="chk"><input type="checkbox" checked={inv.poRequired} onChange={(e) => setInv({ poRequired: e.target.checked })} /> Requires a PO number before invoicing</label>
         <label className="chk"><input type="checkbox" checked={inv.separatePerRef} onChange={(e) => setInv({ separatePerRef: e.target.checked })} /> Separate invoice per unique PO</label>
@@ -423,14 +432,6 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
         </div>
       </Section>
 
-      <Section title="Invoice settings">
-        <label className="chk"><input type="checkbox" checked={inv.attachPods} onChange={(e) => setInv({ attachPods: e.target.checked })} /> Attach PODs to invoices</label>
-        <div className="g2">
-          <div className="fld"><label>Max value per invoice (£)</label><input type="number" value={inv.maxValuePerInvoice ?? ''} onChange={(e) => setInv({ maxValuePerInvoice: e.target.value === '' ? null : +e.target.value })} placeholder="e.g. 5000" /></div>
-          <div className="fld"><label>Invoice number prefixes</label><ChipList values={inv.prefixes} placeholder="e.g. ACME-" onChange={(v) => setInv({ prefixes: v })} /></div>
-        </div>
-      </Section>
-
       {isCompany && (
         <Section title="Credit" hint="CreditSafe (dummy) — auto-filled from the company reg" action={<button className="btn sm" onClick={runCreditLookup} disabled={!inv.companyReg}><Icon name="search" size={13} /> Re-check</button>}>
           <div className="g2">
@@ -439,6 +440,12 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
           </div>
         </Section>
       )}
+
+      {/* Contacts for billing — at the bottom */}
+      <Section title="Emails">
+        <div className="fld"><label>Invoice emails</label><ChipList values={inv.invoiceEmails} placeholder="finance@example.com" onChange={(v) => setInv({ invoiceEmails: v })} /></div>
+        <div className="fld"><label>Statement emails</label><ChipList values={inv.statementEmails} placeholder="statements@example.com" onChange={(v) => setInv({ statementEmails: v })} /></div>
+      </Section>
     </>
   )
 }

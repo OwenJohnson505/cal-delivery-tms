@@ -9,7 +9,7 @@ import type { JobStatus } from '@/types/index.ts'
 import { useBookingStore } from './bookingStore.ts'
 import { createInitialState } from './initialState.ts'
 import { outcode } from '@/lib/index.ts'
-import { CUSTOMERS } from '@/api/mock/data.ts'
+import { useCustomersStore } from './customersStore.ts'
 
 export interface SavedJob {
   id: string
@@ -28,7 +28,7 @@ export interface SavedJob {
 
 function customerName(id: string | null): string {
   if (!id) return '—'
-  return CUSTOMERS.find((c) => c.id === id)?.name ?? id
+  return useCustomersStore.getState().customers.find((c) => c.id === id)?.companyName ?? id
 }
 
 /** Derive the table display fields from a booking snapshot. */
