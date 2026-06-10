@@ -12,11 +12,14 @@ export function LeftRail() {
   const screen = useViewStore((s) => s.screen)
   const goToList = useViewStore((s) => s.goToList)
   const goToCustomers = useViewStore((s) => s.goToCustomers)
+  const go = useViewStore((s) => s.go)
   const items: Array<{ icon: string; label: string; onClick?: () => void; active?: boolean }> = [
-    { icon: 'grid', label: 'Home' },
+    { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' || screen === 'wizard' },
     { icon: 'user', label: 'Customers', onClick: () => goToCustomers(), active: screen === 'customers' },
-    { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' },
-    { icon: 'chart', label: 'Analytics' },
+    { icon: 'pin', label: 'Addresses', onClick: () => go('addresses'), active: screen === 'addresses' },
+    { icon: 'tag', label: 'Tariffs', onClick: () => go('tariffs'), active: screen === 'tariffs' },
+    { icon: 'users', label: 'Users', onClick: () => go('users'), active: screen === 'users' },
+    { icon: 'building', label: 'Teams', onClick: () => go('teams'), active: screen === 'teams' },
     { icon: 'wheel', label: 'Drivers' },
   ]
   return (

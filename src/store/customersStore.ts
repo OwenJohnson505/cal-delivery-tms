@@ -141,7 +141,10 @@ export interface Customer {
   personalPhone: string
   status: AccountStatus
   startDate: string // dd-mm-yyyy
-  team: string // coming soon
+  team: string // legacy free-text (superseded by departmentId/teamId)
+  /** Owning department + team (see orgStore) — drives staff filtering of views. */
+  departmentId: string
+  teamId: string
   loyaltyEnabled: boolean // CalClub (Incentives tab)
   contacts: Contact[]
   // Invoicing
@@ -177,6 +180,8 @@ export function blankCustomerDraft(): CustomerDraft {
     status: 'active',
     startDate: '',
     team: '',
+    departmentId: '',
+    teamId: '',
     loyaltyEnabled: false,
     contacts: [],
     invoicing: {

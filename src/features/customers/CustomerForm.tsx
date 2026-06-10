@@ -24,6 +24,8 @@ import {
 import type { CompanyAddress, CompanyLookupResult } from '@/api/mock/companyLookup.ts'
 import { searchCompanies, lookupCredit } from '@/api/mock/companyLookup.ts'
 import { useCustomersStore } from '@/store/customersStore.ts'
+import { useOrgStore } from '@/store/orgStore.ts'
+import { useTariffsStore } from '@/store/tariffsStore.ts'
 
 type Tab = 'account' | 'invoicing' | 'addresses' | 'fields' | 'sales' | 'tariffs' | 'incentives' | 'rules' | 'notes'
 const TABS: Array<[Tab, string]> = [
@@ -32,7 +34,6 @@ const TABS: Array<[Tab, string]> = [
 ]
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const CURRENCIES = ['GBP', 'EUR', 'USD']
-const TARIFFS = ['Standard', 'Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
 // TODO(db): users come from a users table once it exists. Hardcoded for now.
 const USERS = ['Owen Johnson', 'Sarah Doyle', 'James Hill', 'Priya Shah', 'Tom Baker']
 
@@ -173,6 +174,8 @@ function AccountTab({ d, set, setKind, setStartDate, accountCode, applyCompany }
   setStartDate: (v: string) => void; accountCode: string; applyCompany: (r: CompanyLookupResult) => void
 }) {
   const isCompany = d.accountKind === 'company'
+  const departments = useOrgStore((s) => s.departments)
+  const teams = useOrgStore((s) => s.teams)
   const addContact = () => set({ contacts: [...d.contacts, { id: uid(), name: '', email: '', phone: '', role: '', isMain: d.contacts.length === 0, defaultPo: '' }] })
   const updContact = (id: string, patch: Partial<Contact>) => set({ contacts: d.contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const setMain = (id: string) => set({ contacts: d.contacts.map((c) => ({ ...c, isMain: c.id === id })) })
@@ -211,8 +214,18 @@ function AccountTab({ d, set, setKind, setStartDate, accountCode, applyCompany }
         </div>
         <div className="g-cpc">
           <div className="fld"><label>Account code</label><input value={accountCode} disabled /></div>
-          <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
-          <div />
+          <div className="fld"><label>Department</label>
+            <select value={d.departmentId} onChange={(e) => set({ departmentId: e.target.value, teamId: '' })}>
+              <option value="">—</option>
+              {departments.map((dep) => <option key={dep.id} value={dep.id}>{dep.name}</option>)}
+            </select>
+          </div>
+          <div className="fld"><label>Team</label>
+            <select value={d.teamId} disabled={!d.departmentId} onChange={(e) => set({ teamId: e.target.value })}>
+              <option value="">{d.departmentId ? '—' : 'Pick a department first'}</option>
+              {teams.filter((t) => t.departmentId === d.departmentId).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
         </div>
       </Section>
 
@@ -594,12 +607,15 @@ function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<Cus
 
 // ── Tariffs / Rules ───────────────────────────────────────────────────────────────
 function TariffsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
-  const defaultOptions = d.assignedTariffs.length ? d.assignedTariffs : TARIFFS
+  // Rate cards come from the tariffs database (Tariffs screen).
+  const tariffs = useTariffsStore((s) => s.tariffs)
+  const names = tariffs.map((t) => t.name)
+  const defaultOptions = d.assignedTariffs.length ? d.assignedTariffs : names
   return (
-    <Section title="Tariffs" hint="rate cards come from the tariffs database (coming soon)">
+    <Section title="Tariffs" hint="rate cards come from the Tariffs database">
       <div className="fld">
         <label>Assigned tariffs</label>
-        <MultiSelect options={TARIFFS} selected={d.assignedTariffs} placeholder="Select the rate cards this account can use…" onChange={(v) => set({ assignedTariffs: v })} />
+        <MultiSelect options={names} selected={d.assignedTariffs} placeholder="Select the rate cards this account can use…" onChange={(v) => set({ assignedTariffs: v })} />
       </div>
       <div className="fld" style={{ maxWidth: 320 }}>
         <label>Default tariff</label>
@@ -608,7 +624,7 @@ function TariffsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDra
           {defaultOptions.map((t) => <option key={t}>{t}</option>)}
         </select>
       </div>
-      <div className="cf-hint">Tariffs will get their own creation/management page once the tariffs database exists; this list is a placeholder.</div>
+      <div className="cf-hint">Manage rate cards (and their pricing) on the Tariffs screen in the left rail.</div>
     </Section>
   )
 }

@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand'
 
-export type Screen = 'list' | 'wizard' | 'customers'
+export type Screen = 'list' | 'wizard' | 'customers' | 'users' | 'teams' | 'tariffs' | 'addresses'
 export type ListTab = 'bookings' | 'quotes' | 'drafts'
 
 interface ViewState {
@@ -14,6 +14,8 @@ interface ViewState {
 
   goToList(tab?: ListTab): void
   goToCustomers(): void
+  /** Navigate to any standalone screen (customers/users/teams/tariffs/addresses). */
+  go(screen: Screen): void
   openWizard(editingJobId?: string | null): void
   setListTab(tab: ListTab): void
 }
@@ -25,6 +27,7 @@ export const useViewStore = create<ViewState>((set) => ({
 
   goToList: (tab) => set((s) => ({ screen: 'list', listTab: tab ?? s.listTab })),
   goToCustomers: () => set({ screen: 'customers' }),
+  go: (screen) => set({ screen }),
   openWizard: (editingJobId = null) => set({ screen: 'wizard', editingJobId }),
   setListTab: (tab) => set({ listTab: tab }),
 }))
