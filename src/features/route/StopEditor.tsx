@@ -89,51 +89,54 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
             <div className="fld"><label>Company</label><input value={stop.addr.co} onChange={(e) => setAddr({ co: e.target.value })} /></div>
             <div className="fld"><label>Address</label><input value={stop.addr.address} onChange={(e) => setAddr({ address: e.target.value })} /></div>
           </div>
-          <div className="g-cpc">
+          <div className="g2">
             <div className="fld"><label>City</label><input value={stop.addr.city} onChange={(e) => setAddr({ city: e.target.value })} /></div>
             <div className="fld"><label>Postcode</label><input value={stop.addr.pc} onChange={(e) => setAddr({ pc: e.target.value })} /></div>
-            <div className="fld"><label>Country</label>
-              <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
-                <option>England</option><option>Scotland</option><option>Wales</option><option>N. Ireland</option>
-              </select>
+          </div>
+          <div className="fld"><label>Country</label>
+            <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
+              <option>England</option><option>Scotland</option><option>Wales</option><option>N. Ireland</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Reference & timing (using the left column's spare space) */}
+        <div className="edsec">
+          <div className="edhead">Reference &amp; timing</div>
+          <div className="fld"><label>Reference</label><input value={stop.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
+          <div className="fld">
+            <label>When</label>
+            <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
+                <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
+                  {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+              ))}
             </div>
+            {stop.time.mode === 'at' && (
+              <input type="datetime-local" value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} />
+            )}
+            {stop.time.mode === 'by' && (
+              <input type="datetime-local" value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} />
+            )}
+            {stop.time.mode === 'between' && (
+              <div className="g2">
+                <input type="datetime-local" value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} />
+                <input type="datetime-local" value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} />
+              </div>
+            )}
           </div>
         </div>
        </div>
        <div className="ed-col">
-        {/* Contact & timing */}
+        {/* Contact */}
         <div className="edsec">
-          <div className="edhead">Contact &amp; timing</div>
-          <div className="g-cte">
+          <div className="edhead">Site contact</div>
+          <div className="g2">
             <div className="fld"><label>Contact name</label><input value={stop.contact?.name || ''} onChange={(e) => setContact({ name: e.target.value })} /></div>
             <div className="fld"><label>Phone</label><input value={stop.contact?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
-            <div className="fld"><label>Email</label><input value={stop.contact?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
           </div>
-          <div className="g-cte">
-            <div className="fld"><label>Reference</label><input value={stop.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
-            <div className="fld span2">
-              <label>When</label>
-              <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
-                  <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
-                    {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
-                {stop.time.mode === 'at' && (
-                  <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} />
-                )}
-                {stop.time.mode === 'by' && (
-                  <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} />
-                )}
-                {stop.time.mode === 'between' && (
-                  <>
-                    <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} />
-                    <input type="datetime-local" style={{ width: 'auto' }} value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} />
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+          <div className="fld"><label>Email</label><input value={stop.contact?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
           <div className="fld"><label>Instruction / note (shown to driver &amp; on CX)</label><input value={stop.note} onChange={(e) => set({ note: e.target.value })} /></div>
         </div>
 
