@@ -71,7 +71,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
   const setAddr = (patch: Partial<Address>) => set({ addr: { ...stop.addr, ...patch } })
 
   function onPickAddr(addr: Address) {
-    set({ addr, q: addr.co })
+    set({ addr, q: '' })
   }
 
   // Goods are stored as the raw string parseGoods reads. We keep it normalised to

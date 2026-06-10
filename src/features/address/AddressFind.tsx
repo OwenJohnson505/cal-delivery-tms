@@ -35,10 +35,21 @@ export function AddressFind({
     setInternal(await api.address.internal.search(v))
   }
 
+  // After any selection: blank the search box and drop every suggestion list so the
+  // user can move straight on (the chosen address shows in the fields below).
+  function clearSearch() {
+    setQ('')
+    setInternal([])
+    setPlaces([])
+    setPostcodes([])
+    setBusy('')
+  }
+
   async function pickInternal(p: AddressPrediction) {
     const addr = await api.address.internal.resolve(p.id)
     await api.address.internal.recordUse(p.id)
     onPick(addr)
+    clearSearch()
   }
 
   async function doPlaces() {
@@ -49,8 +60,9 @@ export function AddressFind({
 
   async function pickPrediction(p: AddressPrediction) {
     setBusy('details') // Place Details — the billed step
-    onPick(await api.address.places.details(p.id, 'session-1'))
-    setBusy('')
+    const addr = await api.address.places.details(p.id, 'session-1')
+    onPick(addr)
+    clearSearch()
   }
 
   async function doPostcode() {
@@ -111,7 +123,7 @@ export function AddressFind({
         <div className="ac-menu open" style={{ position: 'static', marginTop: 6 }}>
           <div className="ac-sec">Addresses at {q.toUpperCase()}</div>
           {postcodes.map((a, i) => (
-            <div key={i} className="cb-opt" onMouseDown={() => onPick(a)}>
+            <div key={i} className="cb-opt" onMouseDown={() => { onPick(a); clearSearch() }}>
               <div className="co">{a.co}</div>
               <div className="ad">{a.address}, {a.city} {a.pc}</div>
             </div>
