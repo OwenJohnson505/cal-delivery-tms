@@ -83,16 +83,16 @@ export function CustomerHeader() {
           />
           {open && picking && (
             <div className="cb-menu open">
-              <div className="cb-group cb-back" onMouseDown={() => setPicking(null)}>
+              <div className="cb-group cb-back" onMouseDown={(e) => { e.preventDefault(); setPicking(null) }}>
                 ‹ Back · <b>{picking.companyName}</b> — choose a contact
               </div>
               {picking.contacts.map((ct) => (
-                <div key={ct.id} className="cb-opt" onMouseDown={() => pickContact(picking, ct)}>
+                <div key={ct.id} className="cb-opt" onMouseDown={(e) => { e.preventDefault(); pickContact(picking, ct) }}>
                   <div className="co"><Icon name="user" size={13} /> {ct.name}{ct.role && <span className="cc-tag">{ct.role}</span>}</div>
                   <div className="ad">{[ct.email, ct.phone].filter(Boolean).join(' · ')}</div>
                 </div>
               ))}
-              <div className="cb-opt cb-sug" onMouseDown={() => useNoContact(picking)}>
+              <div className="cb-opt cb-sug" onMouseDown={(e) => { e.preventDefault(); useNoContact(picking) }}>
                 <div className="co">Continue without a contact</div>
               </div>
             </div>
@@ -101,7 +101,7 @@ export function CustomerHeader() {
             <div className="cb-menu open">
               {companyHits.length > 0 && <div className="cb-group">Companies</div>}
               {companyHits.map(({ c, via }) => (
-                <div key={c.id} className="cb-opt" onMouseDown={() => pickCompany(c)}>
+                <div key={c.id} className="cb-opt" onMouseDown={(e) => { e.preventDefault(); pickCompany(c) }}>
                   <div className="co">
                     <Icon name="building" size={13} /> {c.companyName}
                     {via && <span className="cc-tag">“{via}”</span>}
@@ -114,7 +114,7 @@ export function CustomerHeader() {
               ))}
               {contactHits.length > 0 && <div className="cb-group">Contacts</div>}
               {contactHits.map(({ c, ct }) => (
-                <div key={c.id + ct.id} className="cb-opt" onMouseDown={() => pickContact(c, ct)}>
+                <div key={c.id + ct.id} className="cb-opt" onMouseDown={(e) => { e.preventDefault(); pickContact(c, ct) }}>
                   <div className="co"><Icon name="user" size={13} /> {ct.name}<span className="cc-tag">{c.companyName}</span></div>
                   <div className="ad">{[ct.email, ct.phone].filter(Boolean).join(' · ')}</div>
                 </div>
