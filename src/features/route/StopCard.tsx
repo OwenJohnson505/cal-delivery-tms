@@ -175,18 +175,16 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
           </div>
         )}
 
-        <div className="prow">
-          <EditableCell
-            label="Note"
-            title="Note"
-            value={stop.note ? stop.note : <span className="ph">—</span>}
-          >
-            <div className="fld">
-              <label>Instruction / note (shown to driver &amp; on CX)</label>
-              <textarea autoFocus rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} />
-            </div>
-          </EditableCell>
-        </div>
+        {stop.note && (
+          <div className="prow">
+            <EditableCell label="Note" title="Note" value={stop.note}>
+              <div className="fld">
+                <label>Instruction / note (shown to driver &amp; on CX)</label>
+                <textarea autoFocus rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} />
+              </div>
+            </EditableCell>
+          </div>
+        )}
       </div>
     </div>
   )

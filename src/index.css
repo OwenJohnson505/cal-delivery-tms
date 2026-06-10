@@ -7,10 +7,32 @@
   height: 100%;
 }
 
-/* Let the route panel take the available height (so the editor fits); the
- * job-notes/requirements row keeps a fixed, smaller footprint. */
+/* Let the route panel take the available height (so the editor fits + several
+ * collapsed stops show at once); the job-notes/requirements row is kept thin. */
 .left .route { flex: 1 1 auto; height: auto; min-height: 240px; }
-.left .botrow { flex: 0 0 auto; height: 168px; min-height: 0; }
+.left .botrow {
+  flex: 0 0 auto; height: 128px; min-height: 0;
+  /* job notes narrower, requirements gets the width for 3 columns */
+  grid-template-columns: 1fr 1.6fr;
+}
+
+/* Requirements: 3 columns, names wrap (never truncate) instead of one tall list */
+.panelbox #reqBox { grid-template-columns: repeat(3, 1fr); gap: 0 16px; }
+#reqBox .req-line { align-items: flex-start; }
+#reqBox .req-line:nth-child(-n+3) { border-top: none; }   /* top row of each of the 3 columns */
+#reqBox .req-l { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+#reqBox .req-s { flex: none; }
+
+/* bottom Done — where the user finishes the stop (after goods) */
+.ed-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 10px 12px 4px; border-top: 1px solid var(--line); margin-top: 4px;
+}
+.ed-foot-hint { color: var(--muted); font-size: 12px; }
+
+/* compacter collapsed stop summaries so 2–3 fit in one view */
+.stops-list .stop:not(.editing) .pv { padding: 1px 12px 5px; }
+.stops-list .stop:not(.editing) .prow { padding: 3px 0; }
 
 /* Compact inline stop editor — fit the whole form without scrolling */
 .ed-compact { padding: 6px 12px 12px; }

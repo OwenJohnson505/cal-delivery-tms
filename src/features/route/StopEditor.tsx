@@ -108,7 +108,6 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
               <Icon name="trash" size={14} />
             </button>
           )}
-          <button className="btn primary sm" onClick={onDone}><Icon name="check" size={13} /> Done</button>
         </div>
       </div>
 
@@ -231,6 +230,12 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
           </div>
         </div>
        </div>
+      </div>
+      <div className="ed-foot">
+        <span className="ed-foot-hint">Finished this stop?</span>
+        <button className="btn primary" onClick={onDone}>
+          <Icon name="check" size={14} /> {index < stops.length - 1 ? 'Done — next stop' : 'Done'}
+        </button>
       </div>
     </div>
   )
