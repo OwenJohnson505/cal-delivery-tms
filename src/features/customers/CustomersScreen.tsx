@@ -4,18 +4,21 @@
  */
 import { useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
-import { useCustomersStore } from '@/store/customersStore.ts'
+import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useJobsStore } from '@/store/jobsStore.ts'
 import { CustomerForm } from './CustomerForm.tsx'
 
 export function CustomersScreen() {
   const customers = useCustomersStore((s) => s.customers)
   const addCustomer = useCustomersStore((s) => s.addCustomer)
+  const updateCustomer = useCustomersStore((s) => s.updateCustomer)
   const deleteCustomer = useCustomersStore((s) => s.deleteCustomer)
   const jobs = useJobsStore((s) => s.jobs)
 
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  /** The customer currently open for editing (null = not editing). */
+  const [editing, setEditing] = useState<Customer | null>(null)
 
   const jobCount = useMemo(() => {
     const c: Record<string, number> = {}
@@ -32,14 +35,17 @@ export function CustomersScreen() {
     )
   }, [customers, query])
 
-  if (creating) {
+  if (creating || editing) {
     return (
       <div className="list-app">
         <CustomerForm
-          onClose={() => setCreating(false)}
+          customer={editing ?? undefined}
+          onClose={() => { setCreating(false); setEditing(null) }}
           onSave={(draft) => {
-            addCustomer(draft)
+            if (editing) updateCustomer(editing.id, draft)
+            else addCustomer(draft)
             setCreating(false)
+            setEditing(null)
           }}
         />
       </div>
@@ -82,15 +88,18 @@ export function CustomersScreen() {
             </thead>
             <tbody>
               {rows.map((c) => (
-                <tr key={c.id}>
+                <tr key={c.id} onDoubleClick={() => setEditing(c)}>
                   <td><b>{c.companyName}</b></td>
                   <td>{c.accountKind === 'personal' ? 'Personal' : c.companyType}</td>
                   <td>{c.accountCode}</td>
                   <td><span className={'itag' + (c.status === 'inactive' ? ' itag-muted' : '')}>{c.status === 'active' ? 'Active' : 'Inactive'}</span></td>
                   <td className="num">{jobCount[c.companyName] || 0}</td>
                   <td className="list-actions">
+                    <button className="btn sm" title="Open" onClick={() => setEditing(c)}>
+                      <Icon name="edit" size={13} /> Open
+                    </button>
                     <button
-                      className="btn sm iconbtn"
+                      className="btn sm iconbtn danger"
                       title="Delete"
                       onClick={() => {
                         if (confirm(`Delete ${c.companyName}?`)) deleteCustomer(c.id)

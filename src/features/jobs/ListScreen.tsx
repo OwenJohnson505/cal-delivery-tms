@@ -3,12 +3,15 @@
  * actions (open in the wizard, delete) and an "Add new booking" button that opens a
  * fresh wizard. Basic data-table version; filtering is by tab + search for now.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { StatusPill } from '@/app/StatusPill.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
+import { useUsersStore } from '@/store/usersStore.ts'
+import { useOrgStore, userScope } from '@/store/orgStore.ts'
+import { useCustomersStore } from '@/store/customersStore.ts'
 import type { JobStatus } from '@/types/index.ts'
 
 const TAB_STATUSES: Record<ListTab, JobStatus[]> = {
@@ -27,24 +30,51 @@ export function ListScreen() {
   const newBooking = useBookingStore((s) => s.newBooking)
   const loadSnapshot = useBookingStore((s) => s.loadSnapshot)
 
+  // Team/department view — defaults to the signed-in user's team (team-level) or
+  // department (department-level); "all" otherwise. Switchable via "Viewing as".
+  const users = useUsersStore((s) => s.users)
+  const currentUserId = useUsersStore((s) => s.currentUserId)
+  const setCurrentUser = useUsersStore((s) => s.setCurrentUser)
+  const departments = useOrgStore((s) => s.departments)
+  const teams = useOrgStore((s) => s.teams)
+  const customers = useCustomersStore((s) => s.customers)
+
   const [query, setQuery] = useState('')
+
+  const custById = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers])
+  const scope = useMemo(() => userScope(currentUserId, departments, teams), [currentUserId, departments, teams])
+  const defaultKey = scope.level === 'team' ? `team:${scope.teamId}` : scope.level === 'department' ? `dep:${scope.departmentId}` : 'all'
+  const [filterKey, setFilterKey] = useState(defaultKey)
+  // Re-apply the default whenever the signed-in user (and so their scope) changes.
+  useEffect(() => { setFilterKey(defaultKey) }, [defaultKey])
+
+  const matchesScope = (j: SavedJob) => {
+    if (filterKey === 'all') return true
+    const c = custById[j.snapshot.book.cust ?? '']
+    if (!c) return false
+    if (filterKey.startsWith('team:')) return c.teamId === filterKey.slice(5)
+    if (filterKey.startsWith('dep:')) return c.departmentId === filterKey.slice(4)
+    return true
+  }
+
+  const scoped = useMemo(() => jobs.filter(matchesScope), [jobs, filterKey, custById]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => {
     const c: Record<ListTab, number> = { bookings: 0, quotes: 0, drafts: 0 }
-    jobs.forEach((j) => {
+    scoped.forEach((j) => {
       ;(Object.keys(TAB_STATUSES) as ListTab[]).forEach((t) => {
         if (TAB_STATUSES[t].includes(j.status)) c[t]++
       })
     })
     return c
-  }, [jobs])
+  }, [scoped])
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return jobs
+    return scoped
       .filter((j) => TAB_STATUSES[tab].includes(j.status))
       .filter((j) => !q || `${j.ref} ${j.customer} ${j.route} ${j.vehicle}`.toLowerCase().includes(q))
-  }, [jobs, tab, query])
+  }, [scoped, tab, query])
 
   function addNew() {
     newBooking()
@@ -78,7 +108,7 @@ export function ListScreen() {
         </div>
 
         <div className="list-toolbar">
-          <div className="ac" style={{ maxWidth: 320 }}>
+          <div className="ac" style={{ maxWidth: 280 }}>
             <input
               type="text"
               placeholder="Search ref, customer, route or vehicle…"
@@ -86,6 +116,24 @@ export function ListScreen() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+          <label className="db-viewas">
+            <span>Viewing as</span>
+            <select value={currentUserId} onChange={(e) => setCurrentUser(e.target.value)}>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}{u.role ? ` · ${u.role}` : ''}</option>)}
+            </select>
+          </label>
+          <select className="db-filter" value={filterKey} onChange={(e) => setFilterKey(e.target.value)} title="Filter by department or team">
+            <option value="all">All bookings</option>
+            <optgroup label="Departments">
+              {departments.map((dep) => <option key={dep.id} value={`dep:${dep.id}`}>{dep.name}</option>)}
+            </optgroup>
+            <optgroup label="Teams">
+              {teams.map((t) => {
+                const dn = departments.find((x) => x.id === t.departmentId)?.name
+                return <option key={t.id} value={`team:${t.id}`}>{t.name}{dn ? ` · ${dn}` : ''}</option>
+              })}
+            </optgroup>
+          </select>
           <span className="list-count">{rows.length} {rows.length === 1 ? 'item' : 'items'}</span>
         </div>
 

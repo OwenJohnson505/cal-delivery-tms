@@ -38,6 +38,9 @@ function seed(): User[] {
 interface UsersState {
   users: User[]
   seq: number
+  /** The signed-in user (mock) — drives the booking-list team/department default. */
+  currentUserId: string
+  setCurrentUser(id: string): void
   peekCode(): string
   addUser(draft: UserDraft): User
   updateUser(id: string, patch: Partial<UserDraft>): void
@@ -47,6 +50,9 @@ interface UsersState {
 export const useUsersStore = create<UsersState>((set, get) => ({
   users: seed(),
   seq: 1000 + SEED.length,
+  currentUserId: 'USR-1002', // Sarah Doyle — a team-level user (Sales · New business)
+
+  setCurrentUser: (id) => set({ currentUserId: id }),
 
   peekCode: () => `USR-${get().seq + 1}`,
 

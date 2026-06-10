@@ -33,6 +33,25 @@ const SEED_TEAMS: Array<[id: string, name: string, deptId: string, members: stri
   ['TEM-1004', 'Invoicing', 'DEP-1002', ['USR-1006']],
 ]
 
+/**
+ * A user's default view scope: if they belong to a team, they're team-level (the booking
+ * list defaults to that team); otherwise if they're a department member, department-level;
+ * otherwise none (see everything).
+ */
+export interface UserScope {
+  level: 'team' | 'department' | 'none'
+  teamId?: string
+  departmentId?: string
+}
+
+export function userScope(userId: string, departments: Department[], teams: Team[]): UserScope {
+  const team = teams.find((t) => t.memberUserIds.includes(userId))
+  if (team) return { level: 'team', teamId: team.id, departmentId: team.departmentId }
+  const dep = departments.find((d) => d.memberUserIds.includes(userId))
+  if (dep) return { level: 'department', departmentId: dep.id }
+  return { level: 'none' }
+}
+
 interface OrgState {
   departments: Department[]
   teams: Team[]

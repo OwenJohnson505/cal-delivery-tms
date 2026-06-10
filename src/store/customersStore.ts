@@ -235,6 +235,8 @@ interface CustomersState {
   /** The next account code, without mutating (for showing it before save). */
   peekCode(): string
   addCustomer(draft: CustomerDraft): Customer
+  /** Update an existing account in place (keeps its id + account code). */
+  updateCustomer(id: string, draft: CustomerDraft): void
   deleteCustomer(id: string): void
 }
 
@@ -280,9 +282,21 @@ const SEED_CUSTOM_FIELDS: Record<string, CustomFieldDef[]> = {
   ],
 }
 
+/** Seed dept/team ownership so the booking-list team/department filter has data. */
+const SEED_ORG: Record<string, { departmentId: string; teamId: string }> = {
+  brightway: { departmentId: 'DEP-1001', teamId: 'TEM-1001' }, // Sales · New business
+  orbit: { departmentId: 'DEP-1001', teamId: 'TEM-1001' }, // Sales · New business
+  meridian: { departmentId: 'DEP-1001', teamId: 'TEM-1002' }, // Sales · Account management
+  northgate: { departmentId: 'DEP-1001', teamId: 'TEM-1002' }, // Sales · Account management
+  cal: { departmentId: 'DEP-1002', teamId: 'TEM-1003' }, // Operations · Planning
+  forsyth: { departmentId: 'DEP-1002', teamId: 'TEM-1003' }, // Operations · Planning
+  owen: { departmentId: 'DEP-1002', teamId: 'TEM-1004' }, // Operations · Invoicing
+}
+
 function seedCustomers(): Customer[] {
   return SEED.map((c, i) => {
     const base = blankCustomerDraft()
+    const org = SEED_ORG[c.id] ?? { departmentId: '', teamId: '' }
     return {
       ...base,
       id: c.id,
@@ -291,6 +305,8 @@ function seedCustomers(): Customer[] {
       companyName: c.name,
       altNames: c.altNames,
       startDate: '01-04-2025',
+      departmentId: org.departmentId,
+      teamId: org.teamId,
       contacts: c.contacts.map(([name, email, phone, role], ci) => ({
         id: crypto.randomUUID(), name, email, phone, role, isMain: ci === 0, defaultPo: '',
       })),
@@ -312,6 +328,11 @@ export const useCustomersStore = create<CustomersState>((set, get) => ({
     set((s) => ({ customers: [customer, ...s.customers], seq }))
     return customer
   },
+
+  updateCustomer: (id, draft) =>
+    set((s) => ({
+      customers: s.customers.map((c) => (c.id === id ? { ...draft, id: c.id, accountCode: c.accountCode } : c)),
+    })),
 
   deleteCustomer: (id) => set((s) => ({ customers: s.customers.filter((c) => c.id !== id) })),
 }))

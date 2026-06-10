@@ -11,6 +11,7 @@ import { MultiSelect } from '@/features/service/MultiSelect.tsx'
 import {
   COMPANY_TYPES,
   blankCustomerDraft,
+  type Customer,
   type CustomerDraft,
   type AccountKind,
   type Contact,
@@ -39,6 +40,12 @@ const USERS = ['Owen Johnson', 'Sarah Doyle', 'James Hill', 'Priya Shah', 'Tom B
 
 const uid = () => crypto.randomUUID()
 
+/** Strip the system fields so an existing customer can seed the editable draft. */
+function toDraft(c: Customer): CustomerDraft {
+  const { id: _id, accountCode: _code, ...draft } = c
+  return draft
+}
+
 /** Add N months to a 'dd-mm-yyyy' date, returning 'dd-mm-yyyy' (or '' if unparseable). */
 function addMonths(dmy: string, months: number): string {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dmy)
@@ -57,11 +64,13 @@ function fromISO(iso: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
 }
 
-export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave: (d: CustomerDraft) => void }) {
+export function CustomerForm({ customer, onClose, onSave }: { customer?: Customer; onClose: () => void; onSave: (d: CustomerDraft) => void }) {
+  const editing = !!customer
   const [tab, setTab] = useState<Tab>('account')
-  const [d, setD] = useState<CustomerDraft>(blankCustomerDraft())
-  // Show the account code immediately (the same one addCustomer will assign on save).
-  const accountCode = useCustomersStore((s) => s.peekCode())
+  const [d, setD] = useState<CustomerDraft>(() => (customer ? toDraft(customer) : blankCustomerDraft()))
+  // Editing keeps the existing code; creating previews the next code addCustomer will assign.
+  const peeked = useCustomersStore((s) => s.peekCode())
+  const accountCode = customer ? customer.accountCode : peeked
 
   const set = (patch: Partial<CustomerDraft>) => setD((p) => ({ ...p, ...patch }))
   const setInv = (patch: Partial<CustomerDraft['invoicing']>) => setD((p) => ({ ...p, invoicing: { ...p.invoicing, ...patch } }))
@@ -121,12 +130,12 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
             <Icon name="copy" size={18} />
           </button>
           <div>
-            <h1>New Customer</h1>
-            <div className="cf-sub">Create a new customer account</div>
+            <h1>{editing ? d.companyName || 'Edit customer' : 'New Customer'}</h1>
+            <div className="cf-sub">{editing ? `Editing account ${accountCode}` : 'Create a new customer account'}</div>
           </div>
           <div className="cf-page-actions">
             <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn primary" onClick={save} disabled={!d.companyName.trim()}>Save customer</button>
+            <button className="btn primary" onClick={save} disabled={!d.companyName.trim()}>{editing ? 'Save changes' : 'Save customer'}</button>
           </div>
         </div>
 
