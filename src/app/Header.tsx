@@ -7,12 +7,14 @@ import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
 import { RefHistory } from '@/features/customer/RefHistory.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
+import { useViewStore } from '@/store/viewStore.ts'
 
 export function Header() {
   const reset = useBookingStore((s) => s.reset)
   const quickQuote = useBookingStore((s) => s.quickQuote)
   const setQuickQuote = useBookingStore((s) => s.setQuickQuote)
   const openModal = useUiStore((s) => s.openModal)
+  const goToList = useViewStore((s) => s.goToList)
 
   return (
     <div className="bar">
@@ -56,7 +58,7 @@ export function Header() {
         <button className="btn" onClick={() => { if (confirm('Clear the whole booking?')) reset() }}>
           Clear all
         </button>
-        <button className="winx" title="Close booking">
+        <button className="winx" title="Close — back to list" onClick={() => goToList()}>
           <Icon name="close" size={16} />
         </button>
       </div>

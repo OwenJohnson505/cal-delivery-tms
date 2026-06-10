@@ -6,8 +6,8 @@
  */
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { BookingStore } from './types.ts'
-import { createInitialState, createSeededState } from './initialState.ts'
+import type { BookingState, BookingStore } from './types.ts'
+import { createInitialState, createSeededState, createNewBooking } from './initialState.ts'
 
 export const useBookingStore = create<BookingStore>()(
   immer((set) => ({
@@ -156,6 +156,16 @@ export const useBookingStore = create<BookingStore>()(
     removeCharge: (id) =>
       set((s) => {
         s.charges = s.charges.filter((c) => c.id !== id)
+      }),
+
+    loadSnapshot: (snapshot: BookingState) =>
+      set((s) => {
+        Object.assign(s, structuredClone(snapshot))
+      }),
+
+    newBooking: () =>
+      set((s) => {
+        Object.assign(s, createNewBooking())
       }),
 
     reset: () =>

@@ -1,15 +1,40 @@
 /**
- * Footer (prototype lines 553-559): booked-by / our-ref meta, total revenue, and the
- * save actions. In a full booking the operator can save as Draft, Quote, OR Booking
- * directly — jobs aren't always quoted first. In Quick Quote mode only Draft / Quick
- * Quote are offered.
+ * Footer — booked-by / our-ref meta, total revenue, and the save actions. Saving persists
+ * the current booking to the jobs list (as Draft / Quote / Quick Quote / Booking) and
+ * returns to the matching list screen. In a full booking all three saves are available;
+ * Quick Quote offers Draft / Quick Quote only.
  */
 import { useBookingStore } from '@/store/bookingStore.ts'
+import { useJobsStore, captureSnapshot } from '@/store/jobsStore.ts'
+import { useViewStore, type ListTab } from '@/store/viewStore.ts'
+import type { JobStatus } from '@/types/index.ts'
+
+function tabFor(status: JobStatus): ListTab {
+  if (status === 'Booking') return 'bookings'
+  if (status === 'Draft') return 'drafts'
+  return 'quotes'
+}
+
+function stamp(): string {
+  const d = new Date()
+  const p = (n: number) => ('0' + n).slice(-2)
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 export function Footer() {
   const jobStatus = useBookingStore((s) => s.jobStatus)
-  const setJobStatus = useBookingStore((s) => s.setJobStatus)
   const quickQuote = useBookingStore((s) => s.quickQuote)
+  const saveJob = useJobsStore((s) => s.saveJob)
+  const editingJobId = useViewStore((s) => s.editingJobId)
+  const goToList = useViewStore((s) => s.goToList)
+
+  function save(status: JobStatus) {
+    const snapshot = captureSnapshot()
+    saveJob({ id: editingJobId, status, snapshot, createdAt: stamp() })
+    goToList(tabFor(status))
+  }
+
+  const revenue = useBookingStore((s) => s.charges.reduce((t, c) => t + (c.rate || 0), 0))
 
   return (
     <div className="footer">
@@ -26,24 +51,20 @@ export function Footer() {
       <div className="foot-actions">
         <div className="foot-rev">
           <span className="foot-lbl">Total revenue</span>
-          <span className="foot-amt">£0.00</span>
+          <span className="foot-amt">£{revenue.toFixed(2)}</span>
         </div>
         <div id="footActions" className="saveas">
           <span className="foot-lbl" style={{ marginRight: 8 }}>Status: {jobStatus}</span>
           {quickQuote ? (
             <>
-              <button className="btn" onClick={() => setJobStatus('Draft')}>Save as draft</button>
-              <button className="btn primary" onClick={() => setJobStatus('Quick Quote')}>
-                Save as Quick Quote
-              </button>
+              <button className="btn" onClick={() => save('Draft')}>Save as draft</button>
+              <button className="btn primary" onClick={() => save('Quick Quote')}>Save as Quick Quote</button>
             </>
           ) : (
             <>
-              <button className="btn" onClick={() => setJobStatus('Draft')}>Save draft</button>
-              <button className="btn" onClick={() => setJobStatus('Quote')}>Save as quote</button>
-              <button className="btn primary" onClick={() => setJobStatus('Booking')}>
-                Save as booking
-              </button>
+              <button className="btn" onClick={() => save('Draft')}>Save draft</button>
+              <button className="btn" onClick={() => save('Quote')}>Save as quote</button>
+              <button className="btn primary" onClick={() => save('Booking')}>Save as booking</button>
             </>
           )}
         </div>

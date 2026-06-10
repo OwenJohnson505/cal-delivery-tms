@@ -81,6 +81,10 @@ export interface BookingActions {
   setJobStatus(status: JobStatus): void
   setQuickQuote(on: boolean): void
   setJobNotes(notes: string): void
+  /** Replace the whole booking with a saved snapshot (for editing a saved job). */
+  loadSnapshot(snapshot: BookingState): void
+  /** Start a fresh blank booking (Add new booking). */
+  newBooking(): void
 
   // --- Other charges ---
   addCharge(label: string, rate: number): void

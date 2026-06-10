@@ -10,6 +10,19 @@ const BODY_TYPES = ['Curtain side', 'Box', 'Flatbed', 'Low loader']
 const EQUIPMENT = ['Tail lift', 'Pump truck']
 const SERVICE_TYPES = ['Dedicated', 'ADR']
 
+/** A fresh blank booking for "Add new booking": one collection + one delivery. */
+export function createNewBooking(): BookingState {
+  const blankAddr = { co: '', address: '', city: '', pc: '', country: 'England', src: '', cls: 'manual' as const }
+  const base = createInitialState()
+  return {
+    ...base,
+    stops: [
+      { id: 1, type: 'Collection', q: '', addr: { ...blankAddr }, contact: null, time: { mode: 'asap' }, reference: '', note: '', goods: '', goodsTouched: false, alloc: [], allocTouched: false, svc: {}, status: 'booked', eta: '', pod: null },
+      { id: 2, type: 'Delivery', q: '', addr: { ...blankAddr }, contact: null, time: { mode: 'asap' }, reference: '', note: '', goods: '', goodsTouched: false, alloc: [], allocTouched: false, svc: {}, status: 'booked', eta: '', pod: null },
+    ],
+  }
+}
+
 /** The demo booking the app opens with (prototype seed). */
 export function createSeededState(): BookingState {
   return {

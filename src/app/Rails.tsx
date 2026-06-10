@@ -6,24 +6,32 @@
 import { Icon } from './Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
+import { useViewStore } from '@/store/viewStore.ts'
 
 export function LeftRail() {
-  const items: Array<[string, string, boolean]> = [
-    ['grid', 'Home', false],
-    ['user', 'Customers', false],
-    ['calendar', 'Bookings', true],
-    ['chart', 'Analytics', false],
-    ['wheel', 'Drivers', false],
+  const screen = useViewStore((s) => s.screen)
+  const goToList = useViewStore((s) => s.goToList)
+  const items: Array<{ icon: string; label: string; onClick?: () => void; active?: boolean }> = [
+    { icon: 'grid', label: 'Home' },
+    { icon: 'user', label: 'Customers' },
+    { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' },
+    { icon: 'chart', label: 'Analytics' },
+    { icon: 'wheel', label: 'Drivers' },
   ]
   return (
     <div className="siderail siderail-left">
       <div className="sr-logo">CD</div>
-      {items.map(([icon, label, active]) => (
-        <div key={label} className={'sr-item' + (active ? ' active' : '')} title={label}>
+      {items.map((it) => (
+        <div
+          key={it.label}
+          className={'sr-item' + (it.active ? ' active' : '')}
+          title={it.label}
+          onClick={it.onClick}
+        >
           <span className="sr-ic">
-            <Icon name={icon} size={18} />
+            <Icon name={it.icon} size={18} />
           </span>
-          <span className="sr-lbl">{label}</span>
+          <span className="sr-lbl">{it.label}</span>
         </div>
       ))}
     </div>
