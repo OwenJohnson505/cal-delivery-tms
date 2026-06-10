@@ -1,0 +1,19 @@
+/*
+ * Design tokens — placeholder.
+ * TODO(prototype): port the CSS custom properties from
+ * reference/booking-form-modern.html (the :root variables) as the canonical
+ * design tokens. Do not invent a new palette while porting.
+ */
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
