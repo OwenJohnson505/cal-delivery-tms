@@ -391,10 +391,8 @@
 }
 .cf-btn.warn { border-color: #f0b9b0; color: var(--deliver); background: #fff7f4; }
 .cf-btn.warn .cf-btn-badge { background: #fdeae4; color: var(--deliver); }
-/* compact variant for inside a stop (head / footer) */
+/* compact variant for inside a stop head (editor + collapsed card, top-right) */
 .cf-btn.sm { height: 26px; padding: 0 8px; font-size: 12px; }
-/* in the editor footer the stop button sits on the left, Done on the right */
-.ed-foot .cf-btn { margin-right: auto; }
 
 /* the modal grows a little wider for the field grid */
 .modal:has(.cfm) { width: min(640px, 94vw); }

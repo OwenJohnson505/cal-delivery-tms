@@ -104,6 +104,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
           onChange={(e) => set({ reference: e.target.value })}
         />
         <div className="sh-actions">
+          <StopCustomFieldsButton stopId={stop.id} />
           {stops.length > 1 && (
             <button className="btn sm iconbtn" title="Remove stop" onClick={() => removeStop(stop.id)}>
               <Icon name="trash" size={14} />
@@ -233,7 +234,6 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
        </div>
       </div>
       <div className="ed-foot">
-        <StopCustomFieldsButton stopId={stop.id} />
         <span className="ed-foot-hint">Finished this stop?</span>
         <button className="btn primary" onClick={onDone}>
           <Icon name="check" size={14} /> {index < stops.length - 1 ? 'Done — next stop' : 'Done'}
