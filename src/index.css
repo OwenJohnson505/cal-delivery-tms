@@ -201,6 +201,17 @@
   padding: 7px 10px 3px;
   background: #f8fafc;
 }
+.cb-back {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 8px 10px;
+}
+.cb-back:hover { background: var(--accent-soft); }
+.cb-back b { color: var(--ink); }
 .cf-section:first-child .cf-section-h { border-top: none; padding-top: 0; }
 .cf-hint {
   font-size: 10px;

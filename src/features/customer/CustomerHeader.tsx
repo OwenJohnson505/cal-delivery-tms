@@ -17,6 +17,8 @@ export function CustomerHeader() {
 
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  // When a company is chosen from the search, we step into picking one of its contacts.
+  const [picking, setPicking] = useState<Customer | null>(null)
 
   const { companyHits, contactHits } = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -39,18 +41,30 @@ export function CustomerHeader() {
     return { companyHits: companies, contactHits: contacts.slice(0, 6) }
   }, [customers, query])
 
+  // Choosing a company steps into contact selection (no auto-pick). If it has no
+  // contacts, select the company straight away.
   const pickCompany = (c: Customer) => {
-    const m = c.contacts.find((ct) => ct.isMain) || c.contacts[0]
-    setBook({ cust: c.id, contact: m ? { name: m.name, email: m.email, tel: m.phone } : null })
-    reset()
+    if (c.contacts.length === 0) {
+      setBook({ cust: c.id, contact: null })
+      reset()
+    } else {
+      setPicking(c)
+      setQuery('')
+      setOpen(true)
+    }
   }
   const pickContact = (c: Customer, ct: Contact) => {
     setBook({ cust: c.id, contact: { name: ct.name, email: ct.email, tel: ct.phone } })
     reset()
   }
+  const useNoContact = (c: Customer) => {
+    setBook({ cust: c.id, contact: null })
+    reset()
+  }
   const reset = () => {
     setQuery('')
     setOpen(false)
+    setPicking(null)
   }
 
   if (!book.cust) {
@@ -60,14 +74,30 @@ export function CustomerHeader() {
         <div className="cb">
           <input
             type="text"
-            placeholder="Search customer — company, nickname, contact or email…"
+            placeholder={picking ? `${picking.companyName} — choose a contact` : 'Search customer — company, nickname, contact, email or phone…'}
             autoComplete="off"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+            onChange={(e) => { setQuery(e.target.value); if (picking) setPicking(null); setOpen(true) }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
           />
-          {open && query.trim() && (
+          {open && picking && (
+            <div className="cb-menu open">
+              <div className="cb-group cb-back" onMouseDown={() => setPicking(null)}>
+                ‹ Back · <b>{picking.companyName}</b> — choose a contact
+              </div>
+              {picking.contacts.map((ct) => (
+                <div key={ct.id} className="cb-opt" onMouseDown={() => pickContact(picking, ct)}>
+                  <div className="co"><Icon name="user" size={13} /> {ct.name}{ct.role && <span className="cc-tag">{ct.role}</span>}</div>
+                  <div className="ad">{[ct.email, ct.phone].filter(Boolean).join(' · ')}</div>
+                </div>
+              ))}
+              <div className="cb-opt cb-sug" onMouseDown={() => useNoContact(picking)}>
+                <div className="co">Continue without a contact</div>
+              </div>
+            </div>
+          )}
+          {open && !picking && query.trim() && (
             <div className="cb-menu open">
               {companyHits.length > 0 && <div className="cb-group">Companies</div>}
               {companyHits.map(({ c, via }) => (
@@ -78,7 +108,7 @@ export function CustomerHeader() {
                   </div>
                   <div className="ad">
                     {c.accountCode}
-                    {c.contacts.length ? ` · ${c.contacts.length} contact${c.contacts.length === 1 ? '' : 's'}` : ''}
+                    {c.contacts.length ? ` · ${c.contacts.length} contact${c.contacts.length === 1 ? '' : 's'} →` : ''}
                   </div>
                 </div>
               ))}
