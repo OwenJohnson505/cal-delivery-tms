@@ -46,11 +46,12 @@ export type ProductEquipment = Record<string, Record<string, boolean>>
  */
 export type AssignMap = Record<number, number>
 
-/** BOOK — customer/contact header model (spec §2.3). */
+/** BOOK — customer/contact header model (spec §2.3; prototype line 1421). */
 export interface Book {
-  /** Selected customer/account id. */
-  cust: number | null
+  /** Selected customer/account id (string, e.g. 'brightway'). */
+  cust: string | null
   contact: { name: string; email: string; tel: string } | null
+  /** Selected contact index within the account's contacts. */
   cIdx?: number
   editCC?: boolean
   adding?: boolean

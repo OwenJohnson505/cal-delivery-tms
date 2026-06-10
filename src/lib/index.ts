@@ -28,5 +28,6 @@ export {
 } from './time.ts'
 export { etaToClock } from './etaToClock.ts'
 export { internalRank, clean, fuzzy, type SavedAddress } from './internalRank.ts'
+export { PC_RE, isFullPostcode, pcKey } from './postcode.ts'
 export { rollupRequirements, type RequirementsInput } from './requirements.ts'
 export { esc, pad, fmt } from './text.ts'

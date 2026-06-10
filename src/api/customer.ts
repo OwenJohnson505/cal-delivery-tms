@@ -8,18 +8,19 @@
  */
 import type { Contact } from '@/types/index.ts'
 
+/** An account (prototype CUSTOMERS[]: { id, name, refs }). */
 export interface CustomerAccount {
+  /** String id, e.g. 'brightway'. */
   id: string
   name: string
-  company?: string
-  /** Email domain used for the add-contact domain suggestion. */
-  domain?: string
-  // TODO(prototype): confirm full account shape (codes, terms, tariff defaults, ...).
+  /** Recent consignment/PO references for quick pick. */
+  refs: string[]
 }
 
+/** A contact under an account (prototype CONTACTS[]: { name, email, tel, cust }). */
 export interface CustomerContact extends Contact {
-  id: string
-  accountId: string
+  /** Owning account id. */
+  cust: string
 }
 
 export interface CustomerApi {
@@ -30,6 +31,6 @@ export interface CustomerApi {
   /** Create a new contact under an account (add-new-contact flow). */
   createContact(
     accountId: string,
-    contact: Omit<CustomerContact, 'id' | 'accountId'>,
+    contact: Omit<CustomerContact, 'cust'>,
   ): Promise<CustomerContact>
 }

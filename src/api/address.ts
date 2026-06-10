@@ -9,7 +9,7 @@
  *
  * Selection from any provider must resolve to a normalised Address (types/address.ts).
  */
-import type { Address } from '@/types/index.ts'
+import type { Address, AddressClass } from '@/types/index.ts'
 
 /** A lightweight prediction shown in the type-ahead list, before full resolution. */
 export interface AddressPrediction {
@@ -20,7 +20,7 @@ export interface AddressPrediction {
   /** Secondary line (e.g. locality / postcode context). */
   secondary?: string
   /** Which provider produced this prediction. */
-  source: Address['src']
+  source: AddressClass
 }
 
 /** Internal saved/frequent address book (free, ranked by persisted usage). */

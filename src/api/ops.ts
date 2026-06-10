@@ -7,7 +7,7 @@ import type { ClockTime, Pod, StopStatus } from '@/types/index.ts'
 
 /** A status/ETA/POD update arriving from a driver-app webhook for a stop. */
 export interface StopUpdate {
-  stopId: string
+  stopId: number
   status?: StopStatus
   /** Incoming ETA — resolve to absolute ClockTime via src/lib/etaToClock. */
   eta?: ClockTime
@@ -25,7 +25,7 @@ export interface BookingDocument {
   name: string
   mime: string
   /** Stop id if per-stop, else undefined for job-global. */
-  stopId?: string
+  stopId?: number
   url: string
 }
 
@@ -34,7 +34,7 @@ export interface DocumentsApi {
   upload(
     jobId: string,
     file: File,
-    opts?: { stopId?: string },
+    opts?: { stopId?: number },
   ): Promise<BookingDocument>
   remove(jobId: string, documentId: string): Promise<void>
 }

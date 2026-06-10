@@ -48,3 +48,12 @@ export interface Api {
   audit: AuditApi
   persistence: PersistenceApi
 }
+
+export { createApi, type CreateApiOptions } from './createApi.ts'
+export { createMockApi } from './mock/index.ts'
+export {
+  DEFAULT_LATENCY,
+  TEST_LATENCY,
+  type MockLatency,
+  type ApiEndpoints,
+} from './config.ts'
