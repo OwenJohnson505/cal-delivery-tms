@@ -528,10 +528,16 @@
 /* inline single inputs (new department / team name) */
 .db-inline-input { height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 12px; font: inherit; font-size: 12.5px; min-width: 200px; }
 .db-filter { height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 12px; font: inherit; font-size: 12.5px; }
-/* compact toolbar variants — keep the toolbar slim so more filters can fit later */
-.db-filter.sm, .db-asuser.sm { height: 26px; font-size: 11.5px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
-.db-asuser.sm { color: var(--muted); }
 .db-spacer { flex: 1; }
+/* labeled toolbar fields — each control says what it is, and selects size to their
+ * content (overriding the global select{width:100%}, which was stretching them). */
+.list-toolbar { flex-wrap: wrap; }
+.tb-field { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.tb-field > span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+.tb-select { width: auto; max-width: 210px; height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font: inherit; font-size: 12.5px; padding: 0 10px; }
+.tb-search { display: flex; align-items: center; gap: 7px; width: 300px; flex: none; height: 32px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 13px; color: var(--muted); }
+.tb-search input { border: none; background: none; outline: none; width: 100%; height: auto; padding: 0; font: inherit; font-size: 12.5px; color: var(--ink); }
+.list-toolbar .list-count { color: var(--muted); font-size: 12px; white-space: nowrap; }
 
 /* bookings list uses the full width (no centred max-width) so columns fit */
 .list-work.wide { max-width: none; }

@@ -38,24 +38,22 @@ export function ColumnsMenu() {
   return (
     <div className="cm">
       {/* Views switcher */}
-      <select
-        className="db-filter sm cm-views"
-        value={activeViewId}
-        onChange={(e) => applyView(e.target.value)}
-        title="Saved views"
-      >
-        <optgroup label="Shared (admin)">
-          {presets.map((v) => <option key={v.id} value={v.id}>{v.name}{defaultViewId === v.id ? ' ★' : ''}</option>)}
-        </optgroup>
-        {userViews.length > 0 && (
-          <optgroup label="My views">
-            {userViews.map((v) => <option key={v.id} value={v.id}>{v.name}{defaultViewId === v.id ? ' ★' : ''}</option>)}
+      <label className="tb-field">
+        <span>View</span>
+        <select className="tb-select cm-views" value={activeViewId} onChange={(e) => applyView(e.target.value)}>
+          <optgroup label="Shared (admin)">
+            {presets.map((v) => <option key={v.id} value={v.id}>{v.name}{defaultViewId === v.id ? ' ★' : ''}</option>)}
           </optgroup>
-        )}
-      </select>
+          {userViews.length > 0 && (
+            <optgroup label="My views">
+              {userViews.map((v) => <option key={v.id} value={v.id}>{v.name}{defaultViewId === v.id ? ' ★' : ''}</option>)}
+            </optgroup>
+          )}
+        </select>
+      </label>
 
       {/* Columns popover */}
-      <button className={'btn sm cm-btn' + (dirty ? ' dirty' : '')} onClick={() => setOpen((o) => !o)} title="Columns & views">
+      <button className={'btn sm cm-btn' + (dirty ? ' dirty' : '')} onClick={() => setOpen((o) => !o)} title="Show / hide / reorder columns">
         <Icon name="list" size={14} /> Columns
         <span className="cm-count">{visibleCount}</span>
       </button>

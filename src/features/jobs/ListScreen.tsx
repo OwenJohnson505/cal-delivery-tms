@@ -42,9 +42,7 @@ export function ListScreen() {
 
   // Team/department view — defaults to the signed-in user's team (team-level) or
   // department (department-level); "all" otherwise. Switchable via "Viewing as".
-  const users = useUsersStore((s) => s.users)
   const currentUserId = useUsersStore((s) => s.currentUserId)
-  const setCurrentUser = useUsersStore((s) => s.setCurrentUser)
   const departments = useOrgStore((s) => s.departments)
   const teams = useOrgStore((s) => s.teams)
   const customers = useCustomersStore((s) => s.customers)
@@ -140,7 +138,8 @@ export function ListScreen() {
         </div>
 
         <div className="list-toolbar">
-          <div className="ac" style={{ maxWidth: 280 }}>
+          <div className="tb-search">
+            <Icon name="search" size={15} />
             <input
               type="text"
               placeholder="Search ref, customer, route or vehicle…"
@@ -148,23 +147,23 @@ export function ListScreen() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <select className="db-filter sm" value={filterKey} onChange={(e) => setFilterKey(e.target.value)} title="View by department / team">
-            <option value="all">All bookings</option>
-            {departments.map((dep) => (
-              <optgroup key={dep.id} label={dep.name}>
-                <option value={`dep:${dep.id}`}>{dep.name} — whole department</option>
-                {teams.filter((t) => t.departmentId === dep.id).map((t) => (
-                  <option key={t.id} value={`team:${t.id}`}>{t.name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <span className="list-count">{rows.length}</span>
+          <label className="tb-field">
+            <span>Team / dept</span>
+            <select className="tb-select" value={filterKey} onChange={(e) => setFilterKey(e.target.value)}>
+              <option value="all">All bookings</option>
+              {departments.map((dep) => (
+                <optgroup key={dep.id} label={dep.name}>
+                  <option value={`dep:${dep.id}`}>All of {dep.name}</option>
+                  {teams.filter((t) => t.departmentId === dep.id).map((t) => (
+                    <option key={t.id} value={`team:${t.id}`}>{t.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <span className="list-count">{rows.length} {rows.length === 1 ? 'item' : 'items'}</span>
           <span className="db-spacer" />
           <ColumnsMenu />
-          <select className="db-asuser sm" value={currentUserId} onChange={(e) => setCurrentUser(e.target.value)} title="Viewing as (sets the default view)">
-            {users.map((u) => <option key={u.id} value={u.id}>as {u.name}</option>)}
-          </select>
         </div>
 
         <div className="list-tablewrap">
