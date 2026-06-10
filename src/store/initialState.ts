@@ -52,5 +52,6 @@ export function createInitialState(): BookingState {
     quickQuote: false,
     jobNotes: '',
     charges: [],
+    customJob: {},
   }
 }

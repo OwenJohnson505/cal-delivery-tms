@@ -147,6 +147,11 @@ export const useBookingStore = create<BookingStore>()(
         s.jobNotes = notes
       }),
 
+    setCustomJob: (fieldId, value) =>
+      set((s) => {
+        s.customJob[fieldId] = value
+      }),
+
     // --- Other charges ---
     addCharge: (label, rate) =>
       set((s) => {

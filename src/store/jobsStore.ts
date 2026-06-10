@@ -49,7 +49,7 @@ export function captureSnapshot(): BookingState {
     stops: s.stops, book: s.book, ms: s.ms, tariff: s.tariff, eq: s.eq,
     assign: s.assign, assignTouched: s.assignTouched, allocatedDriver: s.allocatedDriver,
     cx: s.cx, charges: s.charges, jobNotes: s.jobNotes, quickQuote: s.quickQuote,
-    jobStatus: s.jobStatus,
+    jobStatus: s.jobStatus, customJob: s.customJob,
   })
 }
 

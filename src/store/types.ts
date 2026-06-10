@@ -38,6 +38,8 @@ export interface BookingState {
   jobNotes: string
   /** Additional charge lines (handballing, waiting time, …). */
   charges: Charge[]
+  /** Values for the customer's job-level custom fields, keyed by field id. */
+  customJob: Record<string, string>
 }
 
 export interface BookingActions {
@@ -81,6 +83,8 @@ export interface BookingActions {
   setJobStatus(status: JobStatus): void
   setQuickQuote(on: boolean): void
   setJobNotes(notes: string): void
+  /** Set one job-level custom field value (keyed by the field's id). */
+  setCustomJob(fieldId: string, value: string): void
   /** Replace the whole booking with a saved snapshot (for editing a saved job). */
   loadSnapshot(snapshot: BookingState): void
   /** Start a fresh blank booking (Add new booking). */

@@ -54,4 +54,6 @@ export interface Stop {
   pod: Pod | null
   /** Set on an auto-generated wait-&-return leg (spec §5.2). */
   isReturn?: boolean
+  /** Values for the customer's stop-level custom fields, keyed by field id. */
+  custom?: Record<string, string>
 }

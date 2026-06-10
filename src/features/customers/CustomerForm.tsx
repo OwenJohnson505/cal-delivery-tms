@@ -17,14 +17,17 @@ import {
   type SavedCustomerAddress,
   type CommissionBand,
   type AddressKind,
+  type CustomFieldDef,
+  type CustomFieldType,
+  type CustomFieldScope,
 } from '@/store/customersStore.ts'
 import type { CompanyAddress, CompanyLookupResult } from '@/api/mock/companyLookup.ts'
 import { searchCompanies, lookupCredit } from '@/api/mock/companyLookup.ts'
 import { useCustomersStore } from '@/store/customersStore.ts'
 
-type Tab = 'account' | 'invoicing' | 'addresses' | 'sales' | 'tariffs' | 'incentives' | 'rules' | 'notes'
+type Tab = 'account' | 'invoicing' | 'addresses' | 'fields' | 'sales' | 'tariffs' | 'incentives' | 'rules' | 'notes'
 const TABS: Array<[Tab, string]> = [
-  ['account', 'Account'], ['invoicing', 'Invoicing'], ['addresses', 'Addresses'],
+  ['account', 'Account'], ['invoicing', 'Invoicing'], ['addresses', 'Addresses'], ['fields', 'Booking fields'],
   ['sales', 'Sales'], ['tariffs', 'Tariffs'], ['incentives', 'Incentives'], ['rules', 'Rules'], ['notes', 'Notes'],
 ]
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -141,6 +144,7 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
               <InvoicingTab d={d} setInv={setInv} setInvAddr={setInvAddr} runCreditLookup={runCreditLookup} />
             )}
             {tab === 'addresses' && <AddressesTab d={d} set={set} />}
+            {tab === 'fields' && <CustomFieldsTab d={d} set={set} />}
             {tab === 'sales' && <SalesTab d={d} setSales={setSales} />}
             {tab === 'tariffs' && <TariffsTab d={d} set={set} />}
             {tab === 'incentives' && (
@@ -473,6 +477,56 @@ function AddressesTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerD
               <div className="fld span2"><label>Shorthands (searchable nicknames)</label><ChipList values={a.shorthands} placeholder='e.g. "North Depot"' onChange={(v) => upd(a.id, { shorthands: v })} /></div>
             </div>
             <button className="btn sm iconbtn" title="Remove" onClick={() => remove(a.id)}><Icon name="trash" size={14} /></button>
+          </div>
+        ))
+      )}
+    </Section>
+  )
+}
+
+// ── Booking fields (custom fields) ───────────────────────────────────────────────
+const FIELD_TYPES: Array<[CustomFieldType, string]> = [
+  ['text', 'Text'], ['number', 'Number'], ['date', 'Date'], ['select', 'Dropdown'],
+]
+function CustomFieldsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
+  const add = () => set({ customFields: [...d.customFields, { id: uid(), label: '', scope: 'job', type: 'text', options: [], required: false }] })
+  const upd = (id: string, patch: Partial<CustomFieldDef>) => set({ customFields: d.customFields.map((f) => (f.id === id ? { ...f, ...patch } : f)) })
+  const remove = (id: string) => set({ customFields: d.customFields.filter((f) => f.id !== id) })
+  return (
+    <Section
+      title="Custom booking fields"
+      hint="filled in on the booking screen via the Custom fields button"
+      action={<button className="btn sm" onClick={add}><Icon name="plus" size={13} /> Add field</button>}
+    >
+      <div className="cf-hint">
+        Define extra fields this customer needs captured on every booking. <b>Job</b> fields are entered once per job;
+        <b> Stop</b> fields are entered for each address. They appear in a pop-up on the booking screen, so the route view stays tidy.
+      </div>
+      {d.customFields.length === 0 ? (
+        <div className="cf-empty">No custom fields yet.</div>
+      ) : (
+        d.customFields.map((f) => (
+          <div className="cf-cfield" key={f.id}>
+            <div className="cf-cfield-grid">
+              <div className="fld span2"><label>Field label</label><input value={f.label} placeholder="e.g. Order number" onChange={(e) => upd(f.id, { label: e.target.value })} /></div>
+              <div className="fld"><label>Applies to</label>
+                <Segmented<CustomFieldScope> value={f.scope} options={[['job', 'Job'], ['stop', 'Each stop']]} onChange={(v) => upd(f.id, { scope: v })} />
+              </div>
+              <div className="fld"><label>Type</label>
+                <select value={f.type} onChange={(e) => upd(f.id, { type: e.target.value as CustomFieldType })}>
+                  {FIELD_TYPES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                </select>
+              </div>
+              {f.type === 'select' && (
+                <div className="fld span2"><label>Dropdown options</label>
+                  <ChipList values={f.options} placeholder="Add an option…" onChange={(v) => upd(f.id, { options: v })} />
+                </div>
+              )}
+              <div className="fld span2">
+                <label className="chk"><input type="checkbox" checked={f.required} onChange={(e) => upd(f.id, { required: e.target.checked })} /> Required on every booking</label>
+              </div>
+            </div>
+            <button className="btn sm iconbtn" title="Remove field" onClick={() => remove(f.id)}><Icon name="trash" size={14} /></button>
           </div>
         ))
       )}

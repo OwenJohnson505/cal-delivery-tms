@@ -5,7 +5,7 @@
 import { create } from 'zustand'
 
 export type DrawerName = 'history' | 'providers' | null
-export type ModalName = 'pod' | 'audit' | 'docs' | 'custinfo' | null
+export type ModalName = 'pod' | 'audit' | 'docs' | 'custinfo' | 'customfields' | null
 
 interface UiState {
   drawer: DrawerName

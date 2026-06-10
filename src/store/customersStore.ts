@@ -20,6 +20,23 @@ export type InvoiceFrequency = 'per-job' | 'per-day' | 'weekly' | 'bi-weekly' | 
 export type AddressKind = 'collection' | 'delivery' | 'both'
 export type CommissionMetric = 'revenue' | 'margin'
 
+/**
+ * Customer-defined custom fields for the booking form. Each field is filled in on the
+ * booking screen (via the header "Custom fields" modal), scoped to the whole job or to
+ * each stop. Real impl: a customer-config service; here it lives on the account.
+ */
+export type CustomFieldType = 'text' | 'number' | 'date' | 'select'
+export type CustomFieldScope = 'job' | 'stop'
+export interface CustomFieldDef {
+  id: string
+  label: string
+  scope: CustomFieldScope
+  type: CustomFieldType
+  /** Options for a 'select' field (ignored otherwise). */
+  options: string[]
+  required: boolean
+}
+
 /** Company sub-types (only relevant when accountKind === 'company'). */
 export const COMPANY_TYPES = [
   'Private Limited Company',
@@ -139,6 +156,8 @@ export interface Customer {
   // Rules / Notes
   rules: RulesInfo
   notes: string
+  /** Custom booking-form fields this customer wants captured (job- or stop-level). */
+  customFields: CustomFieldDef[]
 }
 
 export type CustomerDraft = Omit<Customer, 'id' | 'accountCode'>
@@ -201,6 +220,7 @@ export function blankCustomerDraft(): CustomerDraft {
     defaultTariff: '',
     rules: { requireBookingRef: false, preferredDriversOnly: false, blockOverCreditLimit: false },
     notes: '',
+    customFields: [],
   }
 }
 
@@ -244,6 +264,17 @@ const SEED: Array<{
   ] },
 ]
 
+/** Demo custom fields so the booking "Custom fields" modal can be exercised. */
+const SEED_CUSTOM_FIELDS: Record<string, CustomFieldDef[]> = {
+  brightway: [
+    { id: 'cf-order', label: 'Order number', scope: 'job', type: 'text', options: [], required: true },
+    { id: 'cf-cc', label: 'Cost centre', scope: 'job', type: 'select', options: ['North', 'South', 'Central'], required: false },
+    { id: 'cf-bay', label: 'Delivery bay', scope: 'stop', type: 'text', options: [], required: false },
+    { id: 'cf-booking', label: 'Booking-in date', scope: 'stop', type: 'date', options: [], required: false },
+    { id: 'cf-exchange', label: 'Pallet exchange', scope: 'stop', type: 'select', options: ['Yes', 'No'], required: false },
+  ],
+}
+
 function seedCustomers(): Customer[] {
   return SEED.map((c, i) => {
     const base = blankCustomerDraft()
@@ -259,6 +290,7 @@ function seedCustomers(): Customer[] {
         id: crypto.randomUUID(), name, email, phone, role, isMain: ci === 0, defaultPo: '',
       })),
       invoicing: { ...base.invoicing, tradingName: c.name },
+      customFields: SEED_CUSTOM_FIELDS[c.id] ?? [],
     }
   })
 }
