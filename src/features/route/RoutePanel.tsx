@@ -4,7 +4,7 @@
  * A new booking opens on its first incomplete stop; "Done" advances to the next incomplete
  * stop (then collapses everything); "Edit" opens a collapsed stop.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { StopCard } from './StopCard.tsx'
@@ -23,6 +23,22 @@ export function RoutePanel() {
     () => stops.find(isIncomplete)?.id ?? null,
   )
 
+  // When a stop opens for editing (advance to stop 2, or add stop 3+), scroll it to
+  // the top of the route panel so the active full editor fills the visible area.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (editingId == null) return
+    const cont = scrollRef.current
+    if (!cont) return
+    requestAnimationFrame(() => {
+      const el = cont.querySelector<HTMLElement>('.stop.editing')
+      if (!el) return
+      // rect-based delta so it's correct regardless of offsetParent positioning
+      const delta = el.getBoundingClientRect().top - cont.getBoundingClientRect().top
+      cont.scrollTo({ top: Math.max(0, cont.scrollTop + delta - 8), behavior: 'smooth' })
+    })
+  }, [editingId])
+
   const done = (id: number) => {
     // advance to the next incomplete stop, else collapse all
     const i = stops.findIndex((s) => s.id === id)
@@ -32,7 +48,7 @@ export function RoutePanel() {
 
   return (
     <div className="route">
-      <div className="route-scroll">
+      <div className="route-scroll" ref={scrollRef}>
         <div className="rtitle">Route · stops</div>
         <div className="stops-list">
           {stops.map((s, i) =>
