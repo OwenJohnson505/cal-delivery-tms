@@ -134,6 +134,13 @@
   gap: 12px;
   min-width: 0;
 }
+/* In the full layout .rsec gets its white background from the parent .rail; in
+ * Quick Quote there's no rail, so each section is its own white card. */
+.qq-col > .rsec {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
 /* compact dot-and-postcode route with a connecting rail */
 .qq-route {
   position: relative;
