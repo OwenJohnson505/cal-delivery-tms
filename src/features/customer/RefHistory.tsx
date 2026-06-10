@@ -16,7 +16,7 @@ export function RefHistory() {
   const refs = custId ? CUSTOMERS.find((c) => c.id === custId)?.refs ?? [] : []
 
   return (
-    <div className="bar-ref">
+    <div className={'bar-ref' + (value.trim() ? '' : ' needs-ref')}>
       <span className="bar-ref-lbl">Cust. Ref</span>
       <div className="cb">
         <input

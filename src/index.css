@@ -97,8 +97,25 @@
 .edhead { color: #1e2a3a; font-weight: 800; }
 .ms-chip { background: #eef2f8; color: #5b667f; }
 .ms-chip i:hover { background: #dde4ef; }
-/* Close-to-list button: pill like everything else (kept its red intent). */
-.winx { border-radius: 999px; }
+/* Close-to-list button: ghost icon (matches the other header tool icons), red on
+ * hover. A lone × in a pill just reads as a circle, so we drop the box entirely. */
+.winx {
+  border: none; background: transparent; color: var(--muted);
+  border-radius: 999px; width: 30px; height: 30px;
+}
+.winx:hover { background: #fdecec; color: #dc2626; border: none; }
+
+/* Customer reference moved into the footer (asked for at pricing time). It glows
+ * amber until filled, so operators don't forget to take a PO/ref on the call. */
+.footer .bar-ref { flex: none; }
+.footer .bar-ref .cb { width: 200px; }
+.footer .bar-ref.needs-ref input {
+  background: #fff7e6; border-color: #f0c36d;
+}
+.footer .bar-ref.needs-ref input::placeholder { color: #b07d1a; }
+.footer .bar-ref.needs-ref .bar-ref-lbl { color: #b07d1a; }
+/* the ref-history dropdown must open upward in the footer (page bottom). */
+.footer .bar-ref .cb-menu { top: auto; bottom: calc(100% + 4px); }
 
 /* Let the route panel take the available height (so the editor fits + several
  * collapsed stops show at once); the job-notes/requirements row is kept thin. */

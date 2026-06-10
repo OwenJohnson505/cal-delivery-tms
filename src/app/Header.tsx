@@ -4,7 +4,6 @@
  */
 import { Icon } from './Icon.tsx'
 import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
-import { RefHistory } from '@/features/customer/RefHistory.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
@@ -54,8 +53,6 @@ export function Header() {
         </button>
       )}
       <div className="bar-actions">
-        <RefHistory />
-        <div className="bar-sep" />
         <div className="bar-tools" id="routeTools">
           <button className="btn sm iconbtn" title="Documents" onClick={() => openModal('docs')}>
             <Icon name="file" size={16} />

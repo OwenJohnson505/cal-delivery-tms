@@ -4,6 +4,7 @@
  * returns to the matching list screen. In a full booking all three saves are available;
  * Quick Quote offers Draft / Quick Quote only.
  */
+import { RefHistory } from '@/features/customer/RefHistory.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useJobsStore, captureSnapshot } from '@/store/jobsStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
@@ -53,6 +54,7 @@ export function Footer() {
           <span className="foot-lbl">Total revenue</span>
           <span className="foot-amt">£{revenue.toFixed(2)}</span>
         </div>
+        <RefHistory />
         <div id="footActions" className="saveas">
           <span className="foot-lbl" style={{ marginRight: 8 }}>Status: {jobStatus}</span>
           {quickQuote ? (
