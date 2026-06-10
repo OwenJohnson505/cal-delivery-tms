@@ -18,7 +18,7 @@ export function Header() {
 
   return (
     <div className="bar">
-      <div id="ccBox" className="ccbox" style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden' }}>
+      <div id="ccBox" className="ccbox" style={{ flex: '0 1 auto', minWidth: 0 }}>
         <CustomerHeader />
       </div>
       <button

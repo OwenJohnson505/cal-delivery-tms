@@ -32,7 +32,8 @@ export function CustomerHeader() {
     const contacts: Array<{ c: Customer; ct: Contact }> = []
     customers.forEach((c) =>
       c.contacts.forEach((ct) => {
-        if (`${ct.name} ${ct.email}`.toLowerCase().includes(q)) contacts.push({ c, ct })
+        // search contacts by name, email or phone
+        if (`${ct.name} ${ct.email} ${ct.phone}`.toLowerCase().includes(q)) contacts.push({ c, ct })
       }),
     )
     return { companyHits: companies, contactHits: contacts.slice(0, 6) }
