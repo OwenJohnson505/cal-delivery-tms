@@ -147,6 +147,17 @@ export const useBookingStore = create<BookingStore>()(
         s.jobNotes = notes
       }),
 
+    // --- Other charges ---
+    addCharge: (label, rate) =>
+      set((s) => {
+        s.charges.push({ id: crypto.randomUUID(), label, rate })
+      }),
+
+    removeCharge: (id) =>
+      set((s) => {
+        s.charges = s.charges.filter((c) => c.id !== id)
+      }),
+
     reset: () =>
       set((s) => {
         Object.assign(s, createInitialState())

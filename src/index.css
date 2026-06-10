@@ -118,66 +118,55 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 16px 12px;
+  padding: 12px;
 }
-.qq-panel {
+.qq-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 12px;
   width: 100%;
-  max-width: 560px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 20px 22px 22px;
+  max-width: 1000px;
+  margin: 0 auto;
 }
-.qq-panel-h {
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-}
-.qq-panel-sub {
-  font-size: 11.5px;
-  color: var(--muted);
-  margin-top: 4px;
-  line-height: 1.45;
-}
-.qq-section {
-  margin-top: 18px;
-}
-.qq-label {
+.qq-col {
   display: flex;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  margin-bottom: 8px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 /* compact dot-and-postcode route with a connecting rail */
 .qq-route {
   position: relative;
-}
-.qq-route::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 20px;
-  bottom: 20px;
-  width: 2px;
-  background: var(--line-strong);
-  z-index: 0;
 }
 .qq-stop-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 5px 0;
-  position: relative;
-  z-index: 1;
+}
+/* optional per-stop date & time, shown under its row */
+.qq-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 6px 22px;
+}
+.qq-time-row .qq-time-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.qq-time-row input {
+  height: 28px;
+  max-width: 220px;
+}
+.qq-row-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .qq-stop-dot {
   width: 12px;

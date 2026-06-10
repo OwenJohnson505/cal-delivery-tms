@@ -38,5 +38,6 @@ export function createInitialState(): BookingState {
     jobStatus: 'Draft',
     quickQuote: false,
     jobNotes: '',
+    charges: [],
   }
 }

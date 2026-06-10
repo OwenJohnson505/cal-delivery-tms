@@ -36,6 +36,14 @@ export interface Tariff {
   q: string
 }
 
+/** An additional charge line on the job (e.g. handballing, waiting time). */
+export interface Charge {
+  id: string
+  label: string
+  /** Rate in pounds. */
+  rate: number
+}
+
 /**
  * EQ — product-scope equipment, keyed by '<stopId>:<itemIndex>'. Inner keys are the
  * PRODUCT_EQUIP labels. CANONICAL CASING after the §5.3 fix is the capitalised label

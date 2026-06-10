@@ -1,12 +1,16 @@
 /**
- * QuickQuotePanel — the purpose-built Quick Quote middle section. Replaces the full
- * two-column working area with one centred card: a compact dot-and-postcode route, the
- * vehicle type, optional notes, and a live "LS9 → WA2 · Small van" summary.
- *
- * The top bar, side rails and footer stay (consistency); only this middle is reorganised.
+ * QuickQuotePanel — the purpose-built Quick Quote middle section (top bar, side rails and
+ * footer stay). Two balanced columns:
+ *   Left  — route (dot + postcode rows, optional per-stop time) and internal notes.
+ *   Right — vehicle type, other charges (handballing, …), and requirements (tail lift,
+ *           curtain side, ADR, …).
  */
+import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
+import { JobNotes } from '@/app/JobNotes.tsx'
+import { OtherCharges } from '@/app/OtherCharges.tsx'
 import { Combobox } from '@/features/service/Combobox.tsx'
+import { VehicleSpecifics } from '@/features/service/VehicleSpecifics.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { outcode } from '@/lib/index.ts'
 import { newStop } from './newStop.ts'
@@ -20,6 +24,15 @@ const DOT_COLOR: Record<StopType, string> = {
   Both: 'var(--accent)',
 }
 
+function toLocal(s?: string): string {
+  const m = /^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})/.exec(s || '')
+  return m ? `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}` : ''
+}
+function fromLocal(v: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v)
+  return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}` : ''
+}
+
 export function QuickQuotePanel() {
   const stops = useBookingStore((s) => s.stops)
   const tariff = useBookingStore((s) => s.tariff)
@@ -27,79 +40,68 @@ export function QuickQuotePanel() {
   const updateStop = useBookingStore((s) => s.updateStop)
   const removeStop = useBookingStore((s) => s.removeStop)
   const setTariff = useBookingStore((s) => s.setTariff)
-  const jobNotes = useBookingStore((s) => s.jobNotes)
-  const setJobNotes = useBookingStore((s) => s.setJobNotes)
 
-  const setAddr = (id: number, patch: Partial<Address>) => {
-    const s = stops.find((x) => x.id === id)
-    if (s) updateStop(id, { addr: { ...s.addr, ...patch } })
-  }
-
-  // Live summary: route outcodes joined, plus the vehicle.
   const outs = stops.map((s) => outcode(s.addr.pc)).filter(Boolean)
   const summary = [outs.join(' → '), tariff.q].filter(Boolean).join('  ·  ')
 
   return (
     <div className="qq-main">
-      <div className="qq-panel">
-        <div className="qq-panel-h">Quick quote</div>
-        <div className="qq-panel-sub">
-          Just the essentials — postcodes and a vehicle. Switch off Quick Quote in the top bar for a
-          full quote or booking.
+      <div className="qq-grid">
+        {/* LEFT — route + notes */}
+        <div className="qq-col">
+          <div className="rsec">
+            <h3>Route</h3>
+            <div className="qq-route">
+              {stops.map((stop) => (
+                <QuickRouteRow
+                  key={stop.id}
+                  stop={stop}
+                  canRemove={stops.length > 1}
+                  onType={(type) => updateStop(stop.id, { type })}
+                  onPatch={(patch) => updateStop(stop.id, patch)}
+                  onRemove={() => removeStop(stop.id)}
+                />
+              ))}
+            </div>
+            <button className="qq-add" onClick={() => addStop(newStop(stops))}>
+              <Icon name="plus" size={14} /> Add another stop
+            </button>
+            {summary && (
+              <div className="qq-summary">
+                <Icon name="truck" size={14} />
+                <span>{summary}</span>
+              </div>
+            )}
+          </div>
+
+          <JobNotes />
         </div>
 
-        {/* Route */}
-        <div className="qq-section">
-          <div className="qq-label">Route</div>
-          <div className="qq-route">
-            {stops.map((stop) => (
-              <QuickRouteRow
-                key={stop.id}
-                stop={stop}
-                canRemove={stops.length > 1}
-                onType={(type) => updateStop(stop.id, { type })}
-                onPc={(pc) => setAddr(stop.id, { pc })}
-                onRemove={() => removeStop(stop.id)}
+        {/* RIGHT — vehicle, charges, requirements */}
+        <div className="qq-col">
+          <div className="rsec">
+            <h3>Vehicle</h3>
+            <div className="fld">
+              <label>
+                Vehicle type / tariff <span className="qq-req">required</span>
+              </label>
+              <Combobox
+                value={tariff.q}
+                options={TARIFFS}
+                placeholder="Select a vehicle / rate card…"
+                className={!tariff.q ? 'req' : ''}
+                onChange={setTariff}
               />
-            ))}
+            </div>
           </div>
-          <button className="qq-add" onClick={() => addStop(newStop(stops))}>
-            <Icon name="plus" size={14} /> Add another stop
-          </button>
-        </div>
 
-        {/* Vehicle */}
-        <div className="qq-section qq-vehicle">
-          <div className="qq-label">
-            Vehicle type <span className="qq-req">required</span>
+          <OtherCharges />
+
+          <div className="rsec">
+            <h3>Requirements</h3>
+            <VehicleSpecifics />
           </div>
-          <Combobox
-            value={tariff.q}
-            options={TARIFFS}
-            placeholder="Select a vehicle / rate card…"
-            className={!tariff.q ? 'req' : ''}
-            onChange={setTariff}
-          />
         </div>
-
-        {/* Notes */}
-        <div className="qq-section">
-          <div className="qq-label">Notes — optional, internal background</div>
-          <textarea
-            className="qq-notes"
-            rows={3}
-            placeholder="Anything that helps price the job…"
-            value={jobNotes}
-            onChange={(e) => setJobNotes(e.target.value)}
-          />
-        </div>
-
-        {summary && (
-          <div className="qq-summary">
-            <Icon name="truck" size={14} />
-            <span>{summary}</span>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -109,41 +111,75 @@ function QuickRouteRow({
   stop,
   canRemove,
   onType,
-  onPc,
+  onPatch,
   onRemove,
 }: {
   stop: Stop
   canRemove: boolean
   onType: (t: StopType) => void
-  onPc: (pc: string) => void
+  onPatch: (patch: Partial<Stop>) => void
   onRemove: () => void
 }) {
   const isColl = stop.type === 'Collection' || stop.type === 'Both'
+  const hasTime = stop.time.mode !== 'asap'
+  const [showTime, setShowTime] = useState(hasTime)
+
+  const setAddr = (patch: Partial<Address>) => onPatch({ addr: { ...stop.addr, ...patch } })
+
   return (
-    <div className="qq-stop-row">
-      <span className="qq-stop-dot" style={{ background: DOT_COLOR[stop.type] }} />
-      <select
-        className="typesel qq-typesel"
-        value={stop.type}
-        onChange={(e) => onType(e.target.value as StopType)}
-      >
-        <option>Collection</option>
-        <option>Delivery</option>
-        <option>Both</option>
-      </select>
-      <input
-        className={'qq-pc' + (isColl && !stop.addr.pc ? ' req' : '')}
-        placeholder="Postcode"
-        value={stop.addr.pc}
-        onChange={(e) => onPc(e.target.value)}
-      />
-      {canRemove ? (
-        <button className="btn sm iconbtn qq-row-x" title="Remove stop" onClick={onRemove}>
-          <Icon name="trash" size={15} />
+    <>
+      <div className="qq-stop-row">
+        <span className="qq-stop-dot" style={{ background: DOT_COLOR[stop.type] }} />
+        <select className="typesel qq-typesel" value={stop.type} onChange={(e) => onType(e.target.value as StopType)}>
+          <option>Collection</option>
+          <option>Delivery</option>
+          <option>Both</option>
+        </select>
+        <input
+          className={'qq-pc' + (isColl && !stop.addr.pc ? ' req' : '')}
+          placeholder="Postcode"
+          value={stop.addr.pc}
+          onChange={(e) => setAddr({ pc: e.target.value })}
+        />
+        <button
+          className={'btn sm iconbtn qq-row-btn' + (hasTime ? ' on' : '')}
+          title="Add a date & time (optional)"
+          onClick={() => setShowTime((v) => !v)}
+        >
+          <Icon name="clock" size={15} />
         </button>
-      ) : (
-        <span className="qq-row-x" />
+        {canRemove ? (
+          <button className="btn sm iconbtn" title="Remove stop" onClick={onRemove}>
+            <Icon name="trash" size={15} />
+          </button>
+        ) : (
+          <span className="qq-row-x" />
+        )}
+      </div>
+      {showTime && (
+        <div className="qq-time-row">
+          <span className="qq-time-lbl">Date &amp; time</span>
+          <input
+            type="datetime-local"
+            value={toLocal(stop.time.at)}
+            onChange={(e) => {
+              const v = e.target.value
+              onPatch({ time: v ? { mode: 'at', at: fromLocal(v) } : { mode: 'asap' } })
+            }}
+          />
+          {hasTime && (
+            <button
+              className="discl"
+              onClick={() => {
+                onPatch({ time: { mode: 'asap' } })
+                setShowTime(false)
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       )}
-    </div>
+    </>
   )
 }

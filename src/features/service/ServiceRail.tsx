@@ -4,16 +4,14 @@
  * rollup and CX notes live. Shown in the full layout; Quick Quote handles the vehicle in
  * QuickQuotePanel.
  */
-import { MultiSelect } from './MultiSelect.tsx'
 import { Combobox } from './Combobox.tsx'
+import { VehicleSpecifics } from './VehicleSpecifics.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 
 const TARIFFS = ['Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
 
 export function ServiceRail() {
-  const ms = useBookingStore((s) => s.ms)
   const tariff = useBookingStore((s) => s.tariff)
-  const setMsSelection = useBookingStore((s) => s.setMsSelection)
   const setTariff = useBookingStore((s) => s.setTariff)
 
   return (
@@ -28,18 +26,7 @@ export function ServiceRail() {
           onChange={setTariff}
         />
       </div>
-      <div className="fld">
-        <label>Body type</label>
-        <MultiSelect options={ms.body.o} selected={ms.body.sel} placeholder={ms.body.ph} onChange={(sel) => setMsSelection('body', sel)} />
-      </div>
-      <div className="fld">
-        <label>Equipment</label>
-        <MultiSelect options={ms.equip.o} selected={ms.equip.sel} placeholder={ms.equip.ph} onChange={(sel) => setMsSelection('equip', sel)} />
-      </div>
-      <div className="fld">
-        <label>Service type</label>
-        <MultiSelect options={ms.service.o} selected={ms.service.sel} placeholder={ms.service.ph} onChange={(sel) => setMsSelection('service', sel)} />
-      </div>
+      <VehicleSpecifics />
     </div>
   )
 }

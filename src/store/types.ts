@@ -9,6 +9,7 @@ import type {
   AllocatedDriver,
   AssignMap,
   Book,
+  Charge,
   CxNotesState,
   JobStatus,
   MultiSelectState,
@@ -35,6 +36,8 @@ export interface BookingState {
   quickQuote: boolean
   /** Internal job notes (not shown to the driver). Shared by both layouts. */
   jobNotes: string
+  /** Additional charge lines (handballing, waiting time, …). */
+  charges: Charge[]
 }
 
 export interface BookingActions {
@@ -78,6 +81,11 @@ export interface BookingActions {
   setJobStatus(status: JobStatus): void
   setQuickQuote(on: boolean): void
   setJobNotes(notes: string): void
+
+  // --- Other charges ---
+  addCharge(label: string, rate: number): void
+  removeCharge(id: string): void
+
   reset(): void
 }
 

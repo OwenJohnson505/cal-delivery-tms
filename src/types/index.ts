@@ -22,6 +22,7 @@ export type {
   MultiSelectGroup,
   MultiSelectState,
   Tariff,
+  Charge,
   ProductEquipment,
   AssignMap,
   Book,
