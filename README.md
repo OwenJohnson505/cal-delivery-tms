@@ -65,6 +65,16 @@ Each mock method carries a `// Real impl:` note saying exactly what to call (e.g
 buildCxNotes() output to the CX API"*, *"run incoming ETAs through lib/etaToClock"*).
 The §5 seam table in `reference/booking-form-developer-spec.md` is the full map.
 
+## Design protocols
+
+- **Top bar:** every interactive control sits on one centred baseline at a uniform
+  height (`--control-h`, 28px). Any new button/box added to the bar must follow this —
+  set `height: var(--control-h)` and let the bar centre it. Codified in `src/index.css`.
+- **Dropdowns:** use the themed `Combobox` (`features/service/Combobox.tsx`) or the
+  styled `.cb-menu`/`.ms-menu` patterns — never a native `<select>`/`<datalist>` popup,
+  which can't be themed.
+- **Icons:** action-button icons are 16px; the nav rails are their own 18px tier.
+
 ## Guardrails honoured
 
 - The four output formats (CX notes, goods "reads as", requirements rollup, delivery

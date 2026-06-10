@@ -7,6 +7,64 @@
   height: 100%;
 }
 
+/* ============================================================
+ * TOP-BAR DESIGN PROTOCOL
+ * Every interactive control in the header sits on one centred
+ * baseline at a uniform 28px height. Any new button/box added to
+ * the bar must follow this (height: var(--control-h); centred).
+ * ============================================================ */
+:root {
+  --control-h: 28px;
+}
+.bar,
+.bar .bar-actions {
+  align-items: center;
+}
+.bar .btn,
+.bar .qq-toggle,
+.bar input,
+.bar select,
+.bar .winx {
+  height: var(--control-h);
+}
+.bar .btn.sm.iconbtn,
+.bar .winx {
+  width: var(--control-h);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+.bar .cc-oneline {
+  min-height: var(--control-h);
+}
+/* id-scoped so it beats .btn.sm and pins the customer-header buttons to the protocol */
+.bar #ccBox .btn {
+  height: var(--control-h);
+}
+.bar #ccBox .btn.iconbtn {
+  width: var(--control-h);
+}
+
+/* Inline (non-stacked) Cust. Ref so it matches the single-row controls */
+.bar-ref {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.bar-ref > .bar-ref-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.bar-ref .cb {
+  width: 190px;
+}
+
 /* Quick Quote toggle — squared to match .btn (the app's standard button shape) */
 .qq-toggle {
   flex: none;

@@ -4,6 +4,7 @@
  * rollup and CX notes live.
  */
 import { MultiSelect } from './MultiSelect.tsx'
+import { Combobox } from './Combobox.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 
 const TARIFFS = ['Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
@@ -40,18 +41,13 @@ export function ServiceRail() {
           Vehicle type / tariff
           {quickQuote && <span className="qq-req">required</span>}
         </label>
-        <input
-          className={quickQuote && !tariff.q ? 'req' : ''}
-          list="tariff-opts"
+        <Combobox
           value={tariff.q}
+          options={TARIFFS}
           placeholder="Select a vehicle / rate card…"
-          onChange={(e) => setTariff(e.target.value)}
+          className={quickQuote && !tariff.q ? 'req' : ''}
+          onChange={setTariff}
         />
-        <datalist id="tariff-opts">
-          {TARIFFS.map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
       </div>
       {/* Quick Quote keeps only the vehicle type; body/equipment/service are full-quote only */}
       {!quickQuote && specifics}
