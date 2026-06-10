@@ -51,7 +51,7 @@ export function Header() {
           Clear all
         </button>
         <button className="winx" title="Close booking">
-          <Icon name="copy" size={17} />
+          <Icon name="close" size={17} />
         </button>
       </div>
     </div>

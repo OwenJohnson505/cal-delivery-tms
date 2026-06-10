@@ -48,6 +48,7 @@ export function StopEditor({ stopId }: { stopId: number }) {
     set({ contact: { name: '', tel: '', email: '', ...stop.contact, ...patch } })
   const setTime = (mode: TimeMode, extra: Record<string, string> = {}) =>
     set({ time: { mode, ...extra } })
+  const setAddr = (patch: Partial<Address>) => set({ addr: { ...stop.addr, ...patch } })
 
   function onPickAddr(addr: Address) {
     set({ addr, q: addr.co })
@@ -98,14 +99,40 @@ export function StopEditor({ stopId }: { stopId: number }) {
               </div>
             </div>
             <AddressFind value={stop.q} onPick={onPickAddr} />
-            {stop.addr.co && (
-              <div className="parsed">
-                <div className="parsed-h">Selected address {stop.addr.src && `· ${stop.addr.src}`}</div>
-                <div className="pitem">
-                  <b>{stop.addr.co}</b> — {stop.addr.address}, {stop.addr.city} {stop.addr.pc}, {stop.addr.country}
-                </div>
+          </div>
+
+          {/* Address — individual fields (prototype editHtml) */}
+          <div className="edsec">
+            <div className="edhead">
+              Address {stop.addr.src && <span className="cc-tag" style={{ marginLeft: 8 }}>{stop.addr.src}</span>}
+            </div>
+            <div className="fld">
+              <label>Company</label>
+              <input value={stop.addr.co} onChange={(e) => setAddr({ co: e.target.value })} />
+            </div>
+            <div className="fld">
+              <label>Address</label>
+              <input value={stop.addr.address} onChange={(e) => setAddr({ address: e.target.value })} />
+            </div>
+            <div className="g-cpc">
+              <div className="fld">
+                <label>City</label>
+                <input value={stop.addr.city} onChange={(e) => setAddr({ city: e.target.value })} />
               </div>
-            )}
+              <div className="fld">
+                <label>Postcode</label>
+                <input value={stop.addr.pc} onChange={(e) => setAddr({ pc: e.target.value })} />
+              </div>
+              <div className="fld">
+                <label>Country</label>
+                <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
+                  <option>England</option>
+                  <option>Scotland</option>
+                  <option>Wales</option>
+                  <option>N. Ireland</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Contact */}
