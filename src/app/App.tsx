@@ -5,6 +5,7 @@
 import { LeftRail } from './Rails.tsx'
 import { BookingWizard } from './BookingWizard.tsx'
 import { ListScreen } from '@/features/jobs/ListScreen.tsx'
+import { CustomersScreen } from '@/features/customers/CustomersScreen.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 
 export function App() {
@@ -16,7 +17,7 @@ export function App() {
   return (
     <>
       <LeftRail />
-      <ListScreen />
+      {screen === 'customers' ? <CustomersScreen /> : <ListScreen />}
     </>
   )
 }

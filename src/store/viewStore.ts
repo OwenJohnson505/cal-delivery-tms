@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand'
 
-export type Screen = 'list' | 'wizard'
+export type Screen = 'list' | 'wizard' | 'customers'
 export type ListTab = 'bookings' | 'quotes' | 'drafts'
 
 interface ViewState {
@@ -13,6 +13,7 @@ interface ViewState {
   editingJobId: string | null
 
   goToList(tab?: ListTab): void
+  goToCustomers(): void
   openWizard(editingJobId?: string | null): void
   setListTab(tab: ListTab): void
 }
@@ -23,6 +24,7 @@ export const useViewStore = create<ViewState>((set) => ({
   editingJobId: null,
 
   goToList: (tab) => set((s) => ({ screen: 'list', listTab: tab ?? s.listTab })),
+  goToCustomers: () => set({ screen: 'customers' }),
   openWizard: (editingJobId = null) => set({ screen: 'wizard', editingJobId }),
   setListTab: (tab) => set({ listTab: tab }),
 }))

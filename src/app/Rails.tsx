@@ -11,9 +11,10 @@ import { useViewStore } from '@/store/viewStore.ts'
 export function LeftRail() {
   const screen = useViewStore((s) => s.screen)
   const goToList = useViewStore((s) => s.goToList)
+  const goToCustomers = useViewStore((s) => s.goToCustomers)
   const items: Array<{ icon: string; label: string; onClick?: () => void; active?: boolean }> = [
     { icon: 'grid', label: 'Home' },
-    { icon: 'user', label: 'Customers' },
+    { icon: 'user', label: 'Customers', onClick: () => goToCustomers(), active: screen === 'customers' },
     { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' },
     { icon: 'chart', label: 'Analytics' },
     { icon: 'wheel', label: 'Drivers' },

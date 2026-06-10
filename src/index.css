@@ -73,6 +73,15 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
+.cust-create {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
 .list-toolbar {
   display: flex;
   align-items: center;
