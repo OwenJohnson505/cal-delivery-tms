@@ -1,27 +1,40 @@
 /**
- * internalRank — rank internal frequent/saved addresses for the smart address-find,
- * by persisted usage frequency (incremented on select).
+ * internalRank — frequency-ranked type-ahead over the customer's saved/used addresses.
+ * Ported from the prototype (spec §3.2). Source lines: clean (641), fuzzy (642),
+ * internalRank (645).
  *
- * Behavioural source of truth: reference/booking-form-modern.html (function
- * `internalRank`, backed by the SAVED[] stub). Handover §1, §5.
- *
- * The input item shape is a placeholder (the prototype's saved-address record). Confirm
- * and tighten on port.
+ * `count` is the persisted usage frequency (the "★ 14×" tag). In production, increment
+ * it on selection and rank by it (spec §3.2 / §10).
  */
-import { NotPortedYet } from './notPorted.ts'
 
-export interface SavedAddressRecord {
-  /** Persisted usage count used for frequency ranking. */
-  count: number
-  // TODO(prototype): model the SAVED[] record shape (label, addr fields, ...).
-  [key: string]: unknown
+/** A saved-address record (prototype SAVED[] shape, spec §3.6). */
+export interface SavedAddress {
+  co: string
+  addr: string
+  city: string
+  pc: string
+  country: string
+  /** Persisted usage count for ranking. */
+  count?: number
 }
 
-/** Rank/filter saved addresses for a type-ahead query. */
-export function internalRank(
-  _query: string,
-  _saved: SavedAddressRecord[],
-): SavedAddressRecord[] {
-  // TODO(prototype): port internalRank verbatim (frequency-ranked type-ahead).
-  throw new NotPortedYet('internalRank')
+/** Lowercase, strip non-alphanumeric (keep spaces), trim (prototype clean). */
+export function clean(s: string): string {
+  return (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
+}
+
+/** True if q is a substring of hay OR any word in hay starts with q (prototype fuzzy). */
+export function fuzzy(hay: string, q: string): boolean {
+  hay = hay.toLowerCase()
+  return hay.indexOf(q) >= 0 || hay.split(/\s+/).some((w) => w.indexOf(q) === 0)
+}
+
+/** Frequency-ranked top-5 saved-address matches for a query (prototype internalRank). */
+export function internalRank(q: string, saved: SavedAddress[]): SavedAddress[] {
+  q = clean(q)
+  if (q.length < 2) return []
+  return saved
+    .filter((a) => fuzzy(a.co + ' ' + a.addr + ' ' + a.city + ' ' + a.pc, q))
+    .sort((x, y) => (y.count || 0) - (x.count || 0))
+    .slice(0, 5)
 }

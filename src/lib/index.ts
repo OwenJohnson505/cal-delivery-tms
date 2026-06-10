@@ -1,14 +1,32 @@
 /**
- * src/lib — framework-free business logic, the heart of the port.
- *
- * Every export here is a STUB that throws NotPortedYet until ported from
- * reference/booking-form-modern.html. No business rule should live in a component;
- * keep it here, fully tested (handover §9).
+ * src/lib — framework-free business logic ported from the prototype (the byte-for-byte
+ * behavioural source of truth). No business rule lives in a component (spec §9).
  */
-export { parseGoods } from './parseGoods.ts'
-export { goodsUnits, availableUnitsFor } from './allocation.ts'
-export { buildCxNotes, type BuildCxNotesInput } from './buildCxNotes.ts'
+export { parseGoods, fmtItem, itemShort, cap, plur, normWU } from './parseGoods.ts'
+export {
+  goodsUnits,
+  availableUnitsFor,
+  deliverItems,
+  collectItems,
+  syncAssign,
+  deliveries,
+  stopIndex,
+  isColl,
+  isDel,
+} from './allocation.ts'
+export { buildCxNotes, type CxBookingState } from './buildCxNotes.ts'
+export {
+  parseDt,
+  dtParts,
+  dstamp,
+  tphrase,
+  collTime,
+  delTime,
+  outcode,
+  hm,
+  ord,
+} from './time.ts'
 export { etaToClock } from './etaToClock.ts'
-export { internalRank, type SavedAddressRecord } from './internalRank.ts'
+export { internalRank, clean, fuzzy, type SavedAddress } from './internalRank.ts'
 export { rollupRequirements, type RequirementsInput } from './requirements.ts'
-export { NotPortedYet } from './notPorted.ts'
+export { esc, pad, fmt } from './text.ts'

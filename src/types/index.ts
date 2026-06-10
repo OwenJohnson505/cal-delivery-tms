@@ -1,13 +1,11 @@
 /**
  * Shared domain types for the Cal Delivery TMS booking wizard.
- *
- * Derived from the handover (§2/§4) state model. Anything marked TODO(prototype) must
- * be confirmed/tightened against reference/booking-form-modern.html once it is on disk.
+ * Derived from booking-form-developer-spec.md §2 + the prototype source.
  */
-export type { Address, AddressSource, AddressClass } from './address.ts'
+export type { Address, AddressClass, Country } from './address.ts'
 export type { Contact } from './contact.ts'
 export type { TimeSpec, TimeMode, DateTimeString } from './time.ts'
-export type { Pod, PodSource } from './pod.ts'
+export type { Pod, PodType, PodVia } from './pod.ts'
 export type {
   Stop,
   StopType,
@@ -15,19 +13,14 @@ export type {
   StopStatus,
   ClockTime,
 } from './stop.ts'
-export type { Requirement, RequirementScope } from './requirement.ts'
-export type {
-  ParsedGoods,
-  GoodsLine,
-  GoodsUnit,
-  UnitIdentity,
-  Dimensions,
-} from './goods.ts'
+export type { RequirementRow } from './requirement.ts'
+export type { ParsedItem, GoodsUnit, UnitIdentity } from './goods.ts'
 export type { Driver, Bid, AllocatedDriver } from './driver.ts'
 export type { CxNotesState } from './cx.ts'
 export type {
   JobStatus,
-  JobMultiSelect,
+  MultiSelectGroup,
+  MultiSelectState,
   Tariff,
   ProductEquipment,
   AssignMap,

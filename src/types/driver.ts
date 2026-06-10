@@ -1,40 +1,44 @@
 /**
- * Driver & Bid — internal drivers and Courier Exchange (CX) bids.
- *
- * Source: handover §1 (Driver; Providers drawer with internal drivers + CX bids and
- * an unseen-count badge), §5 (DRIVERS / CXBIDS stubs -> driver availability + CX bid
- * feed via poll/websocket).
- *
- * Field sets are not fully enumerated in the handover text — model the known/implied
- * shape and confirm against the prototype.
+ * Driver & Bid — internal drivers (DRIVERS[]) and Courier Exchange bids (CXBIDS[]).
+ * Source: prototype dcard/bcard/allocateDriver, spec §9 (Providers).
  */
 
+/** Internal driver in the Providers drawer. */
 export interface Driver {
-  id: string
+  id?: string
   name: string
-  /** Quoted rate for the job (currency-minor or display string — confirm on port). */
-  rate?: number
-  /**
-   * ETA stored as an ABSOLUTE clock time 'HH:MM' (handover §1: "rate + ETA stored as
-   * absolute clock time"). Run incoming ETAs through etaToClock() in src/lib.
-   */
+  vehicle: string
+  /** Location/summary line, e.g. 'Leeds · 310 jobs'. */
+  loc: string
+  /** ETA as the feed expresses it (e.g. '12 min', '14:25') — resolve via etaToClock. */
   eta?: string
-  // TODO(prototype): confirm full driver shape (availability, vehicle, distance, ...).
+  /** Whether the driver has flagged interest in this job. */
+  interested?: boolean
 }
 
-/** A Courier Exchange bid in the Providers drawer. */
+/** A Courier Exchange bid. */
 export interface Bid {
-  id: string
-  driverId?: string
-  driverName: string
-  rate: number
-  eta?: string
-  /** Whether the ops user has seen this bid (drives the unseen-count badge). */
-  seen: boolean
-  // TODO(prototype): confirm full bid shape.
+  id?: string
+  name: string
+  vehicle: string
+  loc: string
+  /** Display rating, e.g. '4.6'. */
+  rating: string
+  /** Display price, e.g. '£365'. */
+  price: string
 }
 
 /**
- * The allocated driver on a job (prototype global `allocatedDriver`), or null if none.
+ * The allocated driver card (prototype global `allocatedDriver`). `eta` is an ABSOLUTE
+ * frozen clock time produced by etaToClock; `rate` is the numeric-ish string entered.
  */
-export type AllocatedDriver = Driver | null
+export interface AllocatedDriverInfo {
+  name: string
+  vehicle: string
+  id: string
+  rate: string
+  /** Absolute 'HH:MM' (via etaToClock), '' if none. */
+  eta: string
+}
+
+export type AllocatedDriver = AllocatedDriverInfo | null

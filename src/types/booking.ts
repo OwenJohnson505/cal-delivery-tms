@@ -1,61 +1,59 @@
 /**
- * Job / booking-level state.
+ * Job / booking-level state. Source: spec §1 (globals), §2.3 (BOOK), §5 (MS/EQ), §8 (CX).
  *
- * Source: handover §3 (state lives in module-scope vars: stops[], BOOK, MS/TAR/EQ,
- * allocatedDriver, cxNotes/cxDirty/cxPosted, ASSIGN), §4, §5 (Draft/Quote/Booking),
- * §1 (service & vehicle: tariff, multi-select body/equipment/service).
- *
- * The names below mirror the prototype's globals 1:1 so the port maps cleanly. Their
- * exact internal shapes are not fully enumerated in the handover text — confirm
- * against the prototype and tighten these from `Record<...>`/`unknown` placeholders.
+ * Shapes mirror the prototype globals so the port maps 1:1:
+ *   MS  = { body:{o,sel,ph}, equip:{o,sel,ph}, service:{o,sel,ph} }
+ *   TAR = { q }                       // selected tariff text
+ *   EQ  = { '<stopId>:<itemIndex>': { Straps?:true, Blanket?:true } }
+ *   ASSIGN = { <unitIdx>: <deliveryStopId> }
  */
 
-/** Footer/persistence lifecycle. Drives the contextual Draft/Quote/Booking actions. */
+/** Footer/persistence lifecycle (spec §10: jobStatus drives footer actions). */
 export type JobStatus = 'Draft' | 'Quote' | 'Booking'
 
-/**
- * MS — job-scope multi-selects (body type / equipment / service) plus tariff selection.
- * Handover refers to MS.equip / MS.service as job-scope requirement sources.
- */
-export interface JobMultiSelect {
-  /** Job-scope equipment requirements (normalised-case keys — see Requirement). */
-  equip: Record<string, boolean>
-  /** Job-scope service requirements. */
-  service: Record<string, boolean>
-  /** Selected body type(s). */
-  body?: Record<string, boolean>
-  // TODO(prototype): confirm MS shape and key casing (see EQ casing bug, handover §6).
+/** A multi-select group: options, current selection, placeholder (spec §5 / §1). */
+export interface MultiSelectGroup {
+  /** Available options. */
+  o: string[]
+  /** Selected labels. */
+  sel: string[]
+  /** Placeholder text. */
+  ph: string
 }
 
-/** TAR — selected tariff (rate card / vehicle profile) from the tariff combobox. */
+/** MS — the three job-scope multi-selects. */
+export interface MultiSelectState {
+  body: MultiSelectGroup
+  equip: MultiSelectGroup
+  service: MultiSelectGroup
+}
+
+/** TAR — selected tariff (the combobox text). */
 export interface Tariff {
-  id: string
-  label: string
-  // TODO(prototype): confirm tariff shape (rate basis, vehicle profile, ...).
+  q: string
 }
 
 /**
- * EQ — product-scope equipment, keyed by 'stopId:itemIndex'.
- *
- * KNOWN BUG (handover §6 / spec §5.3): values are stored lowercase ({straps:true}) but
- * read capitalised (e['Straps']). Normalise casing when porting the requirements
- * rollup; keep keys canonical (lowercase) here.
+ * EQ — product-scope equipment, keyed by '<stopId>:<itemIndex>'. Inner keys are the
+ * PRODUCT_EQUIP labels. CANONICAL CASING after the §5.3 fix is the capitalised label
+ * (e.g. 'Straps', 'Blanket'); lib/requirements normalises on read.
  */
 export type ProductEquipment = Record<string, Record<string, boolean>>
 
 /**
- * ASSIGN — per-unit allocation map: global unit index -> owning delivery stop id
- * (exclusive ownership). Handover §4: `ASSIGN[globalUnitIdx] = deliveryStopId`.
- *
- * NOTE (handover §6): the global unit index is transient. Persist allocation against a
- * durable UnitIdentity (see types/goods.ts) rather than this render-time index; this
- * map type models the prototype's current behaviour for a faithful first port.
+ * ASSIGN — per-unit allocation: global unit idx -> owning delivery stop id (exclusive).
+ * Spec §4.3: `ASSIGN[unitIdx] = deliveryStopId`. Both are numbers.
  */
-export type AssignMap = Record<number, string>
+export type AssignMap = Record<number, number>
 
-/** BOOK — top-level booking/customer container (account, contact, etc.). */
+/** BOOK — customer/contact header model (spec §2.3). */
 export interface Book {
-  // TODO(prototype): model BOOK from the prototype (customer account, selected
-  // contact, multi-account selection, references, etc.).
-  [key: string]: unknown
+  /** Selected customer/account id. */
+  cust: number | null
+  contact: { name: string; email: string; tel: string } | null
+  cIdx?: number
+  editCC?: boolean
+  adding?: boolean
+  expanded?: boolean
+  newC?: unknown
 }

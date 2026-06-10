@@ -1,24 +1,18 @@
 /**
- * Requirement — a service/equipment requirement in the rollup.
+ * Requirement rollup row. Source: spec §5 (renderReqs builds [label, scope] rows).
  *
- * Source: handover §1 (service & vehicle, requirements rollup) and §4:
- *   "Requirements come from three scopes: job (MS.equip/MS.service),
- *    stop (stop.svc), product (EQ['stopId:itemIndex'])."
+ * Three scopes contribute (spec §5): job (MS.equip.sel / MS.service.sel), stop
+ * (stop.svc via STOP_SVC), product (EQ['stopId:itemIndex'] via PRODUCT_EQUIP).
  *
- * KNOWN BUG TO FIX ON PORT (handover §6, spec §5.3): EQ stores lowercase flags
- * ({straps:true}) but the rollup/CX code reads capitalised keys (e['Straps']), so
- * product-level equipment never appears. Normalise casing when porting the rollup
- * into src/lib/requirements.ts and cover with a test.
+ * KNOWN BUG fixed on port (spec §5.3): EQ is seeded lowercase ({straps:true}) but readers
+ * test capitalised PRODUCT_EQUIP keys ('Straps'). lib/requirements normalises casing so
+ * product equipment actually rolls up.
  */
 
-/** Where a requirement originated. */
-export type RequirementScope = 'job' | 'stop' | 'product'
-
-export interface Requirement {
-  /** Canonical (normalised-case) requirement key, e.g. 'straps', 'taillift'. */
-  key: string
-  /** Human-readable label, e.g. 'Straps', 'Tail lift'. */
+/** A single rollup row: a requirement label and the scope description it applies to. */
+export interface RequirementRow {
+  /** Requirement label, e.g. 'Tail lift', 'Two-man', 'Straps'. */
   label: string
-  /** Originating scope(s). A requirement may be contributed by more than one scope. */
-  scopes: RequirementScope[]
+  /** Scope description, e.g. 'whole job', 'all stops', 'Stop 2', or an item summary. */
+  scope: string
 }

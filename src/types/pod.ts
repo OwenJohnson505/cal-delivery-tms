@@ -1,28 +1,29 @@
 /**
- * Pod — proof of delivery / proof of collection (POD/POB) capture for a stop.
+ * Pod — proof of delivery / collection (POD/POB). Source: spec §6 (verbatim shape).
  *
- * Source: handover §1 (per-stop POD/POB viewer, Manual vs CX-API) / spec §2 & §8.
+ *   pod = { type:'POD'|'POB', via:'Manual'|'CX API', by, at, name, sig:Boolean, photos:Number }
  *
- * The prototype distinguishes a Manual capture source from a CX-API source.
- * Exact field set is not fully enumerated in the handover text — model the known
- * shape and confirm against the prototype.
+ * The Manual-vs-CX-API distinction (`via`) is first-class and surfaced everywhere a
+ * proof is shown.
  */
 
-export type PodSource = 'Manual' | 'CX-API'
+/** Delivery proof vs collection proof. */
+export type PodType = 'POD' | 'POB'
+
+/** How the proof was captured — drives the source tag. */
+export type PodVia = 'Manual' | 'CX API'
 
 export interface Pod {
-  /** How the proof was captured. */
-  source: PodSource
-  /** Name of the person who signed / received. */
-  signedBy?: string
-  /** Capture timestamp ('dd-mm-yyyy HH:MM' in the prototype). */
-  at?: string
-  /** Captured signature image (data URL / ref). */
-  signature?: string
-  /** Photo proof image refs/URLs. */
-  photos?: string[]
-  /** Free-text note recorded at proof time. */
-  note?: string
-  // TODO(prototype): confirm the full pod shape (fields + optionality) from
-  // reference/booking-form-modern.html before relying on this.
+  type: PodType
+  via: PodVia
+  /** User / system that added it. */
+  by: string
+  /** Capture timestamp, 'dd-mm-yyyy HH:MM'. */
+  at: string
+  /** Signatory name. */
+  name: string
+  /** Whether a signature was captured. */
+  sig: boolean
+  /** Count of attached images. */
+  photos: number
 }

@@ -1,38 +1,69 @@
 /**
- * requirements rollup — combine service/equipment requirements across the three scopes
- * (job: MS.equip/MS.service, stop: stop.svc, product: EQ['stopId:itemIndex']) into the
- * deduplicated requirements list shown in the UI and embedded in the CX notes.
+ * Requirements rollup — combine job/stop/product-scope requirements into [label, scope]
+ * rows. Ported from the prototype (spec §5). Source: renderReqs (919-928).
  *
- * Behavioural source of truth: reference/booking-form-modern.html (function `renderReqs`
- * and the rollup it drives). Handover §1, §4, §6, §9.
+ * GUARDRAIL: the rollup is one of the four byte-identical outputs.
  *
- * GUARDRAIL: the rollup output is one of the four byte-identical formats — match the
- * prototype exactly.
- *
- * FIX-ON-PORT (handover §6 / spec §5.3 — the KNOWN BUG): EQ stores lowercase flags
- * ({straps:true}) but the prototype reads capitalised keys (e['Straps']), so
- * product-scope equipment never surfaces. Normalise casing here so product equipment
- * correctly appears, and cover the fix with a regression test.
+ * §5.3 FIX: the prototype reads EQ with capitalised PRODUCT_EQUIP keys but the seed is
+ * lowercase ({straps:true}), so product equipment never rolled up. eqHas() reads
+ * case-insensitively so it now does — covered by a regression test.
  */
-import type {
-  JobMultiSelect,
-  ProductEquipment,
-  Requirement,
-  Stop,
-} from '@/types/index.ts'
-import { NotPortedYet } from './notPorted.ts'
+import type { MultiSelectState, ProductEquipment, RequirementRow, Stop } from '@/types/index.ts'
+import { parseGoods, itemShort } from './parseGoods.ts'
+import { isColl } from './allocation.ts'
+
+const STOP_SVC = ['Two-man', 'Wait and return']
+const PRODUCT_EQUIP = ['Straps', 'Blanket']
+
+/** Map a STOP_SVC label to its stop.svc flag (prototype svcKey). */
+function svcKey(k: string): 'twoman' | 'wait' {
+  return k === 'Two-man' ? 'twoman' : 'wait'
+}
+
+/** §5.3 fix: case-insensitive product-equipment read. */
+function eqHas(e: Record<string, boolean> | undefined, k: string): boolean {
+  if (!e) return false
+  return !!(e[k] || e[k.toLowerCase()])
+}
 
 export interface RequirementsInput {
-  /** Job scope. */
-  ms: JobMultiSelect
-  /** Stop scope (svc flags live on each stop). */
   stops: Stop[]
-  /** Product scope, keyed by 'stopId:itemIndex'. */
+  ms: MultiSelectState
   eq: ProductEquipment
 }
 
-export function rollupRequirements(_input: RequirementsInput): Requirement[] {
-  // TODO(prototype): port the rollup verbatim, THEN apply the casing fix (§6) and add a
-  // regression test proving product-scope equipment (e.g. straps) now appears.
-  throw new NotPortedYet('rollupRequirements')
+export function rollupRequirements(input: RequirementsInput): RequirementRow[] {
+  const { stops, ms, eq } = input
+  const rows: RequirementRow[] = []
+
+  // Job scope
+  ms.equip.sel.forEach((k) => rows.push({ label: k, scope: 'whole job' }))
+  ms.service.sel.forEach((k) => rows.push({ label: k, scope: 'whole job' }))
+
+  // Stop scope
+  STOP_SVC.forEach((k) => {
+    const key = svcKey(k)
+    const ss = stops.filter((x) => x.svc && x.svc[key])
+    if (ss.length) {
+      const scope =
+        ss.length === stops.length
+          ? 'all stops'
+          : ss.map((x) => 'Stop ' + (stops.indexOf(x) + 1)).join(', ')
+      rows.push({ label: k, scope })
+    }
+  })
+
+  // Product scope
+  PRODUCT_EQUIP.forEach((k) => {
+    const its: string[] = []
+    stops.forEach((st) => {
+      if (!isColl(st) || !st.goods) return
+      parseGoods(st.goods).forEach((it, ix) => {
+        if (eqHas(eq[st.id + ':' + ix], k)) its.push(itemShort(it))
+      })
+    })
+    if (its.length) rows.push({ label: k, scope: its.join(', ') })
+  })
+
+  return rows
 }

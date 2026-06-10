@@ -1,19 +1,8 @@
 /**
- * Stop — a collection / delivery / both point on the route.
+ * Stop — a collection / delivery / both point. Source: spec §2.1 (verbatim shape).
  *
- * Source: handover §4 / spec §2. Verbatim shape from the handover:
- *
- *   stop = {
- *     id, type:'Collection'|'Delivery'|'Both', q,
- *     addr:{...}, contact:{...}|null,
- *     time:{...},
- *     reference, note, goods, goodsTouched, allocTouched,
- *     svc:{twoman?,wait?}, status, eta:'HH:MM', pod|null, isReturn?
- *   }
- *
- * IMPORTANT (handover §1, §3): the ORDER of stops in the route array is meaningful —
- * it gates goods allocation (a delivery can only receive units collected earlier in
- * the route). Preserve order semantics in the store.
+ * Route order in stops[] is SIGNIFICANT — it gates goods allocation (spec §4.3): a
+ * delivery can only receive units collected earlier in the route.
  */
 import type { Address } from './address.ts'
 import type { Contact } from './contact.ts'
@@ -22,45 +11,47 @@ import type { Pod } from './pod.ts'
 
 export type StopType = 'Collection' | 'Delivery' | 'Both'
 
-/**
- * Per-stop service flags. Handover shows svc:{twoman?,wait?} ("two-man",
- * "wait & return"). Other service requirements roll up from job/product scopes —
- * see Requirement.
- */
+/** Stop-scoped service flags (spec §5: STOP_SVC; svcKey maps label -> flag). */
 export interface StopService {
   twoman?: boolean
   wait?: boolean
-  // TODO(prototype): confirm the full closed set of stop-scope svc flags.
 }
 
-/** Stop lifecycle status. */
-// TODO(prototype): confirm the closed set of status values from the prototype.
-export type StopStatus = string
+/** Lifecycle status (spec §7). */
+export type StopStatus =
+  | 'booked'
+  | 'enroute'
+  | 'arrived'
+  | 'collected'
+  | 'delivered'
 
-/** Absolute, frozen clock time 'HH:MM' (NOT relative — contrast TimeSpec 'asap'). */
+/** Absolute, frozen clock time 'HH:MM' (spec §7 — never a countdown). */
 export type ClockTime = string
 
 export interface Stop {
-  id: string
+  /** Stable per-booking id; new = max(ids)+1. */
+  id: number
   type: StopType
-  /** `q` — quantity/sequence marker per the handover shape. */
-  q: number
+  /** Raw text currently in the address-find search box. */
+  q: string
   addr: Address
   contact: Contact | null
   time: TimeSpec
+  /** Customer/consignment ref for this stop. */
   reference: string
+  /** Free-text instruction (shown to driver / on CX). */
   note: string
-  /** Free-text goods entry (parsed by parseGoods). */
+  /** Free-text goods description (Collection/Both only) — see lib/parseGoods. */
   goods: string
-  /** Whether the user has edited goods (gates re-parse/preview behaviour). */
   goodsTouched: boolean
-  /** Whether the user has manually touched allocation. */
+  /** Legacy per-stop allocation; live allocation is the ASSIGN map (spec §4.3). */
+  alloc: number[]
   allocTouched: boolean
   svc: StopService
   status: StopStatus
-  /** Absolute frozen ETA, 'HH:MM'. See ClockTime. */
+  /** Absolute frozen ETA, 'HH:MM'. */
   eta: ClockTime
   pod: Pod | null
-  /** Marks a return leg. */
+  /** Set on an auto-generated wait-&-return leg (spec §5.2). */
   isReturn?: boolean
 }

@@ -1,24 +1,26 @@
 /**
- * etaToClock — convert an incoming relative/elapsed ETA into an ABSOLUTE frozen clock
- * time 'HH:MM'.
+ * etaToClock — convert an ETA into an absolute frozen 'HH:MM'. Ported from the prototype
+ * (spec §7). Source line 1358.
  *
- * Behavioural source of truth: reference/booking-form-modern.html (function `etaToClock`).
- * Handover §1, §6.
+ *  - 'HH:MM' kept as-is
+ *  - a number / "15 mins" -> now + N minutes, formatted 'HH:MM'
+ *  - anything else -> returned unchanged
  *
- * IMPORTANT (handover §6): ETA is absolute and frozen once set; ASAP timing is relative
- * (now + 45 min, recomputed at display). Do not conflate the two. The "now" reference
- * is injected (not read from a global clock) so the function is pure and testable.
+ * The prototype reads Date.now(); here `now` is injected (defaulting to current time) so
+ * the relative branch is pure and testable. ETA is FROZEN once computed (spec §7) — do
+ * not re-run it on display.
  */
 import type { ClockTime } from '@/types/index.ts'
-import { NotPortedYet } from './notPorted.ts'
+import { pad } from './text.ts'
 
-/**
- * @param _eta   incoming ETA as the prototype expresses it (e.g. minutes-from-now or a
- *               provider string) — confirm exact input form on port.
- * @param _now   reference instant used to resolve the absolute clock time (inject for
- *               purity/testability).
- */
-export function etaToClock(_eta: unknown, _now: Date): ClockTime {
-  // TODO(prototype): port etaToClock verbatim. Confirm the input form and rounding.
-  throw new NotPortedYet('etaToClock')
+export function etaToClock(v: string, now: Date = new Date()): ClockTime {
+  v = (v || '').trim()
+  if (!v) return ''
+  if (/^\d{1,2}:\d{2}$/.test(v)) return v
+  const m = v.match(/^(\d+)\s*(m|min|mins|minute|minutes)?$/i)
+  if (m) {
+    const d = new Date(now.getTime() + parseInt(m[1], 10) * 60000)
+    return pad(d.getHours()) + ':' + pad(d.getMinutes())
+  }
+  return v
 }

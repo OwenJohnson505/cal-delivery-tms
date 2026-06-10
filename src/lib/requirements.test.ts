@@ -1,23 +1,51 @@
 import { describe, it, expect } from 'vitest'
 import { rollupRequirements } from './requirements.ts'
-import { NotPortedYet } from './notPorted.ts'
+import { createInitialState } from '@/store/initialState.ts'
+import { makeStop } from '@/test/fixtures.ts'
+import type { ProductEquipment, Stop } from '@/types/index.ts'
+
+const ms = createInitialState().ms // equip ['Tail lift','Pump truck'], service ['Dedicated','ADR']
 
 describe('rollupRequirements', () => {
-  it('is not ported yet (remove this guard once ported)', () => {
-    expect(() =>
-      rollupRequirements({
-        ms: { equip: {}, service: {} },
-        stops: [],
-        eq: {},
-      }),
-    ).toThrow(NotPortedYet)
+  it('rolls up job-scope equipment and service as "whole job"', () => {
+    const rows = rollupRequirements({ stops: [makeStop({})], ms, eq: {} })
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        { label: 'Tail lift', scope: 'whole job' },
+        { label: 'Pump truck', scope: 'whole job' },
+        { label: 'Dedicated', scope: 'whole job' },
+        { label: 'ADR', scope: 'whole job' },
+      ]),
+    )
   })
 
-  // --- Behaviour to port from reference/booking-form-modern.html (renderReqs) ---
-  it.todo('rolls up job-scope MS.equip / MS.service')
-  it.todo('rolls up stop-scope stop.svc flags')
-  it.todo('rolls up product-scope EQ[stopId:itemIndex]')
-  it.todo('deduplicates a requirement contributed by multiple scopes')
-  // KNOWN BUG (handover §6 / spec §5.3) — regression test for the fix:
-  it.todo('REGRESSION: product-scope equipment (e.g. straps) appears despite EQ casing')
+  it('rolls up stop-scope two-man as "all stops" vs "Stop N"', () => {
+    const all = [makeStop({ id: 1, svc: { twoman: true } }), makeStop({ id: 2, svc: { twoman: true } })]
+    expect(rollupRequirements({ stops: all, ms, eq: {} })).toContainEqual({
+      label: 'Two-man',
+      scope: 'all stops',
+    })
+
+    const one = [makeStop({ id: 1 }), makeStop({ id: 2, svc: { twoman: true } })]
+    expect(rollupRequirements({ stops: one, ms, eq: {} })).toContainEqual({
+      label: 'Two-man',
+      scope: 'Stop 2',
+    })
+  })
+
+  it('REGRESSION (§5.3): product equipment rolls up despite lowercase EQ seed', () => {
+    const stops: Stop[] = [makeStop({ id: 1, type: 'Collection', goods: '2 pallets, 1 box' })]
+    const eq: ProductEquipment = { '1:1': { straps: true } } // lowercase seed (the bug)
+    const rows = rollupRequirements({ stops, ms, eq })
+    // item index 1 is the box -> "1 box"
+    expect(rows).toContainEqual({ label: 'Straps', scope: '1 box' })
+  })
+
+  it('also honours correctly-cased EQ keys', () => {
+    const stops: Stop[] = [makeStop({ id: 1, type: 'Collection', goods: '2 pallets' })]
+    const eq: ProductEquipment = { '1:0': { Straps: true, Blanket: true } }
+    const rows = rollupRequirements({ stops, ms, eq })
+    expect(rows).toContainEqual({ label: 'Straps', scope: '2 pallets' })
+    expect(rows).toContainEqual({ label: 'Blanket', scope: '2 pallets' })
+  })
 })

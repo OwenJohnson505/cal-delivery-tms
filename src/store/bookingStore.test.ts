@@ -15,10 +15,10 @@ describe('bookingStore', () => {
 
   it('assigns and unassigns a unit to a delivery stop (exclusive)', () => {
     const { assignUnit, unassignUnit } = useBookingStore.getState()
-    assignUnit(3, 'stop-del')
-    expect(useBookingStore.getState().assign[3]).toBe('stop-del')
-    assignUnit(3, 'stop-other') // re-assign overwrites (exclusive ownership)
-    expect(useBookingStore.getState().assign[3]).toBe('stop-other')
+    assignUnit(3, 2)
+    expect(useBookingStore.getState().assign[3]).toBe(2)
+    assignUnit(3, 5) // re-assign overwrites (exclusive ownership)
+    expect(useBookingStore.getState().assign[3]).toBe(5)
     unassignUnit(3)
     expect(useBookingStore.getState().assign[3]).toBeUndefined()
   })
