@@ -27,11 +27,10 @@ function fromLocal(v: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}` : ''
 }
 
-export function StopCard({ stop, index }: { stop: Stop; index: number }) {
+export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; onEdit: () => void }) {
   const stops = useBookingStore((s) => s.stops)
   const updateStop = useBookingStore((s) => s.updateStop)
   const removeStop = useBookingStore((s) => s.removeStop)
-  const editStop = useUiStore((s) => s.editStop)
   const viewPod = useUiStore((s) => s.viewPod)
   const assign = useEffectiveAssign()
 
@@ -66,7 +65,7 @@ export function StopCard({ stop, index }: { stop: Stop; index: number }) {
               <Icon name="camera" size={14} />
             </button>
           )}
-          <button className="btn sm" title="Open full editor" onClick={() => editStop(stop.id)}>
+          <button className="btn sm" title="Edit stop" onClick={onEdit}>
             <Icon name="edit" size={13} /> Edit
           </button>
           {stops.length > 1 && (

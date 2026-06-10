@@ -1,11 +1,11 @@
 /**
- * Full-screen stop editor (prototype editor mode): address find, contact, timing, goods
+ * Inline stop editor (prototype editor mode): address find, contact, timing, goods
  * (+ live "reads as" preview and per-item equipment), and per-unit allocation for
- * deliveries. Prev/Next step through the route. Behaviour mirrors the reference build.
+ * deliveries. Rendered in place of the collapsed stop card while a stop is being edited;
+ * "Done" collapses it back to the preview.
  */
 import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
-import { useUiStore } from '@/store/uiStore.ts'
 import { useEffectiveAssign } from '@/store/selectors.ts'
 import { AddressFind } from '@/features/address/AddressFind.tsx'
 import {
@@ -25,22 +25,27 @@ function fromLocal(v: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}` : ''
 }
 
-export function StopEditor({ stopId }: { stopId: number }) {
+const NUM_COLOR: Record<StopType, string> = {
+  Collection: 'var(--collect)',
+  Delivery: 'var(--deliver)',
+  Both: 'var(--accent)',
+}
+
+export function StopEditor({ stopId, index, onDone }: { stopId: number; index: number; onDone: () => void }) {
   const stops = useBookingStore((s) => s.stops)
   const updateStop = useBookingStore((s) => s.updateStop)
+  const removeStop = useBookingStore((s) => s.removeStop)
   const toggleStopSvc = useBookingStore((s) => s.toggleStopSvc)
   const setAllTwoman = useBookingStore((s) => s.setAllTwoman)
   const toggleProductEq = useBookingStore((s) => s.toggleProductEq)
   const eq = useBookingStore((s) => s.eq)
-  const editStop = useUiStore((s) => s.editStop)
   const assign = useEffectiveAssign()
   const assignUnit = useBookingStore((s) => s.assignUnit)
   const unassignUnit = useBookingStore((s) => s.unassignUnit)
   const assignAllTo = useBookingStore((s) => s.assignAllTo)
   const clearStopAssign = useBookingStore((s) => s.clearStopAssign)
 
-  const idx = stops.findIndex((s) => s.id === stopId)
-  const stop = stops[idx]
+  const stop = stops.find((s) => s.id === stopId)
   if (!stop) return null
 
   const set = (patch: Partial<Stop>) => updateStop(stop.id, patch)
@@ -55,49 +60,29 @@ export function StopEditor({ stopId }: { stopId: number }) {
   }
 
   return (
-    <div className="route">
-      <div className="ed-nav">
-        <button className="navbtn" disabled={idx === 0} onClick={() => editStop(stops[idx - 1].id)}>
-          ‹ Prev
-        </button>
-        <div className="stepper">
-          {stops.map((s, i) => (
-            <button
-              key={s.id}
-              className={'stepdot' + (s.id === stopId ? ' on' : '')}
-              onClick={() => editStop(s.id)}
-            >
-              <b>{i + 1}</b> {s.type}
+    <div className="stop editing">
+      <div className="stop-head">
+        <span className="num" style={{ background: NUM_COLOR[stop.type] }}>{index + 1}</span>
+        <select className="typesel" value={stop.type} onChange={(e) => set({ type: e.target.value as StopType })}>
+          <option>Collection</option>
+          <option>Delivery</option>
+          <option>Both</option>
+        </select>
+        <h3>{stop.addr.co || stop.addr.pc || 'New address'}</h3>
+        <div className="sh-actions">
+          {stops.length > 1 && (
+            <button className="btn sm iconbtn" title="Remove stop" onClick={() => removeStop(stop.id)}>
+              <Icon name="trash" size={14} />
             </button>
-          ))}
+          )}
+          <button className="btn primary sm" onClick={onDone}><Icon name="check" size={13} /> Done</button>
         </div>
-        <button
-          className="navbtn"
-          disabled={idx === stops.length - 1}
-          onClick={() => editStop(stops[idx + 1].id)}
-        >
-          Next ›
-        </button>
-        <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={() => editStop(null)}>
-          Done
-        </button>
       </div>
 
-      <div className="route-scroll">
-        <div className="ed">
-          {/* Type + address */}
+      <div className="ed">
+          {/* Address find */}
           <div className="edsec">
-            <div className="edhead">Stop {idx + 1} — address</div>
-            <div className="g2">
-              <div className="fld">
-                <label>Stop type</label>
-                <select value={stop.type} onChange={(e) => set({ type: e.target.value as StopType })}>
-                  <option>Collection</option>
-                  <option>Delivery</option>
-                  <option>Both</option>
-                </select>
-              </div>
-            </div>
+            <div className="edhead">Find address</div>
             <AddressFind value={stop.q} onPick={onPickAddr} />
           </div>
 
@@ -262,20 +247,19 @@ export function StopEditor({ stopId }: { stopId: number }) {
                   onChange={(e) => setAllTwoman(e.target.checked)}
                 /> Set for all stops
               </label>
-              {stop.type === 'Both' && idx === stops.length - 1 && (
+              {stop.type === 'Both' && index === stops.length - 1 && (
                 <label className="chk">
                   <input type="checkbox" checked={!!stop.svc.wait} onChange={() => toggleStopSvc(stop.id, 'wait')} /> Wait &amp; return
                 </label>
               )}
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="ed-foot">
-        <button className="btn primary" onClick={() => editStop(null)}>
-          <Icon name="check" size={14} /> Done
-        </button>
+          <div className="ed-foot" style={{ borderRadius: 0, boxShadow: 'none' }}>
+            <button className="btn primary" onClick={onDone}>
+              <Icon name="check" size={14} /> Done
+            </button>
+          </div>
       </div>
     </div>
   )
