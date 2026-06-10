@@ -9,7 +9,6 @@ import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.ts'
-import type { Stop } from '@/types/index.ts'
 
 // Stable empty reference so the Zustand selector doesn't return a new [] each render
 // (a fresh array fails Object.is and triggers an infinite update loop).
@@ -22,12 +21,14 @@ export function Header() {
   const openModal = useUiStore((s) => s.openModal)
   const goToList = useViewStore((s) => s.goToList)
 
-  // Selected customer's custom fields drive the "Custom fields" button.
+  // Selected customer's JOB-level custom fields drive the header button.
+  // (Stop-level fields live on a button inside each stop instead.)
   const custId = useBookingStore((s) => s.book.cust)
-  const stops = useBookingStore((s) => s.stops)
   const customJob = useBookingStore((s) => s.customJob)
+  const openCustomFields = useUiStore((s) => s.openCustomFields)
   const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields) ?? NO_FIELDS
-  const cf = customFieldStatus(fields, stops, customJob)
+  const jobFields = fields.filter((f) => f.scope === 'job')
+  const cf = jobFieldStatus(jobFields, customJob)
 
   return (
     <div className="bar">
@@ -42,11 +43,11 @@ export function Header() {
         <span className="qq-dot" />
         Quick Quote
       </button>
-      {fields.length > 0 && (
+      {jobFields.length > 0 && (
         <button
           className={'cf-btn' + (cf.missingRequired ? ' warn' : '')}
-          title={cf.missingRequired ? 'Required custom fields are missing' : 'Customer custom fields'}
-          onClick={() => openModal('customfields')}
+          title={cf.missingRequired ? 'Required job fields are missing' : 'Job custom fields'}
+          onClick={() => openCustomFields(null)}
         >
           <Icon name="list" size={14} /> Custom fields
           <span className="cf-btn-badge">{cf.filled}/{cf.total}</span>
@@ -89,29 +90,16 @@ export function Header() {
   )
 }
 
-/** Filled/total + missing-required summary for the custom-fields button badge. */
-function customFieldStatus(
-  fields: CustomFieldDef[],
-  stops: Stop[],
+/** Filled/total + missing-required summary for the job-level custom-fields badge. */
+function jobFieldStatus(
+  jobFields: CustomFieldDef[],
   customJob: Record<string, string>,
 ): { filled: number; total: number; missingRequired: boolean } {
   let filled = 0
-  let total = 0
   let missingRequired = false
-  for (const f of fields) {
-    if (f.scope === 'job') {
-      total += 1
-      const has = !!(customJob[f.id] || '').trim()
-      if (has) filled += 1
-      else if (f.required) missingRequired = true
-    } else {
-      for (const st of stops) {
-        total += 1
-        const has = !!(st.custom?.[f.id] || '').trim()
-        if (has) filled += 1
-        else if (f.required) missingRequired = true
-      }
-    }
+  for (const f of jobFields) {
+    if ((customJob[f.id] || '').trim()) filled += 1
+    else if (f.required) missingRequired = true
   }
-  return { filled, total, missingRequired }
+  return { filled, total: jobFields.length, missingRequired }
 }

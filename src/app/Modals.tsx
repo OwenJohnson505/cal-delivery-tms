@@ -11,7 +11,7 @@ import { useBookingStore } from '@/store/bookingStore.ts'
 import { CUSTINFO } from '@/api/mock/data.ts'
 import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.ts'
 import type { AuditEntry, BookingDocument } from '@/api/index.ts'
-import type { Pod, Stop } from '@/types/index.ts'
+import type { Pod } from '@/types/index.ts'
 
 // Stable empty reference (see Header.tsx) — avoids an infinite render loop.
 const NO_FIELDS: CustomFieldDef[] = []
@@ -207,6 +207,7 @@ function CustomFieldInput({ field, value, onChange }: { field: CustomFieldDef; v
  */
 function CustomFieldsModal() {
   const closeModal = useUiStore((s) => s.closeModal)
+  const targetStopId = useUiStore((s) => s.customFieldsStopId)
   const custId = useBookingStore((s) => s.book.cust)
   const stops = useBookingStore((s) => s.stops)
   const customJob = useBookingStore((s) => s.customJob)
@@ -214,61 +215,44 @@ function CustomFieldsModal() {
   const updateStop = useBookingStore((s) => s.updateStop)
   const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields) ?? NO_FIELDS
 
-  const jobFields = fields.filter((f) => f.scope === 'job')
-  const stopFields = fields.filter((f) => f.scope === 'stop')
+  // null target = job-level fields; otherwise just the one stop's stop-level fields.
+  const isJob = targetStopId == null
+  const stop = isJob ? null : stops.find((s) => s.id === targetStopId)
+  const stopIndex = stop ? stops.findIndex((s) => s.id === stop.id) : -1
+  const shown = fields.filter((f) => (isJob ? f.scope === 'job' : f.scope === 'stop'))
 
-  const [jobVals, setJobVals] = useState<Record<string, string>>(() => ({ ...customJob }))
-  const [stopVals, setStopVals] = useState<Record<number, Record<string, string>>>(
-    () => Object.fromEntries(stops.map((s) => [s.id, { ...(s.custom || {}) }])),
-  )
+  const initial = isJob ? customJob : (stop?.custom || {})
+  const [vals, setVals] = useState<Record<string, string>>(() => ({ ...initial }))
 
-  const stopLabel = (s: Stop, i: number) =>
-    `Stop ${i + 1} · ${s.type}${s.addr.co || s.addr.pc ? ` · ${s.addr.co || s.addr.pc}` : ''}`
+  const title = isJob
+    ? 'Job custom fields'
+    : `Stop ${stopIndex + 1} fields${stop && (stop.addr.co || stop.addr.pc) ? ` · ${stop.addr.co || stop.addr.pc}` : ''}`
 
   function save() {
-    jobFields.forEach((f) => setCustomJob(f.id, jobVals[f.id] || ''))
-    stops.forEach((s) => updateStop(s.id, { custom: { ...(s.custom || {}), ...(stopVals[s.id] || {}) } }))
+    if (isJob) {
+      shown.forEach((f) => setCustomJob(f.id, vals[f.id] || ''))
+    } else if (stop) {
+      updateStop(stop.id, { custom: { ...(stop.custom || {}), ...vals } })
+    }
     closeModal()
   }
 
   return (
     <>
-      <ModalHead title="Custom fields" onClose={closeModal} />
+      <ModalHead title={title} onClose={closeModal} />
       <div className="modal-b">
-        {fields.length === 0 ? (
-          <div className="hint">This customer has no custom fields. Add them on the customer’s “Booking fields” tab.</div>
+        {shown.length === 0 ? (
+          <div className="hint">No {isJob ? 'job' : 'stop'} custom fields for this customer.</div>
         ) : (
           <div className="cfm">
-            {jobFields.length > 0 && (
-              <div className="cfm-group">
-                <div className="cfm-group-h">Job fields</div>
-                <div className="cfm-grid">
-                  {jobFields.map((f) => (
-                    <div className="fld" key={f.id}>
-                      <label>{f.label || 'Untitled'}{f.required && <span className="cfm-req"> *</span>}</label>
-                      <CustomFieldInput field={f} value={jobVals[f.id] || ''} onChange={(v) => setJobVals((p) => ({ ...p, [f.id]: v }))} />
-                    </div>
-                  ))}
+            <div className="cfm-grid">
+              {shown.map((f) => (
+                <div className="fld" key={f.id}>
+                  <label>{f.label || 'Untitled'}{f.required && <span className="cfm-req"> *</span>}</label>
+                  <CustomFieldInput field={f} value={vals[f.id] || ''} onChange={(v) => setVals((p) => ({ ...p, [f.id]: v }))} />
                 </div>
-              </div>
-            )}
-            {stopFields.length > 0 && stops.map((s, i) => (
-              <div className="cfm-group" key={s.id}>
-                <div className="cfm-group-h">{stopLabel(s, i)}</div>
-                <div className="cfm-grid">
-                  {stopFields.map((f) => (
-                    <div className="fld" key={f.id}>
-                      <label>{f.label || 'Untitled'}{f.required && <span className="cfm-req"> *</span>}</label>
-                      <CustomFieldInput
-                        field={f}
-                        value={stopVals[s.id]?.[f.id] || ''}
-                        onChange={(v) => setStopVals((p) => ({ ...p, [s.id]: { ...p[s.id], [f.id]: v } }))}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>

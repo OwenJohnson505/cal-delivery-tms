@@ -14,6 +14,8 @@ interface UiState {
   editingStopId: number | null
   /** Payload for the POD modal (which stop's proof). */
   podStopId: number | null
+  /** Which stop the custom-fields modal targets — null means the job-level fields. */
+  customFieldsStopId: number | null
   /** Count of provider options the user has seen (drives the unseen badge). */
   provSeen: number
 
@@ -21,6 +23,8 @@ interface UiState {
   closeDrawers(): void
   openModal(m: ModalName): void
   closeModal(): void
+  /** Open the custom-fields modal for the job (null) or a specific stop. */
+  openCustomFields(stopId: number | null): void
   editStop(id: number | null): void
   viewPod(stopId: number | null): void
   setProvSeen(n: number): void
@@ -31,12 +35,14 @@ export const useUiStore = create<UiState>((set) => ({
   modal: null,
   editingStopId: null,
   podStopId: null,
+  customFieldsStopId: null,
   provSeen: 0,
 
   openDrawer: (d) => set({ drawer: d }),
   closeDrawers: () => set({ drawer: null }),
   openModal: (m) => set({ modal: m }),
-  closeModal: () => set({ modal: null, podStopId: null }),
+  closeModal: () => set({ modal: null, podStopId: null, customFieldsStopId: null }),
+  openCustomFields: (stopId) => set({ modal: 'customfields', customFieldsStopId: stopId }),
   editStop: (id) => set({ editingStopId: id }),
   viewPod: (stopId) => set({ podStopId: stopId, modal: stopId == null ? null : 'pod' }),
   setProvSeen: (n) => set({ provSeen: n }),

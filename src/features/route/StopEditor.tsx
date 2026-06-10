@@ -9,6 +9,7 @@ import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useEffectiveAssign } from '@/store/selectors.ts'
 import { AddressFind } from '@/features/address/AddressFind.tsx'
+import { StopCustomFieldsButton } from './StopCustomFieldsButton.tsx'
 import {
   parseGoods, fmtItem, availableUnitsFor, isColl, isDel,
 } from '@/lib/index.ts'
@@ -232,6 +233,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
        </div>
       </div>
       <div className="ed-foot">
+        <StopCustomFieldsButton stopId={stop.id} />
         <span className="ed-foot-hint">Finished this stop?</span>
         <button className="btn primary" onClick={onDone}>
           <Icon name="check" size={14} /> {index < stops.length - 1 ? 'Done — next stop' : 'Done'}

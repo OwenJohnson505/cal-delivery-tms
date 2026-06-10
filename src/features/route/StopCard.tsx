@@ -10,6 +10,7 @@ import { useUiStore } from '@/store/uiStore.ts'
 import { useEffectiveAssign } from '@/store/selectors.ts'
 import { parseGoods, fmtItem } from '@/lib/index.ts'
 import { EditableCell } from './EditableCell.tsx'
+import { StopCustomFieldsButton } from './StopCustomFieldsButton.tsx'
 import { previewGoods, whenLabel, whenValue } from './format.ts'
 import type { Address, Stop, StopType, TimeMode } from '@/types/index.ts'
 
@@ -66,6 +67,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
               <Icon name="camera" size={14} />
             </button>
           )}
+          <StopCustomFieldsButton stopId={stop.id} />
           <button className="btn sm" title="Edit stop" onClick={onEdit}>
             <Icon name="edit" size={13} /> Edit
           </button>
