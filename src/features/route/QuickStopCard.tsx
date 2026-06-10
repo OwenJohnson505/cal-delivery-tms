@@ -3,8 +3,10 @@
  * the collection); full address, contact and timing are hidden. Optional note/goods and
  * date & time are collapsed behind a click (Collapsible).
  */
+import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { Collapsible } from '@/app/Collapsible.tsx'
+import { AddressFind } from '@/features/address/AddressFind.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import type { Address, Stop, StopType, TimeMode } from '@/types/index.ts'
 
@@ -21,6 +23,7 @@ export function QuickStopCard({ stop, index }: { stop: Stop; index: number }) {
   const stops = useBookingStore((s) => s.stops)
   const updateStop = useBookingStore((s) => s.updateStop)
   const removeStop = useBookingStore((s) => s.removeStop)
+  const [showSearch, setShowSearch] = useState(false)
 
   const isColl = stop.type === 'Collection' || stop.type === 'Both'
   const numColor =
@@ -30,8 +33,13 @@ export function QuickStopCard({ stop, index }: { stop: Stop; index: number }) {
   const setAddr = (patch: Partial<Address>) => set({ addr: { ...stop.addr, ...patch } })
   const setTime = (mode: TimeMode, extra: Record<string, string> = {}) => set({ time: { mode, ...extra } })
 
-  const hasTiming = stop.time.mode !== 'asap'
+  function onPickAddr(addr: Address) {
+    set({ addr, q: addr.co })
+    setShowSearch(false)
+  }
+
   const hasNotes = !!(stop.note || stop.goods)
+  const hasTiming = stop.time.mode !== 'asap'
 
   return (
     <div className="stop">
@@ -54,9 +62,16 @@ export function QuickStopCard({ stop, index }: { stop: Stop; index: number }) {
 
       <div className="ed" style={{ padding: '8px 11px 11px' }}>
         <div className="fld">
-          <label>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
             Postcode
             {isColl && <span className="qq-req">required</span>}
+            <span
+              className="discl"
+              style={{ marginLeft: 'auto', textTransform: 'none', letterSpacing: 0 }}
+              onClick={() => setShowSearch((s) => !s)}
+            >
+              {showSearch ? 'Hide search' : 'Search by company / address'}
+            </span>
           </label>
           <input
             className={isColl && !stop.addr.pc ? 'req' : ''}
@@ -66,7 +81,19 @@ export function QuickStopCard({ stop, index }: { stop: Stop; index: number }) {
           />
         </div>
 
-        <Collapsible label={hasNotes ? 'Note / goods ✓' : 'Add note / goods'} defaultOpen={hasNotes}>
+        {showSearch && (
+          <div style={{ marginTop: 6 }}>
+            <AddressFind value={stop.q} onPick={onPickAddr} />
+          </div>
+        )}
+        {!showSearch && stop.addr.co && (
+          <div className="hint" style={{ marginTop: 2 }}>
+            {stop.addr.co}
+            {stop.addr.city ? ` · ${stop.addr.city}` : ''}
+          </div>
+        )}
+
+        <Collapsible label={hasNotes ? 'Note / goods ✓' : 'Add note / goods'}>
           {isColl && (
             <div className="fld">
               <label>Goods (optional)</label>
@@ -84,7 +111,7 @@ export function QuickStopCard({ stop, index }: { stop: Stop; index: number }) {
           </div>
         </Collapsible>
 
-        <Collapsible label={hasTiming ? 'Date & time ✓' : 'Add date & time'} defaultOpen={hasTiming}>
+        <Collapsible label={hasTiming ? 'Date & time ✓' : 'Add date & time'}>
           <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
               <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>

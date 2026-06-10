@@ -4,6 +4,7 @@
  */
 import { Icon } from './Icon.tsx'
 import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
+import { RefHistory } from '@/features/customer/RefHistory.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 
@@ -15,7 +16,7 @@ export function Header() {
 
   return (
     <div className="bar">
-      <div id="ccBox" className="ccbox">
+      <div id="ccBox" className="ccbox" style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden' }}>
         <CustomerHeader />
       </div>
       <button
@@ -27,12 +28,7 @@ export function Header() {
         Quick Quote
       </button>
       <div className="bar-actions">
-        <div className="fld bar-ref">
-          <label>Cust. Ref</label>
-          <div className="cb">
-            <input type="text" id="custRef" autoComplete="off" />
-          </div>
-        </div>
+        <RefHistory />
         <div className="bar-sep" />
         <div className="bar-tools" id="routeTools">
           <button className="btn sm iconbtn" title="Documents" onClick={() => openModal('docs')}>

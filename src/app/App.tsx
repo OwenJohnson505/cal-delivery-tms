@@ -16,10 +16,12 @@ import { HistoryDrawer } from '@/features/audit/HistoryDrawer.tsx'
 import { ProvidersDrawer } from '@/features/driver/ProvidersDrawer.tsx'
 import { Modals } from './Modals.tsx'
 import { useUiStore } from '@/store/uiStore.ts'
+import { useBookingStore } from '@/store/bookingStore.ts'
 
 export function App() {
   const drawerOpen = useUiStore((s) => s.drawer !== null)
   const closeDrawers = useUiStore((s) => s.closeDrawers)
+  const quickQuote = useBookingStore((s) => s.quickQuote)
 
   return (
     <>
@@ -37,8 +39,9 @@ export function App() {
             </div>
             <div className="rail">
               <ServiceRail />
-              <DriverSection />
-              <OtherCharges />
+              {/* Driver + other charges aren't relevant to a quick quote */}
+              {!quickQuote && <DriverSection />}
+              {!quickQuote && <OtherCharges />}
             </div>
           </div>
           <Footer />

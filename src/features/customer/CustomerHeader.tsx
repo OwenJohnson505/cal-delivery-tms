@@ -71,8 +71,11 @@ export function CustomerHeader() {
 
   const c = book.contact
   return (
-    <div className="cc-oneline">
-      <span className="cc-oneinfo">
+    <div className="cc-oneline" style={{ minWidth: 0 }}>
+      <span
+        className="cc-oneinfo"
+        style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
         <Icon name="building" size={14} /> <b>{accountName(book.cust)}</b>
         {c && (
           <>
@@ -85,7 +88,7 @@ export function CustomerHeader() {
           </>
         )}
       </span>
-      <button className="btn sm iconbtn" title="Customer info" onClick={() => openModal('custinfo')}>
+      <button className="btn sm iconbtn" title="Customer info" onClick={() => openModal('custinfo')} style={{ flex: 'none' }}>
         <Icon name="info" size={14} />
       </button>
       <button className="btn sm" title="Change customer" onClick={() => setBook({ cust: null, contact: null })}>

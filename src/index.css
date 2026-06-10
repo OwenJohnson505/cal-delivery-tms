@@ -7,8 +7,9 @@
   height: 100%;
 }
 
-/* Quick Quote toggle pill */
+/* Quick Quote toggle — squared to match .btn (the app's standard button shape) */
 .qq-toggle {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -16,7 +17,7 @@
   padding: 0 11px;
   border: 1px solid var(--line-strong);
   background: #fff;
-  border-radius: 14px;
+  border-radius: 6px;
   font-weight: 600;
   font-size: 11.5px;
   cursor: pointer;
@@ -34,7 +35,7 @@
 .qq-toggle .qq-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--line-strong);
 }
 .qq-toggle.on .qq-dot {
