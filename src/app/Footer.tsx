@@ -1,22 +1,15 @@
 /**
  * Footer (prototype lines 553-559): booked-by / our-ref meta, total revenue, and the
- * contextual Draft/Quote/Booking actions. jobStatus drives which actions show (spec §10).
+ * save actions. In a full booking the operator can save as Draft, Quote, OR Booking
+ * directly — jobs aren't always quoted first. In Quick Quote mode only Draft / Quick
+ * Quote are offered.
  */
 import { useBookingStore } from '@/store/bookingStore.ts'
-import type { JobStatus } from '@/types/index.ts'
-
-const NEXT: Record<JobStatus, { label: string; to: JobStatus } | null> = {
-  Draft: { label: 'Save as quote', to: 'Quote' },
-  'Quick Quote': { label: 'Save as quote', to: 'Quote' },
-  Quote: { label: 'Confirm booking', to: 'Booking' },
-  Booking: null,
-}
 
 export function Footer() {
   const jobStatus = useBookingStore((s) => s.jobStatus)
   const setJobStatus = useBookingStore((s) => s.setJobStatus)
   const quickQuote = useBookingStore((s) => s.quickQuote)
-  const next = NEXT[jobStatus]
 
   return (
     <div className="footer">
@@ -46,15 +39,11 @@ export function Footer() {
             </>
           ) : (
             <>
-              {jobStatus !== 'Draft' && (
-                <button className="btn sm" onClick={() => setJobStatus('Draft')}>Back to draft</button>
-              )}
-              <button className="btn">Save draft</button>
-              {next && (
-                <button className="btn primary" onClick={() => setJobStatus(next.to)}>
-                  {next.label}
-                </button>
-              )}
+              <button className="btn" onClick={() => setJobStatus('Draft')}>Save draft</button>
+              <button className="btn" onClick={() => setJobStatus('Quote')}>Save as quote</button>
+              <button className="btn primary" onClick={() => setJobStatus('Booking')}>
+                Save as booking
+              </button>
             </>
           )}
         </div>

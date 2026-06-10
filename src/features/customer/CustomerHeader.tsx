@@ -89,7 +89,7 @@ export function CustomerHeader() {
         )}
       </span>
       <button className="btn sm iconbtn" title="Customer info" onClick={() => openModal('custinfo')} style={{ flex: 'none' }}>
-        <Icon name="info" size={14} />
+        <Icon name="info" size={16} />
       </button>
       <button className="btn sm" title="Change customer" onClick={() => setBook({ cust: null, contact: null })}>
         Change

@@ -33,7 +33,7 @@ export function RefHistory() {
           title="Reference history — what this customer used before"
           onClick={() => setOpen((o) => !o)}
         >
-          <Icon name="clock" size={15} />
+          <Icon name="clock" size={16} />
         </button>
         <div className={'cb-menu' + (open ? ' open' : '')}>
           {!custId ? (

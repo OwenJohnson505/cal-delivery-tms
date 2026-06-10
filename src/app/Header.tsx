@@ -32,24 +32,24 @@ export function Header() {
         <div className="bar-sep" />
         <div className="bar-tools" id="routeTools">
           <button className="btn sm iconbtn" title="Documents" onClick={() => openModal('docs')}>
-            <Icon name="file" size={15} />
+            <Icon name="file" size={16} />
           </button>
           <button className="btn sm iconbtn" title="Audit trail" onClick={() => openModal('audit')}>
-            <Icon name="list" size={15} />
+            <Icon name="list" size={16} />
           </button>
           <button
             className="btn sm iconbtn"
             title="Route map"
             onClick={() => window.alert('Route map opens Google Maps directions (mock).')}
           >
-            <Icon name="map" size={15} />
+            <Icon name="map" size={16} />
           </button>
           <button
             className="btn sm iconbtn"
             title="Print delivery notes"
             onClick={() => window.alert('Delivery notes print doc (mock).')}
           >
-            <Icon name="printer" size={15} />
+            <Icon name="printer" size={16} />
           </button>
         </div>
         <div className="bar-sep" />
@@ -57,7 +57,7 @@ export function Header() {
           Clear all
         </button>
         <button className="winx" title="Close booking">
-          <Icon name="close" size={17} />
+          <Icon name="close" size={16} />
         </button>
       </div>
     </div>

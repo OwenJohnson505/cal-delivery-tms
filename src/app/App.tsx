@@ -34,7 +34,8 @@ export function App() {
               <RoutePanel />
               <div className="botrow">
                 <JobNotes />
-                <RequirementsPanel />
+                {/* Requirements come from specifics, which are full-quote only */}
+                {!quickQuote && <RequirementsPanel />}
               </div>
             </div>
             <div className="rail">

@@ -4,7 +4,6 @@
  * rollup and CX notes live.
  */
 import { MultiSelect } from './MultiSelect.tsx'
-import { Collapsible } from '@/app/Collapsible.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 
 const TARIFFS = ['Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
@@ -54,11 +53,8 @@ export function ServiceRail() {
           ))}
         </datalist>
       </div>
-      {quickQuote ? (
-        <Collapsible label="Add specifics (body, equipment, service)">{specifics}</Collapsible>
-      ) : (
-        specifics
-      )}
+      {/* Quick Quote keeps only the vehicle type; body/equipment/service are full-quote only */}
+      {!quickQuote && specifics}
     </div>
   )
 }
