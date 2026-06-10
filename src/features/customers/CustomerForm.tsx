@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { Section, Segmented, ChipList } from './formBits.tsx'
+import { MultiSelect } from '@/features/service/MultiSelect.tsx'
 import {
   COMPANY_TYPES,
   blankCustomerDraft,
@@ -21,16 +22,27 @@ import type { CompanyAddress, CompanyLookupResult } from '@/api/mock/companyLook
 import { searchCompanies, lookupCredit } from '@/api/mock/companyLookup.ts'
 import { useCustomersStore } from '@/store/customersStore.ts'
 
-type Tab = 'account' | 'invoicing' | 'addresses' | 'sales' | 'tariffs' | 'rules' | 'notes'
+type Tab = 'account' | 'invoicing' | 'addresses' | 'sales' | 'tariffs' | 'incentives' | 'rules' | 'notes'
 const TABS: Array<[Tab, string]> = [
   ['account', 'Account'], ['invoicing', 'Invoicing'], ['addresses', 'Addresses'],
-  ['sales', 'Sales'], ['tariffs', 'Tariffs'], ['rules', 'Rules'], ['notes', 'Notes'],
+  ['sales', 'Sales'], ['tariffs', 'Tariffs'], ['incentives', 'Incentives'], ['rules', 'Rules'], ['notes', 'Notes'],
 ]
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const CURRENCIES = ['GBP', 'EUR', 'USD']
 const TARIFFS = ['Standard', 'Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
+// TODO(db): users come from a users table once it exists. Hardcoded for now.
+const USERS = ['Owen Johnson', 'Sarah Doyle', 'James Hill', 'Priya Shah', 'Tom Baker']
 
 const uid = () => crypto.randomUUID()
+
+/** Add N months to a 'dd-mm-yyyy' date, returning 'dd-mm-yyyy' (or '' if unparseable). */
+function addMonths(dmy: string, months: number): string {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dmy)
+  if (!m) return ''
+  const d = new Date(+m[3], +m[2] - 1 + months, +m[1])
+  const p = (n: number) => ('0' + n).slice(-2)
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`
+}
 
 function toISO(dmy: string): string {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dmy)
@@ -61,12 +73,24 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
       invoicing: { ...p.invoicing, paymentType: kind === 'personal' ? 'card' : p.invoicing.paymentType },
     }))
 
-  // Apply a chosen company match — fills name, reg and the invoicing address.
+  // Set start date and default the commission end to +12 months.
+  const setStartDate = (startDate: string) =>
+    setD((p) => ({ ...p, startDate, sales: { ...p.sales, commissionEnd: addMonths(startDate, 12) } }))
+
+  // Apply a chosen company match — fills name, reg, invoicing address, and credit.
   function applyCompany(r: CompanyLookupResult) {
+    const credit = r.companyRegNumber ? lookupCredit(r.companyRegNumber) : null
     setD((p) => ({
       ...p,
       companyName: r.tradingName,
-      invoicing: { ...p.invoicing, tradingName: r.tradingName, companyReg: r.companyRegNumber, address: { ...r.address } },
+      invoicing: {
+        ...p.invoicing,
+        tradingName: r.tradingName,
+        companyReg: r.companyRegNumber,
+        address: { ...r.address },
+        creditScore: credit ? credit.creditScore : p.invoicing.creditScore,
+        creditLimit: credit ? credit.creditLimit : p.invoicing.creditLimit,
+      },
     }))
   }
   function runCreditLookup() {
@@ -111,7 +135,7 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
 
           <div className="cf-body">
             {tab === 'account' && (
-              <AccountTab d={d} set={set} setKind={setKind} accountCode={accountCode} applyCompany={applyCompany} />
+              <AccountTab d={d} set={set} setKind={setKind} setStartDate={setStartDate} accountCode={accountCode} applyCompany={applyCompany} />
             )}
             {tab === 'invoicing' && (
               <InvoicingTab d={d} setInv={setInv} setInvAddr={setInvAddr} runCreditLookup={runCreditLookup} />
@@ -119,6 +143,12 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
             {tab === 'addresses' && <AddressesTab d={d} set={set} />}
             {tab === 'sales' && <SalesTab d={d} setSales={setSales} />}
             {tab === 'tariffs' && <TariffsTab d={d} set={set} />}
+            {tab === 'incentives' && (
+              <Section title="Incentives" hint="CalClub loyalty (more to come)">
+                <label className="chk"><input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points</label>
+                <div className="cf-hint">Points are calculated and tracked from job revenue when enabled. Further incentive schemes will live here.</div>
+              </Section>
+            )}
             {tab === 'rules' && <RulesTab d={d} setRules={setRules} />}
             {tab === 'notes' && (
               <Section title="Notes" hint="internal">
@@ -134,12 +164,12 @@ export function CustomerForm({ onClose, onSave }: { onClose: () => void; onSave:
 }
 
 // ── Account ───────────────────────────────────────────────────────────────────
-function AccountTab({ d, set, setKind, accountCode, applyCompany }: {
+function AccountTab({ d, set, setKind, setStartDate, accountCode, applyCompany }: {
   d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void; setKind: (k: AccountKind) => void
-  accountCode: string; applyCompany: (r: CompanyLookupResult) => void
+  setStartDate: (v: string) => void; accountCode: string; applyCompany: (r: CompanyLookupResult) => void
 }) {
   const isCompany = d.accountKind === 'company'
-  const addContact = () => set({ contacts: [...d.contacts, { id: uid(), name: '', email: '', phone: '', role: '', isMain: d.contacts.length === 0 }] })
+  const addContact = () => set({ contacts: [...d.contacts, { id: uid(), name: '', email: '', phone: '', role: '', isMain: d.contacts.length === 0, defaultPo: '' }] })
   const updContact = (id: string, patch: Partial<Contact>) => set({ contacts: d.contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const setMain = (id: string) => set({ contacts: d.contacts.map((c) => ({ ...c, isMain: c.id === id })) })
   const removeContact = (id: string) => set({ contacts: d.contacts.filter((c) => c.id !== id) })
@@ -165,15 +195,20 @@ function AccountTab({ d, set, setKind, accountCode, applyCompany }: {
           </button>
         </div>
         <div className="g-cpc">
-          {isCompany ? (
+          {isCompany && (
             <div className="fld"><label>Company type</label>
               <select value={d.companyType} onChange={(e) => set({ companyType: e.target.value })}>
                 {COMPANY_TYPES.map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
-          ) : <div />}
-          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => set({ startDate: fromISO(e.target.value) })} /></div>
+          )}
+          <div className="fld"><label>Status</label><Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} /></div>
+          <div className="fld"><label>Start date</label><input type="date" value={toISO(d.startDate)} onChange={(e) => setStartDate(fromISO(e.target.value))} /></div>
+        </div>
+        <div className="g-cpc">
           <div className="fld"><label>Account code</label><input value={accountCode} disabled /></div>
+          <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
+          <div />
         </div>
       </Section>
 
@@ -204,21 +239,7 @@ function AccountTab({ d, set, setKind, accountCode, applyCompany }: {
         </Section>
       )}
 
-      {/* Step 3 — account details */}
-      <Section title="Account details">
-        <div className="g2">
-          <div className="fld"><label>Status</label><Segmented value={d.status} onChange={(v) => set({ status: v })} options={[['active', 'Active'], ['inactive', 'Inactive']]} /></div>
-          <div className="fld"><label>Assigned to (admin user)</label><input value={d.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} placeholder="e.g. Owen Johnson" /></div>
-        </div>
-        <div className="g2">
-          <div className="fld cf-disabled"><label>Team</label><select disabled><option>Teams coming soon</option></select></div>
-          <div className="fld"><label>Loyalty</label>
-            <label className="chk" style={{ height: 28 }}><input type="checkbox" checked={d.loyaltyEnabled} onChange={(e) => set({ loyaltyEnabled: e.target.checked })} /> Enable CalClub loyalty points</label>
-          </div>
-        </div>
-      </Section>
-
-      {/* Step 4 — contacts (company only; a personal account is its own contact) */}
+      {/* Step 3 — contacts (company only; a personal account is its own contact) */}
       {isCompany && (
         <Section title="Contacts" hint="star the main contact" action={<button className="btn sm" onClick={addContact}><Icon name="plus" size={13} /> Add contact</button>}>
           {d.contacts.length === 0 ? (
@@ -232,6 +253,7 @@ function AccountTab({ d, set, setKind, accountCode, applyCompany }: {
                   <div className="fld"><label>Role</label><input value={c.role} onChange={(e) => updContact(c.id, { role: e.target.value })} placeholder="e.g. Accounts" /></div>
                   <div className="fld"><label>Email</label><input value={c.email} onChange={(e) => updContact(c.id, { email: e.target.value })} /></div>
                   <div className="fld"><label>Phone</label><input value={c.phone} onChange={(e) => updContact(c.id, { phone: e.target.value })} /></div>
+                  <div className="fld"><label>Default PO (for this contact)</label><input value={c.defaultPo} onChange={(e) => updContact(c.id, { defaultPo: e.target.value })} placeholder="optional" /></div>
                 </div>
                 <button className="btn sm iconbtn" title="Remove" onClick={() => removeContact(c.id)}><Icon name="trash" size={14} /></button>
               </div>
@@ -305,6 +327,11 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
 }) {
   const inv = d.invoicing
   const isCompany = d.accountKind === 'company'
+  const a = inv.address
+  const hasAddr = !!(a.postcode || a.line1 || a.city)
+  const [editAddr, setEditAddr] = useState(false)
+  const addrLines = [a.line1, a.line2, [a.city, a.town].filter(Boolean).join(', '), a.postcode, a.country].filter(Boolean)
+
   return (
     <>
       <Section title={isCompany ? 'Invoicing name & address' : 'Billing address'} hint="the billing address lives here">
@@ -314,14 +341,24 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
             {!inv.sameAsCompany && <div className="fld"><label>Trading name (on invoices)</label><input value={inv.tradingName} onChange={(e) => setInv({ tradingName: e.target.value })} /></div>}
           </>
         )}
-        <AddressFields addr={inv.address} onChange={setInvAddr} />
+        {hasAddr && !editAddr ? (
+          <div className="cf-preview">
+            <div className="cf-preview-body">{addrLines.map((l, i) => <div key={i}>{l}</div>)}</div>
+            <button className="btn sm" onClick={() => setEditAddr(true)}><Icon name="edit" size={13} /> Edit</button>
+          </div>
+        ) : (
+          <>
+            <AddressFields addr={inv.address} onChange={setInvAddr} />
+            {hasAddr && <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => setEditAddr(false)}>Done</button>}
+          </>
+        )}
       </Section>
 
       {isCompany && (
-        <Section title="Identifiers">
+        <Section title="Identifiers" hint="VAT & EORI aren't returned by the company lookup — enter manually">
           <div className="g-cpc">
             <div className="fld"><label>Company reg</label><input value={inv.companyReg} onChange={(e) => setInv({ companyReg: e.target.value })} /></div>
-            <div className="fld"><label>VAT number</label><input value={inv.vat} onChange={(e) => setInv({ vat: e.target.value })} /></div>
+            <div className="fld"><label>VAT number</label><input value={inv.vat} onChange={(e) => setInv({ vat: e.target.value })} placeholder="e.g. GB123456789" /></div>
             <div className="fld"><label>EORI number</label><input value={inv.eori} onChange={(e) => setInv({ eori: e.target.value })} /></div>
           </div>
         </Section>
@@ -369,18 +406,33 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
         <div className="fld"><label>Statement emails</label><ChipList values={inv.statementEmails} placeholder="statements@example.com" onChange={(v) => setInv({ statementEmails: v })} /></div>
       </Section>
 
-      <Section title="Invoice rules">
+      <Section title="PO rules" hint="used to validate POs entered on the booking screen">
         <label className="chk"><input type="checkbox" checked={inv.poRequired} onChange={(e) => setInv({ poRequired: e.target.checked })} /> Requires a PO number before invoicing</label>
+        <label className="chk"><input type="checkbox" checked={inv.separatePerRef} onChange={(e) => setInv({ separatePerRef: e.target.checked })} /> Separate invoice per unique PO</label>
+        <div className="g2">
+          <div className="fld">
+            <label>Accepted PO prefixes</label>
+            <ChipList values={inv.poPrefixes} placeholder="e.g. PO-, ACME" onChange={(v) => setInv({ poPrefixes: v })} />
+            <div className="cf-hint">A PO that doesn't start with one of these is flagged on the booking.</div>
+          </div>
+          <div className="fld">
+            <label>Fixed PO (optional)</label>
+            <input value={inv.fixedPo} onChange={(e) => setInv({ fixedPo: e.target.value })} placeholder="if every job uses the same PO" />
+            <div className="cf-hint">Contacts can also have their own default PO (Account tab).</div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Invoice settings">
         <label className="chk"><input type="checkbox" checked={inv.attachPods} onChange={(e) => setInv({ attachPods: e.target.checked })} /> Attach PODs to invoices</label>
-        <label className="chk"><input type="checkbox" checked={inv.separatePerRef} onChange={(e) => setInv({ separatePerRef: e.target.checked })} /> Separate invoice per unique customer ref / PO</label>
         <div className="g2">
           <div className="fld"><label>Max value per invoice (£)</label><input type="number" value={inv.maxValuePerInvoice ?? ''} onChange={(e) => setInv({ maxValuePerInvoice: e.target.value === '' ? null : +e.target.value })} placeholder="e.g. 5000" /></div>
-          <div className="fld"><label>Invoice prefixes</label><ChipList values={inv.prefixes} placeholder="e.g. ACME-" onChange={(v) => setInv({ prefixes: v })} /></div>
+          <div className="fld"><label>Invoice number prefixes</label><ChipList values={inv.prefixes} placeholder="e.g. ACME-" onChange={(v) => setInv({ prefixes: v })} /></div>
         </div>
       </Section>
 
       {isCompany && (
-        <Section title="Credit" hint="CreditSafe (dummy)" action={<button className="btn sm" onClick={runCreditLookup} disabled={!inv.companyReg}><Icon name="search" size={13} /> Check credit</button>}>
+        <Section title="Credit" hint="CreditSafe (dummy) — auto-filled from the company reg" action={<button className="btn sm" onClick={runCreditLookup} disabled={!inv.companyReg}><Icon name="search" size={13} /> Re-check</button>}>
           <div className="g2">
             <div className="fld"><label>Credit limit (£)</label><input type="number" value={inv.creditLimit ?? ''} onChange={(e) => setInv({ creditLimit: e.target.value === '' ? null : +e.target.value })} /></div>
             <div className="fld"><label>Credit score</label><input type="number" value={inv.creditScore ?? ''} onChange={(e) => setInv({ creditScore: e.target.value === '' ? null : +e.target.value })} /></div>
@@ -393,22 +445,25 @@ function InvoicingTab({ d, setInv, setInvAddr, runCreditLookup }: {
 
 // ── Addresses ───────────────────────────────────────────────────────────────────
 function AddressesTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
-  const add = () => set({ addresses: [...d.addresses, { id: uid(), label: '', kind: 'delivery', postcode: '', line1: '', city: '' }] })
+  const add = () => set({ addresses: [...d.addresses, { id: uid(), company: '', label: '', shorthands: [], kind: 'delivery', postcode: '', line1: '', city: '' }] })
   const upd = (id: string, patch: Partial<SavedCustomerAddress>) => set({ addresses: d.addresses.map((a) => (a.id === id ? { ...a, ...patch } : a)) })
   const remove = (id: string) => set({ addresses: d.addresses.filter((a) => a.id !== id) })
   return (
-    <Section title="Delivery / collection addresses" hint="saved with the customer" action={<button className="btn sm" onClick={add}><Icon name="plus" size={13} /> Add address</button>}>
+    <Section title="Delivery / collection addresses" hint="auto-saved from this customer's jobs; add labels & shorthands here" action={<button className="btn sm" onClick={add}><Icon name="plus" size={13} /> Add address</button>}>
+      <div className="cf-hint">When a job is booked, its collection/delivery addresses are saved here automatically (with the company name). Add a label and shorthands so they're easy to find on the booking screen.</div>
       {d.addresses.length === 0 ? (
         <div className="cf-empty">No saved addresses yet.</div>
       ) : (
         d.addresses.map((a) => (
           <div className="cf-addr" key={a.id}>
             <div className="cf-addr-grid">
-              <div className="fld"><label>Label</label><input value={a.label} onChange={(e) => upd(a.id, { label: e.target.value })} placeholder="e.g. Main depot" /></div>
+              <div className="fld span2"><label>Company</label><input value={a.company} onChange={(e) => upd(a.id, { company: e.target.value })} placeholder="auto-filled from jobs" /></div>
               <div className="fld"><label>Type</label><select value={a.kind} onChange={(e) => upd(a.id, { kind: e.target.value as AddressKind })}><option value="collection">Collection</option><option value="delivery">Delivery</option><option value="both">Both</option></select></div>
-              <div className="fld"><label>Postcode</label><input value={a.postcode} onChange={(e) => upd(a.id, { postcode: e.target.value })} /></div>
               <div className="fld span2"><label>Address line 1</label><input value={a.line1} onChange={(e) => upd(a.id, { line1: e.target.value })} /></div>
+              <div className="fld"><label>Postcode</label><input value={a.postcode} onChange={(e) => upd(a.id, { postcode: e.target.value })} /></div>
               <div className="fld"><label>City</label><input value={a.city} onChange={(e) => upd(a.id, { city: e.target.value })} /></div>
+              <div className="fld"><label>Label</label><input value={a.label} onChange={(e) => upd(a.id, { label: e.target.value })} placeholder="e.g. Main depot" /></div>
+              <div className="fld span2"><label>Shorthands (searchable nicknames)</label><ChipList values={a.shorthands} placeholder='e.g. "North Depot"' onChange={(v) => upd(a.id, { shorthands: v })} /></div>
             </div>
             <button className="btn sm iconbtn" title="Remove" onClick={() => remove(a.id)}><Icon name="trash" size={14} /></button>
           </div>
@@ -428,8 +483,18 @@ function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<Cus
     <>
       <Section title="Attribution">
         <div className="g2">
-          <div className="fld"><label>Converted by</label><input value={s.convertedBy} onChange={(e) => setSales({ convertedBy: e.target.value })} /></div>
-          <div className="fld"><label>Lead by</label><input value={s.leadBy} onChange={(e) => setSales({ leadBy: e.target.value })} /></div>
+          <div className="fld"><label>Converted by</label>
+            <select value={s.convertedBy} onChange={(e) => setSales({ convertedBy: e.target.value })}>
+              <option value="">— Select user —</option>
+              {USERS.map((u) => <option key={u}>{u}</option>)}
+            </select>
+          </div>
+          <div className="fld"><label>Lead by</label>
+            <select value={s.leadBy} onChange={(e) => setSales({ leadBy: e.target.value })}>
+              <option value="">— Select user —</option>
+              {USERS.map((u) => <option key={u}>{u}</option>)}
+            </select>
+          </div>
         </div>
         <div className="g2">
           <div className="fld"><label>Source</label><input value={s.source} onChange={(e) => setSales({ source: e.target.value })} placeholder="e.g. Referral, Web" /></div>
@@ -440,7 +505,7 @@ function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<Cus
       <Section title="Commission">
         <div className="g2">
           <div className="fld"><label>Commission start</label><input value="Auto — starts on first job" disabled /></div>
-          <div className="fld"><label>Commission end</label><input type="date" value={toISO(s.commissionEnd)} onChange={(e) => setSales({ commissionEnd: fromISO(e.target.value) })} /></div>
+          <div className="fld"><label>Commission end</label><input type="date" value={toISO(s.commissionEnd)} onChange={(e) => setSales({ commissionEnd: fromISO(e.target.value) })} /><div className="cf-hint">Defaults to 12 months from the start date.</div></div>
         </div>
         <div className="g2">
           <div className="fld"><label>Calculated on</label><select value={s.calculatedOn} onChange={(e) => setSales({ calculatedOn: e.target.value as typeof s.calculatedOn })}><option value="revenue">Revenue</option><option value="margin">Margin</option></select><div className="cf-hint">What the rate is multiplied by.</div></div>
@@ -468,16 +533,21 @@ function SalesTab({ d, setSales }: { d: CustomerDraft; setSales: (p: Partial<Cus
 
 // ── Tariffs / Rules ───────────────────────────────────────────────────────────────
 function TariffsTab({ d, set }: { d: CustomerDraft; set: (p: Partial<CustomerDraft>) => void }) {
+  const defaultOptions = d.assignedTariffs.length ? d.assignedTariffs : TARIFFS
   return (
-    <Section title="Tariffs" hint="customer-specific rate cards coming soon">
+    <Section title="Tariffs" hint="rate cards come from the tariffs database (coming soon)">
       <div className="fld">
+        <label>Assigned tariffs</label>
+        <MultiSelect options={TARIFFS} selected={d.assignedTariffs} placeholder="Select the rate cards this account can use…" onChange={(v) => set({ assignedTariffs: v })} />
+      </div>
+      <div className="fld" style={{ maxWidth: 320 }}>
         <label>Default tariff</label>
         <select value={d.defaultTariff} onChange={(e) => set({ defaultTariff: e.target.value })}>
           <option value="">— Select —</option>
-          {TARIFFS.map((t) => <option key={t}>{t}</option>)}
+          {defaultOptions.map((t) => <option key={t}>{t}</option>)}
         </select>
       </div>
-      <div className="cf-hint">Per-customer rate cards and overrides will be added once the tariff schema is built.</div>
+      <div className="cf-hint">Tariffs will get their own creation/management page once the tariffs database exists; this list is a placeholder.</div>
     </Section>
   )
 }

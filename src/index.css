@@ -179,6 +179,17 @@
 .cf-kind-card .ic-svg { color: var(--accent); flex: none; }
 .cf-kind-t { font-size: 13px; font-weight: 700; }
 .cf-kind-d { font-size: 11px; color: var(--muted); margin-top: 1px; }
+/* preview box for pre-filled info (e.g. invoicing address) */
+.cf-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.cf-preview-body { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--ink); }
 .cf-section:first-child .cf-section-h { border-top: none; padding-top: 0; }
 .cf-hint {
   font-size: 10px;

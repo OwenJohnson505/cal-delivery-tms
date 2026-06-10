@@ -38,11 +38,18 @@ export interface Contact {
   phone: string
   role: string
   isMain: boolean
+  /** PO this contact's jobs must use (PO-rule check). */
+  defaultPo: string
 }
 
 export interface SavedCustomerAddress {
   id: string
+  /** Company / premises name (auto-filled from booked jobs). */
+  company: string
+  /** Optional human label (e.g. "Main depot") — added manually. */
   label: string
+  /** Shorthand nicknames (e.g. "North Depot") — searchable on the booking screen. */
+  shorthands: string[]
   kind: AddressKind
   postcode: string
   line1: string
@@ -77,6 +84,10 @@ export interface InvoicingInfo {
   poRequired: boolean
   attachPods: boolean
   separatePerRef: boolean
+  /** Accepted PO prefixes — a PO not matching one is flagged on the booking. */
+  poPrefixes: string[]
+  /** A fixed PO expected on every job for this account (optional). */
+  fixedPo: string
   maxValuePerInvoice: number | null
   creditLimit: number | null
   creditScore: number | null
@@ -114,9 +125,8 @@ export interface Customer {
   personalPhone: string
   status: AccountStatus
   startDate: string // dd-mm-yyyy
-  assignedTo: string
   team: string // coming soon
-  loyaltyEnabled: boolean // CalClub
+  loyaltyEnabled: boolean // CalClub (Incentives tab)
   contacts: Contact[]
   // Invoicing
   invoicing: InvoicingInfo
@@ -124,8 +134,10 @@ export interface Customer {
   addresses: SavedCustomerAddress[]
   // Sales
   sales: SalesInfo
-  // Tariffs / Rules / Notes
+  // Tariffs
+  assignedTariffs: string[]
   defaultTariff: string
+  // Rules / Notes
   rules: RulesInfo
   notes: string
 }
@@ -146,7 +158,6 @@ export function blankCustomerDraft(): CustomerDraft {
     personalPhone: '',
     status: 'active',
     startDate: '',
-    assignedTo: '',
     team: '',
     loyaltyEnabled: false,
     contacts: [],
@@ -162,13 +173,15 @@ export function blankCustomerDraft(): CustomerDraft {
       termsBasis: 'net',
       invoiceEmails: [],
       statementEmails: [],
-      frequency: 'per-job',
+      frequency: 'weekly',
       weekdays: [],
       currency: 'GBP',
       prefixes: [],
       poRequired: false,
       attachPods: false,
       separatePerRef: false,
+      poPrefixes: [],
+      fixedPo: '',
       maxValuePerInvoice: null,
       creditLimit: null,
       creditScore: null,
@@ -185,6 +198,7 @@ export function blankCustomerDraft(): CustomerDraft {
       bands: [],
       cap: null,
     },
+    assignedTariffs: [],
     defaultTariff: '',
     rules: { requireBookingRef: false, preferredDriversOnly: false, blockOverCreditLimit: false },
     notes: '',
