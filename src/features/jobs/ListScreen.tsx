@@ -12,7 +12,13 @@ import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUsersStore } from '@/store/usersStore.ts'
 import { useOrgStore, userScope } from '@/store/orgStore.ts'
 import { useCustomersStore } from '@/store/customersStore.ts'
+import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
+import { ColumnsMenu } from './ColumnsMenu.tsx'
 import type { JobStatus } from '@/types/index.ts'
+
+const COL_LABEL = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
+const NUM_COLS = new Set<ColumnKey>(['revenue', 'cost', 'margin'])
+const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'actor', 'driver'])
 
 const TAB_STATUSES: Record<ListTab, JobStatus[]> = {
   bookings: ['Booking'],
@@ -42,6 +48,8 @@ export function ListScreen() {
   const departments = useOrgStore((s) => s.departments)
   const teams = useOrgStore((s) => s.teams)
   const customers = useCustomersStore((s) => s.customers)
+  const columnCfg = useViewsStore((s) => s.columns)
+  const visibleCols = useMemo(() => columnCfg.filter((c) => c.visible).map((c) => c.key), [columnCfg])
 
   const [query, setQuery] = useState('')
 
@@ -89,9 +97,29 @@ export function ListScreen() {
     openWizard(job.id)
   }
 
+  const headerFor = (key: ColumnKey) => (key === 'actor' ? actionLabel(tab) : COL_LABEL[key])
+  function cell(key: ColumnKey, j: SavedJob) {
+    switch (key) {
+      case 'ref': return <b>{j.ref}</b>
+      case 'customer': return j.customer
+      case 'progress': return j.progress ? <StatusPill status={j.progress} /> : <span className="muted">—</span>
+      case 'status': return <StatusPill status={j.status} />
+      case 'route': return j.route
+      case 'vehicle': return j.vehicle || '—'
+      case 'collection': return j.collectAt
+      case 'delivery': return j.deliverAt
+      case 'revenue': return `£${j.revenue.toFixed(0)}`
+      case 'cost': return `£${j.cost.toFixed(0)}`
+      case 'margin': return <b style={{ color: 'var(--ok)' }}>£{(j.revenue - j.cost).toFixed(0)}</b>
+      case 'actor': return <>{j.actorName}<div className="cell-sub">{j.createdAt}</div></>
+      case 'driver': return j.driverName ? <>{j.driverName}<div className="cell-sub">{j.driverId}</div></> : <span className="muted">Unassigned</span>
+      default: return null
+    }
+  }
+
   return (
     <div className="list-app">
-      <div className="list-work">
+      <div className="list-work wide">
         <div className="list-head">
           <h1>{TAB_LABEL[tab]}</h1>
           <button className="btn primary" onClick={addNew}>
@@ -133,6 +161,7 @@ export function ListScreen() {
           </select>
           <span className="list-count">{rows.length}</span>
           <span className="db-spacer" />
+          <ColumnsMenu />
           <select className="db-asuser sm" value={currentUserId} onChange={(e) => setCurrentUser(e.target.value)} title="Viewing as (sets the default view)">
             {users.map((u) => <option key={u.id} value={u.id}>as {u.name}</option>)}
           </select>
@@ -142,43 +171,20 @@ export function ListScreen() {
           <table className="list-table jobs-table">
             <thead>
               <tr>
-                <th>Ref</th>
-                <th>Customer</th>
-                <th>Progress</th>
-                <th>Status</th>
-                <th>Route</th>
-                <th>Vehicle</th>
-                <th>Collection</th>
-                <th>Delivery</th>
-                <th className="num">Revenue</th>
-                <th className="num">Cost</th>
-                <th className="num">Margin</th>
-                <th>{actionLabel(tab)}</th>
-                <th>Driver</th>
+                {visibleCols.map((key) => (
+                  <th key={key} className={NUM_COLS.has(key) ? 'num' : ''}>{headerFor(key)}</th>
+                ))}
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((j) => (
                 <tr key={j.id} onDoubleClick={() => open(j)}>
-                  <td><b>{j.ref}</b></td>
-                  <td>{j.customer}</td>
-                  <td>{j.progress ? <StatusPill status={j.progress} /> : <span className="muted">—</span>}</td>
-                  <td><StatusPill status={j.status} /></td>
-                  <td>{j.route}</td>
-                  <td>{j.vehicle || '—'}</td>
-                  <td className="nowrap">{j.collectAt}</td>
-                  <td className="nowrap">{j.deliverAt}</td>
-                  <td className="num">£{j.revenue.toFixed(0)}</td>
-                  <td className="num">£{j.cost.toFixed(0)}</td>
-                  <td className="num"><b style={{ color: 'var(--ok)' }}>£{(j.revenue - j.cost).toFixed(0)}</b></td>
-                  <td className="nowrap">
-                    {j.actorName}
-                    <div className="cell-sub">{j.createdAt}</div>
-                  </td>
-                  <td className="nowrap">
-                    {j.driverName ? <>{j.driverName}<div className="cell-sub">{j.driverId}</div></> : <span className="muted">Unassigned</span>}
-                  </td>
+                  {visibleCols.map((key) => (
+                    <td key={key} className={(NUM_COLS.has(key) ? 'num ' : '') + (NOWRAP_COLS.has(key) ? 'nowrap' : '')}>
+                      {cell(key, j)}
+                    </td>
+                  ))}
                   <td className="list-actions">
                     <button className="btn sm" onClick={() => open(j)} title="Open">
                       <Icon name="edit" size={14} /> Open
@@ -197,7 +203,7 @@ export function ListScreen() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td className="empty" colSpan={8}>
+                  <td className="empty" colSpan={visibleCols.length + 1}>
                     No {TAB_LABEL[tab].toLowerCase()} {query ? 'match your search' : 'yet'}.
                   </td>
                 </tr>
