@@ -7,7 +7,6 @@ import { useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useApi } from '@/api/ApiProvider.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
-import { useUiStore } from '@/store/uiStore.ts'
 import { etaToClock } from '@/lib/index.ts'
 import type { Driver } from '@/types/index.ts'
 
@@ -15,10 +14,10 @@ export function DriverSection() {
   const api = useApi()
   const allocated = useBookingStore((s) => s.allocatedDriver)
   const setAllocatedDriver = useBookingStore((s) => s.setAllocatedDriver)
-  const openDrawer = useUiStore((s) => s.openDrawer)
 
   const [q, setQ] = useState('')
   const [matches, setMatches] = useState<Driver[]>([])
+  const [infoOpen, setInfoOpen] = useState(false)
 
   async function search(value: string) {
     setQ(value)
@@ -44,15 +43,20 @@ export function DriverSection() {
   return (
     <div className="rsec" id="drvSec">
       <h3>
-        Driver{' '}
-        <span
-          className="dsec-eye"
-          title="Search to allocate a driver directly, or use “Browse options” to see interested drivers and CX bids."
-        >
-          <Icon name="eye" size={13} />
-        </span>
-        <span className="r">
-          <span className="discl" onClick={() => openDrawer('providers')}>Browse options</span>
+        Driver
+        <span className="dsec-info-wrap">
+          <button className="dsec-info" title="About driver allocation" onClick={() => setInfoOpen((o) => !o)}>
+            <Icon name="info" size={14} />
+          </button>
+          {infoOpen && (
+            <>
+              <div className="cc-pop-scrim" onClick={() => setInfoOpen(false)} />
+              <div className="dsec-info-pop">
+                Search to allocate a driver directly, or open the <b>Providers</b> tab (right) to see
+                interested drivers and CX bids.
+              </div>
+            </>
+          )}
         </span>
       </h3>
       <div id="driverBox">

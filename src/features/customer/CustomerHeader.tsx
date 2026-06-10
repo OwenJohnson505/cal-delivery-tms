@@ -21,6 +21,8 @@ export function CustomerHeader() {
   const [picking, setPicking] = useState<Customer | null>(null)
   // Contact email/phone popover (opened by clicking the contact name).
   const [contactOpen, setContactOpen] = useState(false)
+  // Inline edit mode (Edit customer): change contact and/or switch company in place.
+  const [editing, setEditing] = useState(false)
 
   const { companyHits, contactHits } = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -129,6 +131,63 @@ export function CustomerHeader() {
     )
   }
 
+  // Edit mode: change contact (within the current customer) and/or switch company.
+  // Everything writes straight to the store, so closing the box "saves" automatically.
+  if (editing && book.cust) {
+    const cust = customers.find((x) => x.id === book.cust) || null
+    const cc = book.contact
+    const currentId = cust?.contacts.find((ct) => cc && ct.name === cc.name && ct.email === cc.email)?.id || ''
+    const switchCompany = (cmp: Customer) => {
+      if (cmp.id !== book.cust) setBook({ cust: cmp.id, contact: null }) // new account → pick its contact next
+      setQuery('')
+      setOpen(false)
+    }
+    const pickContactById = (id: string) => {
+      if (!cust) return
+      if (!id) return setBook({ contact: null })
+      const ct = cust.contacts.find((x) => x.id === id)
+      if (ct) setBook({ contact: { name: ct.name, email: ct.email, tel: ct.phone } })
+    }
+    const exitEdit = () => { setEditing(false); setQuery(''); setOpen(false) }
+    return (
+      <div
+        className="cc-edit-inline"
+        tabIndex={-1}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) exitEdit() }}
+      >
+        <div className="cb cc-edit-co">
+          <input
+            type="text"
+            autoFocus
+            autoComplete="off"
+            placeholder={`${cust?.companyName ?? 'Search company'} — type to change`}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+          />
+          {open && query.trim() && (
+            <div className="cb-menu open">
+              {companyHits.length === 0 && <div className="cb-opt">No matching customers.</div>}
+              {companyHits.map(({ c: cmp, via }) => (
+                <div key={cmp.id} className="cb-opt" onMouseDown={(e) => { e.preventDefault(); switchCompany(cmp) }}>
+                  <div className="co"><Icon name="building" size={13} /> {cmp.companyName}{via && <span className="cc-tag">“{via}”</span>}</div>
+                  <div className="ad">{cmp.accountCode}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <select className="cc-edit-contact" value={currentId} onChange={(e) => pickContactById(e.target.value)}>
+          <option value="">No contact</option>
+          {cust?.contacts.map((ct) => (
+            <option key={ct.id} value={ct.id}>{ct.name}{ct.role ? ` · ${ct.role}` : ''}</option>
+          ))}
+        </select>
+        <button className="btn sm primary" onClick={exitEdit}>Done</button>
+      </div>
+    )
+  }
+
   const c = book.contact
   return (
     <div className="cc-oneline" style={{ minWidth: 0 }}>
@@ -163,7 +222,7 @@ export function CustomerHeader() {
           )}
         </span>
       )}
-      <button className="btn sm iconbtn" title="Change customer" onClick={() => setBook({ cust: null, contact: null })}>
+      <button className="btn sm iconbtn" title="Edit customer" onClick={() => setEditing(true)}>
         <Icon name="edit" size={15} />
       </button>
     </div>
