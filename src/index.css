@@ -105,15 +105,15 @@
 }
 .winx:hover { background: #fdecec; color: #dc2626; border: none; }
 
-/* Customer reference moved into the footer (asked for at pricing time). It glows
- * amber until filled, so operators don't forget to take a PO/ref on the call. */
-.footer .bar-ref { flex: none; }
+/* Customer reference moved into the footer (asked for at pricing time). Until it's
+ * filled, only the INSIDE of the box is tinted amber, so operators don't forget to
+ * take a PO/ref on the call — the border and label stay standard. */
+.footer .bar-ref { flex: none; margin-left: 28px; }
 .footer .bar-ref .cb { width: 200px; }
-.footer .bar-ref.needs-ref input {
-  background: #fff7e6; border-color: #f0c36d;
-}
-.footer .bar-ref.needs-ref input::placeholder { color: #b07d1a; }
-.footer .bar-ref.needs-ref .bar-ref-lbl { color: #b07d1a; }
+.footer .bar-ref .bar-ref-lbl { font-size: 10px; } /* match the Total revenue label */
+/* slightly more curved than the other field boxes (still not a pill) */
+.footer .bar-ref input { border-radius: 10px; }
+.footer .bar-ref.needs-ref input { background: #fff7e6; }
 /* the ref-history dropdown must open upward in the footer (page bottom). */
 .footer .bar-ref .cb-menu { top: auto; bottom: calc(100% + 4px); }
 
