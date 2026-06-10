@@ -24,6 +24,13 @@ function fromLocal(v: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v)
   return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}` : ''
 }
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+/** ASAP resolves to now + 45 min (display only). */
+function asapDisplay(): string {
+  const d = new Date(Date.now() + 45 * 60000)
+  const p = (n: number) => ('0' + n).slice(-2)
+  return `${DOW[d.getDay()]} ${p(d.getDate())}/${p(d.getMonth() + 1)} · by ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 const NUM_COLOR: Record<StopType, string> = {
   Collection: 'var(--collect)',
@@ -68,7 +75,12 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
           <option>Delivery</option>
           <option>Both</option>
         </select>
-        <h3>{stop.addr.co || stop.addr.pc || 'New address'}</h3>
+        <input
+          className="stop-ref"
+          placeholder="Reference (your ref / PO)…"
+          value={stop.reference}
+          onChange={(e) => set({ reference: e.target.value })}
+        />
         <div className="sh-actions">
           {stops.length > 1 && (
             <button className="btn sm iconbtn" title="Remove stop" onClick={() => removeStop(stop.id)}>
@@ -81,9 +93,9 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
 
       <div className="ed ed-compact ed-2col">
        <div className="ed-col">
-        {/* Address */}
+        {/* Address & timing */}
         <div className="edsec">
-          <div className="edhead">Address {stop.addr.src && <span className="cc-tag" style={{ marginLeft: 8 }}>{stop.addr.src}</span>}</div>
+          <div className="edhead">Address &amp; timing {stop.addr.src && <span className="cc-tag" style={{ marginLeft: 8 }}>{stop.addr.src}</span>}</div>
           <AddressFind value={stop.q} onPick={onPickAddr} />
           <div className="g2">
             <div className="fld"><label>Company</label><input value={stop.addr.co} onChange={(e) => setAddr({ co: e.target.value })} /></div>
@@ -93,39 +105,45 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
             <div className="fld"><label>City</label><input value={stop.addr.city} onChange={(e) => setAddr({ city: e.target.value })} /></div>
             <div className="fld"><label>Postcode</label><input value={stop.addr.pc} onChange={(e) => setAddr({ pc: e.target.value })} /></div>
           </div>
-          <div className="fld"><label>Country</label>
-            <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
-              <option>England</option><option>Scotland</option><option>Wales</option><option>N. Ireland</option>
-            </select>
+          <div className="g2">
+            <div className="fld"><label>Country</label>
+              <select value={stop.addr.country} onChange={(e) => setAddr({ country: e.target.value })}>
+                <option>England</option><option>Scotland</option><option>Wales</option><option>N. Ireland</option>
+              </select>
+            </div>
+            <div className="fld">
+              <label>When</label>
+              <div className="svc-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
+                  <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
+                    {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+          {/* the time box is always shown so it never pops in/out */}
+          {stop.time.mode === 'asap' && (
+            <div className="fld"><input type="text" value={asapDisplay()} disabled /></div>
+          )}
+          {stop.time.mode === 'at' && (
+            <div className="fld"><input type="datetime-local" value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} /></div>
+          )}
+          {stop.time.mode === 'by' && (
+            <div className="fld"><input type="datetime-local" value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} /></div>
+          )}
+          {stop.time.mode === 'between' && (
+            <div className="g2">
+              <input type="datetime-local" value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} />
+              <input type="datetime-local" value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} />
+            </div>
+          )}
         </div>
 
-        {/* Reference & timing (using the left column's spare space) */}
+        {/* Driver instructions (kept on the left to free goods space on the right) */}
         <div className="edsec">
-          <div className="edhead">Reference &amp; timing</div>
-          <div className="fld"><label>Reference</label><input value={stop.reference} onChange={(e) => set({ reference: e.target.value })} /></div>
-          <div className="fld">
-            <label>When</label>
-            <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
-                <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
-                  {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
-            {stop.time.mode === 'at' && (
-              <input type="datetime-local" value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} />
-            )}
-            {stop.time.mode === 'by' && (
-              <input type="datetime-local" value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} />
-            )}
-            {stop.time.mode === 'between' && (
-              <div className="g2">
-                <input type="datetime-local" value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} />
-                <input type="datetime-local" value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} />
-              </div>
-            )}
-          </div>
+          <div className="edhead">Driver instruction</div>
+          <div className="fld"><input value={stop.note} placeholder="Shown to the driver &amp; on CX…" onChange={(e) => set({ note: e.target.value })} /></div>
         </div>
        </div>
        <div className="ed-col">
@@ -137,7 +155,6 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
             <div className="fld"><label>Phone</label><input value={stop.contact?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
           </div>
           <div className="fld"><label>Email</label><input value={stop.contact?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
-          <div className="fld"><label>Instruction / note (shown to driver &amp; on CX)</label><input value={stop.note} onChange={(e) => set({ note: e.target.value })} /></div>
         </div>
 
         {/* Goods / items & crew */}
@@ -183,10 +200,10 @@ function GoodsPreview({
   onToggleEq: (stopId: number, itemIndex: number, key: string) => void
 }) {
   const items = parseGoods(stop.goods)
-  if (!items.length) return null
   return (
     <div className="parsed">
       <div className="parsed-h">Reads as</div>
+      {!items.length && <div className="parsed-empty">Type the goods above and they’ll be itemised here.</div>}
       {items.map((it, ix) => {
         const e = eq[`${stop.id}:${ix}`] || {}
         return (

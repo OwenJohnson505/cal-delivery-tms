@@ -32,6 +32,23 @@
 .ed-compact .parsed { overflow: hidden; }
 .ed-compact .pitem { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .ed-compact .eqtog { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.parsed-empty { color: var(--muted); font-size: 12px; padding: 2px 0; }
+
+/* reference input lives in the stop head (alongside the type selector) */
+.stop-ref {
+  flex: 1 1 auto; min-width: 0; max-width: 360px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.stop-ref::placeholder { font-weight: 400; color: var(--muted); }
+/* reference shown as an identifier on the collapsed card head */
+.stop-ref-tag {
+  flex: none; padding: 2px 8px; border-radius: 999px;
+  background: #eef2ff; color: #3b4bd8; border: 1px solid #dfe4ff;
+  font-size: 12px; font-weight: 600; max-width: 220px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* ============================================================
  * LIST SCREENS (Bookings / Quotes / Drafts)

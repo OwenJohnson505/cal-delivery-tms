@@ -57,6 +57,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
           <option>Both</option>
         </select>
         <h3>{a.co || a.pc || 'New address'}</h3>
+        {stop.reference && <span className="stop-ref-tag" title="Reference">{stop.reference}</span>}
         <div className="sh-actions">
           <span className="itag">{STATUS_LABEL[stop.status] || stop.status}</span>
           {stop.status === 'enroute' && stop.eta && <span className="cc-tag">ETA {stop.eta}</span>}
@@ -142,7 +143,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
           </EditableCell>
         </div>
 
-        {(goods || stop.reference || isColl) && (
+        {(goods || isColl) && (
           <div className="prow">
             <EditableCell
               label="Goods"
@@ -169,17 +170,6 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
                 ) : (
                   <div className="ce-prev-empty">Nothing parsed yet.</div>
                 )}
-              </div>
-            </EditableCell>
-
-            <EditableCell
-              label="Ref"
-              title="Reference"
-              value={stop.reference ? stop.reference : <span className="ph">—</span>}
-            >
-              <div className="fld">
-                <label>Customer / consignment ref</label>
-                <input autoFocus value={stop.reference} onChange={(e) => set({ reference: e.target.value })} />
               </div>
             </EditableCell>
           </div>
