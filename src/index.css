@@ -528,10 +528,19 @@
 /* inline single inputs (new department / team name) */
 .db-inline-input { height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 12px; font: inherit; font-size: 12.5px; min-width: 200px; }
 .db-filter { height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 12px; font: inherit; font-size: 12.5px; }
-/* "Viewing as" user switch on the booking list */
-.db-viewas { display: inline-flex; align-items: center; gap: 7px; }
-.db-viewas > span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
-.db-viewas select { height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 10px; font: inherit; font-size: 12.5px; color: var(--ink); }
+/* compact toolbar variants — keep the toolbar slim so more filters can fit later */
+.db-filter.sm, .db-asuser.sm { height: 26px; font-size: 11.5px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.db-asuser.sm { color: var(--muted); }
+.db-spacer { flex: 1; }
+
+/* wide "live" jobs table — scrolls horizontally; tight cells with a sub-line */
+.list-tablewrap:has(.jobs-table) { overflow-x: auto; }
+.jobs-table { font-size: 12px; min-width: 1180px; }
+.jobs-table th, .jobs-table td { padding: 7px 9px; vertical-align: top; }
+.jobs-table .nowrap { white-space: nowrap; }
+.jobs-table .muted { color: var(--muted); }
+.jobs-table .cell-sub { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+.jobs-table .num { text-align: right; white-space: nowrap; }
 
 /* Teams & departments */
 .org-wrap { display: flex; flex-direction: column; gap: 14px; }

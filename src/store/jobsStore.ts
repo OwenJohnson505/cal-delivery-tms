@@ -10,6 +10,7 @@ import { useBookingStore } from './bookingStore.ts'
 import { createInitialState } from './initialState.ts'
 import { outcode } from '@/lib/index.ts'
 import { useCustomersStore } from './customersStore.ts'
+import { useUsersStore } from './usersStore.ts'
 
 export interface SavedJob {
   id: string
@@ -24,6 +25,20 @@ export interface SavedJob {
   /** 'dd-mm-yyyy HH:MM' created stamp. */
   createdAt: string
   snapshot: BookingState
+  // ── live job columns (booking list) ──
+  /** Job lifecycle progress (Waiting → Posted → … → Delivered); '' if not started. */
+  progress: string
+  /** £ cost (margin = revenue − cost). */
+  cost: number
+  /** Collection time (first collection stop). */
+  collectAt: string
+  /** Delivery time of the last stop. */
+  deliverAt: string
+  /** Who booked / quoted / drafted the job. */
+  actorName: string
+  /** Allocated driver name + id (blank if none). */
+  driverName: string
+  driverId: string
 }
 
 function customerName(id: string | null): string {
@@ -88,13 +103,24 @@ function sample(opts: {
   return base
 }
 
+type SeedRow = {
+  ref: string; status: JobStatus; at: string; snap: BookingState
+  progress: string; revenue: number; cost: number; collectAt: string; deliverAt: string
+  actorName: string; driverName: string; driverId: string
+}
+
 function seedJobs(): SavedJob[] {
-  const rows: Array<{ ref: string; status: JobStatus; at: string; snap: BookingState }> = [
-    { ref: 'BK-100482', status: 'Booking', at: '06-06-2026 18:53', snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'WA2 7NE', vehicle: '18t', charges: [{ label: 'Handballing', rate: 35 }] }) },
-    { ref: 'BK-100479', status: 'Booking', at: '05-06-2026 11:20', snap: sample({ status: 'Booking', cust: 'meridian', collPc: 'M15 4FN', delPc: 'L7 9PG', vehicle: 'Luton' }) },
-    { ref: 'QU-100501', status: 'Quote', at: '06-06-2026 09:14', snap: sample({ status: 'Quote', cust: 'orbit', collPc: 'LS4 2AB', delPc: 'WA4 1PX', vehicle: '7.5t' }) },
-    { ref: 'QQ-100503', status: 'Quick Quote', at: '06-06-2026 10:02', snap: sample({ status: 'Quick Quote', cust: 'cal', collPc: 'LS9 0PX', delPc: 'M15 4FN', vehicle: 'Small van' }) },
-    { ref: 'DR-100510', status: 'Draft', at: '06-06-2026 16:41', snap: sample({ status: 'Draft', cust: 'brightway', collPc: 'WA2 7NE', delPc: 'LS9 0PX', vehicle: '' }) },
+  const rows: SeedRow[] = [
+    { ref: 'BK-100482', status: 'Booking', at: '06-06-2026 18:53', snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'WA2 7NE', vehicle: '18t', charges: [{ label: 'Handballing', rate: 35 }] }),
+      progress: 'Collected', revenue: 420, cost: 280, collectAt: 'Wed 10 Jun · 09:30', deliverAt: 'Wed 10 Jun · 14:15', actorName: 'Sarah Doyle', driverName: 'Dave Foster', driverId: 'DRV-204' },
+    { ref: 'BK-100479', status: 'Booking', at: '05-06-2026 11:20', snap: sample({ status: 'Booking', cust: 'meridian', collPc: 'M15 4FN', delPc: 'L7 9PG', vehicle: 'Luton' }),
+      progress: 'On route to delivery', revenue: 310, cost: 210, collectAt: 'Thu 11 Jun · 08:00', deliverAt: 'Thu 11 Jun · 16:30', actorName: 'James Hill', driverName: 'Aisha Khan', driverId: 'DRV-118' },
+    { ref: 'QU-100501', status: 'Quote', at: '06-06-2026 09:14', snap: sample({ status: 'Quote', cust: 'orbit', collPc: 'LS4 2AB', delPc: 'WA4 1PX', vehicle: '7.5t' }),
+      progress: '', revenue: 180, cost: 120, collectAt: 'Fri 12 Jun · 10:00', deliverAt: 'Fri 12 Jun · 15:00', actorName: 'Sarah Doyle', driverName: '', driverId: '' },
+    { ref: 'QQ-100503', status: 'Quick Quote', at: '06-06-2026 10:02', snap: sample({ status: 'Quick Quote', cust: 'cal', collPc: 'LS9 0PX', delPc: 'M15 4FN', vehicle: 'Small van' }),
+      progress: '', revenue: 95, cost: 70, collectAt: '—', deliverAt: '—', actorName: 'Tom Baker', driverName: '', driverId: '' },
+    { ref: 'DR-100510', status: 'Draft', at: '06-06-2026 16:41', snap: sample({ status: 'Draft', cust: 'brightway', collPc: 'WA2 7NE', delPc: 'LS9 0PX', vehicle: '' }),
+      progress: '', revenue: 0, cost: 0, collectAt: '—', deliverAt: '—', actorName: 'Sarah Doyle', driverName: '', driverId: '' },
   ]
   return rows.map((r, i) => ({
     id: `seed-${i}`,
@@ -103,6 +129,14 @@ function seedJobs(): SavedJob[] {
     createdAt: r.at,
     snapshot: r.snap,
     ...summarize(r.snap),
+    revenue: r.revenue, // explicit seed revenue (overrides the charge-sum)
+    progress: r.progress,
+    cost: r.cost,
+    collectAt: r.collectAt,
+    deliverAt: r.deliverAt,
+    actorName: r.actorName,
+    driverName: r.driverName,
+    driverId: r.driverId,
   }))
 }
 
@@ -113,13 +147,20 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   saveJob: ({ id, status, snapshot, createdAt }) => {
     const snap = { ...snapshot, jobStatus: status }
     const summary = summarize(snap)
+    const drv = snap.allocatedDriver
     const existing = id ? get().jobs.find((j) => j.id === id) : undefined
     if (existing) {
-      const updated: SavedJob = { ...existing, status, snapshot: snap, ...summary }
+      // keep the live columns, just refresh status/summary/driver from the snapshot
+      const updated: SavedJob = {
+        ...existing, status, snapshot: snap, ...summary,
+        driverName: drv?.name ?? '', driverId: drv?.id ?? '',
+      }
       set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? updated : j)) }))
       return updated
     }
     const seq = get().seq + 1
+    const us = useUsersStore.getState()
+    const actorName = us.users.find((u) => u.id === us.currentUserId)?.name ?? '—'
     const job: SavedJob = {
       id: crypto.randomUUID(),
       ref: `${REF_PREFIX[status]}-${seq}`,
@@ -127,6 +168,13 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       createdAt,
       snapshot: snap,
       ...summary,
+      progress: status === 'Booking' ? 'Waiting' : '',
+      cost: 0,
+      collectAt: '—',
+      deliverAt: '—',
+      actorName,
+      driverName: drv?.name ?? '',
+      driverId: drv?.id ?? '',
     }
     set((s) => ({ jobs: [job, ...s.jobs], seq }))
     return job
