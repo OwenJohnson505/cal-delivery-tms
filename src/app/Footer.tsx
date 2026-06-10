@@ -7,6 +7,7 @@ import type { JobStatus } from '@/types/index.ts'
 
 const NEXT: Record<JobStatus, { label: string; to: JobStatus } | null> = {
   Draft: { label: 'Save as quote', to: 'Quote' },
+  'Quick Quote': { label: 'Save as quote', to: 'Quote' },
   Quote: { label: 'Confirm booking', to: 'Booking' },
   Booking: null,
 }
@@ -14,6 +15,7 @@ const NEXT: Record<JobStatus, { label: string; to: JobStatus } | null> = {
 export function Footer() {
   const jobStatus = useBookingStore((s) => s.jobStatus)
   const setJobStatus = useBookingStore((s) => s.setJobStatus)
+  const quickQuote = useBookingStore((s) => s.quickQuote)
   const next = NEXT[jobStatus]
 
   return (
@@ -35,14 +37,25 @@ export function Footer() {
         </div>
         <div id="footActions" className="saveas">
           <span className="foot-lbl" style={{ marginRight: 8 }}>Status: {jobStatus}</span>
-          {jobStatus !== 'Draft' && (
-            <button className="btn sm" onClick={() => setJobStatus('Draft')}>Back to draft</button>
-          )}
-          <button className="btn">Save draft</button>
-          {next && (
-            <button className="btn primary" onClick={() => setJobStatus(next.to)}>
-              {next.label}
-            </button>
+          {quickQuote ? (
+            <>
+              <button className="btn" onClick={() => setJobStatus('Draft')}>Save as draft</button>
+              <button className="btn primary" onClick={() => setJobStatus('Quick Quote')}>
+                Save as Quick Quote
+              </button>
+            </>
+          ) : (
+            <>
+              {jobStatus !== 'Draft' && (
+                <button className="btn sm" onClick={() => setJobStatus('Draft')}>Back to draft</button>
+              )}
+              <button className="btn">Save draft</button>
+              {next && (
+                <button className="btn primary" onClick={() => setJobStatus(next.to)}>
+                  {next.label}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

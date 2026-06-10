@@ -31,6 +31,8 @@ export interface BookingState {
   cx: CxNotesState
   assign: AssignMap
   jobStatus: JobStatus
+  /** Quick Quote mode — simplifies the form to postcode + vehicle (spec: feature). */
+  quickQuote: boolean
 }
 
 export interface BookingActions {
@@ -72,6 +74,7 @@ export interface BookingActions {
 
   // --- Job lifecycle ---
   setJobStatus(status: JobStatus): void
+  setQuickQuote(on: boolean): void
   reset(): void
 }
 

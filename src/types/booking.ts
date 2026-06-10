@@ -8,8 +8,11 @@
  *   ASSIGN = { <unitIdx>: <deliveryStopId> }
  */
 
-/** Footer/persistence lifecycle (spec §10: jobStatus drives footer actions). */
-export type JobStatus = 'Draft' | 'Quote' | 'Booking'
+/**
+ * Footer/persistence lifecycle (spec §10: jobStatus drives footer actions).
+ * 'Quick Quote' is a lightweight quote saved from the simplified Quick Quote form.
+ */
+export type JobStatus = 'Draft' | 'Quick Quote' | 'Quote' | 'Booking'
 
 /** A multi-select group: options, current selection, placeholder (spec §5 / §1). */
 export interface MultiSelectGroup {

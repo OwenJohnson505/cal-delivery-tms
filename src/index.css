@@ -6,3 +6,101 @@
 #root {
   height: 100%;
 }
+
+/* Quick Quote toggle pill */
+.qq-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 27px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.qq-toggle:hover {
+  background: #f1f4f8;
+}
+.qq-toggle.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.qq-toggle .qq-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.qq-toggle.on .qq-dot {
+  background: var(--accent);
+}
+
+/* Quick Quote banner */
+.qq-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #dbe7fb;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 9px;
+}
+
+/* Mandatory field hint in Quick Quote */
+.qq-req {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--deliver);
+  margin-left: 6px;
+}
+
+/* Collapsible optional section */
+.collapsible {
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  margin-top: 8px;
+  background: #fff;
+}
+.collapsible-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  cursor: pointer;
+}
+.collapsible-head:hover {
+  color: var(--ink);
+}
+.collapsible.open .collapsible-head {
+  border-bottom: 1px solid var(--line);
+}
+.collapsible-caret {
+  color: var(--accent);
+  font-size: 10px;
+}
+.collapsible-body {
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}

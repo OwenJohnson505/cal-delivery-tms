@@ -9,6 +9,8 @@ import { useUiStore } from '@/store/uiStore.ts'
 
 export function Header() {
   const reset = useBookingStore((s) => s.reset)
+  const quickQuote = useBookingStore((s) => s.quickQuote)
+  const setQuickQuote = useBookingStore((s) => s.setQuickQuote)
   const openModal = useUiStore((s) => s.openModal)
 
   return (
@@ -16,6 +18,14 @@ export function Header() {
       <div id="ccBox" className="ccbox">
         <CustomerHeader />
       </div>
+      <button
+        className={'qq-toggle' + (quickQuote ? ' on' : '')}
+        title="Quick Quote — only collection postcode + vehicle type"
+        onClick={() => setQuickQuote(!quickQuote)}
+      >
+        <span className="qq-dot" />
+        Quick Quote
+      </button>
       <div className="bar-actions">
         <div className="fld bar-ref">
           <label>Cust. Ref</label>
