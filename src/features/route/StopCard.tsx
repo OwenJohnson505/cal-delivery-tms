@@ -39,8 +39,6 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
   const c = stop.contact
   const goods = previewGoods(stop, stops, assign)
   const isColl = stop.type === 'Collection' || stop.type === 'Both'
-  const numColor =
-    stop.type === 'Collection' ? 'var(--collect)' : stop.type === 'Delivery' ? 'var(--deliver)' : 'var(--accent)'
 
   const set = (patch: Partial<Stop>) => updateStop(stop.id, patch)
   const setAddr = (patch: Partial<Address>) => set({ addr: { ...a, ...patch } })
@@ -51,7 +49,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
   return (
     <div className="stop">
       <div className="stop-head">
-        <span className="num" style={{ background: numColor }}>{index + 1}</span>
+        <span className="num">{index + 1}</span>
         <select className="typesel" value={stop.type} onChange={(e) => set({ type: e.target.value as StopType })}>
           <option>Collection</option>
           <option>Delivery</option>

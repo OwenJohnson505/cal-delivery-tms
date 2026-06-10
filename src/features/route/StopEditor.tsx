@@ -36,12 +36,6 @@ function asapDisplay(): string {
   return `${DOW[d.getDay()]} ${p(d.getDate())}/${p(d.getMonth() + 1)} · by ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-const NUM_COLOR: Record<StopType, string> = {
-  Collection: 'var(--collect)',
-  Delivery: 'var(--deliver)',
-  Both: 'var(--accent)',
-}
-
 export function StopEditor({ stopId, index, onDone }: { stopId: number; index: number; onDone: () => void }) {
   const stops = useBookingStore((s) => s.stops)
   const updateStop = useBookingStore((s) => s.updateStop)
@@ -91,7 +85,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
   return (
     <div className="stop editing">
       <div className="stop-head">
-        <span className="num" style={{ background: NUM_COLOR[stop.type] }}>{index + 1}</span>
+        <span className="num">{index + 1}</span>
         <select className="typesel" value={stop.type} onChange={(e) => set({ type: e.target.value as StopType })}>
           <option>Collection</option>
           <option>Delivery</option>

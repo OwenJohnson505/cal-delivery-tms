@@ -184,6 +184,9 @@
 }
 .ed-compact .pdel:hover { color: var(--deliver); border-color: var(--deliver); }
 .parsed-empty { color: var(--muted); font-size: 12px; padding: 2px 0; }
+/* Stop number: the number alone identifies the stop — keep the badge one calm,
+ * consistent faint blue (no per-type colour, which double-encoded the type). */
+.stop-head .num { background: var(--accent-soft); color: var(--accent); font-weight: 800; }
 /* Formatted-goods header + info popover (mirrors the driver info button) */
 .ed-compact .parsed-h { display: flex; align-items: center; gap: 6px; }
 .fg-info-wrap { position: relative; display: inline-flex; }
