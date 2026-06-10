@@ -18,12 +18,6 @@ import type { Address, Stop, StopType } from '@/types/index.ts'
 
 const TARIFFS = ['Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
 
-const DOT_COLOR: Record<StopType, string> = {
-  Collection: 'var(--collect)',
-  Delivery: 'var(--deliver)',
-  Both: 'var(--accent)',
-}
-
 function toLocal(s?: string): string {
   const m = /^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})/.exec(s || '')
   return m ? `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}` : ''
@@ -52,10 +46,11 @@ export function QuickQuotePanel() {
           <div className="rsec">
             <h3>Route</h3>
             <div className="qq-route">
-              {stops.map((stop) => (
+              {stops.map((stop, i) => (
                 <QuickRouteRow
                   key={stop.id}
                   stop={stop}
+                  index={i}
                   canRemove={stops.length > 1}
                   onType={(type) => updateStop(stop.id, { type })}
                   onPatch={(patch) => updateStop(stop.id, patch)}
@@ -74,7 +69,7 @@ export function QuickQuotePanel() {
             )}
           </div>
 
-          <JobNotes />
+          <JobNotes grow />
         </div>
 
         {/* RIGHT — vehicle, charges, requirements */}
@@ -95,7 +90,7 @@ export function QuickQuotePanel() {
             </div>
           </div>
 
-          <OtherCharges />
+          <OtherCharges grow />
 
           <div className="rsec">
             <h3>Requirements</h3>
@@ -109,12 +104,14 @@ export function QuickQuotePanel() {
 
 function QuickRouteRow({
   stop,
+  index,
   canRemove,
   onType,
   onPatch,
   onRemove,
 }: {
   stop: Stop
+  index: number
   canRemove: boolean
   onType: (t: StopType) => void
   onPatch: (patch: Partial<Stop>) => void
@@ -129,7 +126,7 @@ function QuickRouteRow({
   return (
     <>
       <div className="qq-stop-row">
-        <span className="qq-stop-dot" style={{ background: DOT_COLOR[stop.type] }} />
+        <span className="qq-stop-num">{index + 1}</span>
         <select className="typesel qq-typesel" value={stop.type} onChange={(e) => onType(e.target.value as StopType)}>
           <option>Collection</option>
           <option>Delivery</option>

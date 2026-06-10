@@ -2,18 +2,18 @@
 import { Icon } from './Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 
-export function JobNotes() {
+export function JobNotes({ grow = false }: { grow?: boolean }) {
   const jobNotes = useBookingStore((s) => s.jobNotes)
   const setJobNotes = useBookingStore((s) => s.setJobNotes)
   return (
-    <div className="panelbox">
+    <div className={'panelbox' + (grow ? ' qq-grow' : '')}>
       <div className="sechead">
         <Icon name="note" size={15} /> Job notes{' '}
         <span style={{ fontWeight: 600, color: 'var(--muted)', textTransform: 'none', letterSpacing: 0 }}>
           · internal, not shown to driver
         </span>
       </div>
-      <div className="fld">
+      <div className={'fld' + (grow ? ' qq-grow' : '')}>
         <textarea
           rows={3}
           placeholder="Internal notes about this job…"

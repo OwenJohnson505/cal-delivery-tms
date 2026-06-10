@@ -16,7 +16,7 @@ const CHARGE_TYPES = [
   'Additional drop',
 ]
 
-export function OtherCharges() {
+export function OtherCharges({ grow = false }: { grow?: boolean }) {
   const charges = useBookingStore((s) => s.charges)
   const addCharge = useBookingStore((s) => s.addCharge)
   const removeCharge = useBookingStore((s) => s.removeCharge)
@@ -32,7 +32,7 @@ export function OtherCharges() {
   }
 
   return (
-    <div className="rsec">
+    <div className={'rsec' + (grow ? ' qq-grow' : '')}>
       <h3>Other charges</h3>
       <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}>
         <div className="fld" style={{ flex: 1 }}>
