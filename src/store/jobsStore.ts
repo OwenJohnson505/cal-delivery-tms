@@ -104,6 +104,9 @@ interface JobsState {
   saveJob(opts: { id?: string | null; status: JobStatus; snapshot: BookingState; createdAt: string }): SavedJob
   /** Staff edit of an ETA — records who/when and keeps the prior ETA in the audit. */
   setEta(id: string, which: 'collect' | 'deliver', eta: string): void
+  /** Inline job actions (email context card): change status / append a note. */
+  setProgress(id: string, progress: string): void
+  appendJobNote(id: string, note: string): void
   deleteJob(id: string): void
 }
 
@@ -270,6 +273,18 @@ export const useJobsStore = create<JobsState>((set, get) => ({
           ? { ...j, collectEta: eta, collectEtaInfo: info }
           : { ...j, deliverEta: eta, deliverEtaInfo: info }
       }),
+    })),
+
+  setProgress: (id, progress) =>
+    set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, progress } : j)) })),
+
+  appendJobNote: (id, note) =>
+    set((s) => ({
+      jobs: s.jobs.map((j) =>
+        j.id === id
+          ? { ...j, snapshot: { ...j.snapshot, jobNotes: [j.snapshot.jobNotes, note].filter(Boolean).join('\n') } }
+          : j,
+      ),
     })),
 
   deleteJob: (id) => set((s) => ({ jobs: s.jobs.filter((j) => j.id !== id) })),

@@ -1,16 +1,22 @@
 /**
- * EmailPanel — Front-style inbox in the right panel.
- *  • Triage: rules classify threads (Urgent booking / ETA request / Driver details /
- *    General); the inbox sorts by that priority. Category chips on every row.
- *  • Assignment: auto via rules, manual via the Assigned select (sticks).
- *  • Snooze / reminders / internal comments / reply templates.
- *  • Settings view (gear) edits the rules + templates.
- *  • Booking links: refs in bodies open the job; "Create job from email" pre-fills
- *    a booking (company by sender, vehicle + postcodes from text, account note).
+ * EmailPanel — Front-style inbox (phase 1: inbox UX, job context + linking,
+ * collaboration, tags, saved views — all dummy data).
+ *
+ *  • Multi-mailbox inbox with mailbox filter + full-text search.
+ *  • Triage lanes (Open → In progress → Waiting → Done): chips with counts; drag a
+ *    conversation onto a lane chip to move it.
+ *  • Bulk actions (select rows → assign / lane / tag / snooze).
+ *  • Pin / mute / follow / unread, presence ("X is viewing"), undo send.
+ *  • Collapsed quoted history, split & merge conversations.
+ *  • Live job context card (linked or detected job) with inline job actions and
+ *    attachment → job filing. Sender → account recognition.
+ *  • Conversation tags (manual + rule auto-tags), saved views + smart folders.
+ *  • Keyboard: j/k navigate · r reply · s snooze 1h · a assign me · u unread · p pin.
  */
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
-import { useEmailsStore, type EmailCategory, type EmailThread } from '@/store/emailsStore.ts'
+import { StatusPill } from '@/app/StatusPill.tsx'
+import { useEmailsStore, LANES, MAILBOXES, type EmailCategory, type EmailThread, type Lane } from '@/store/emailsStore.ts'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
@@ -34,8 +40,10 @@ const SNOOZE_OPTIONS: Array<[label: string, ms: number]> = [
 ]
 
 const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+const atKey = (at: string) => `${at.slice(6, 8)}-${at.slice(3, 5)}-${at.slice(0, 2)} ${at.slice(9)}`
+const threadText = (t: EmailThread) =>
+  `${t.subject} ${t.msgs.map((m) => `${m.from.name} ${m.from.email} ${m.body}`).join(' ')}`.toLowerCase()
 
-/** Open a saved job in the left-hand area (the email panel stays open). */
 function openJob(job: SavedJob) {
   useBookingStore.getState().loadSnapshot(job.snapshot)
   useViewStore.getState().openWizard(job.id)
@@ -65,8 +73,8 @@ function RefText({ text }: { text: string }) {
   )
 }
 
-/** Pre-fill a booking from the thread (company by sender, vehicle + postcodes from
- * the text, account note onto the job) for the user to approve. */
+/** Pre-fill a booking from the thread for approval (company by sender, vehicle +
+ * postcodes from the text, account note onto the job). */
 function createJobFromEmail(thread: EmailThread) {
   const inbound = thread.msgs.filter((m) => !m.outbound)
   const sender = (inbound[0]?.from.email ?? '').toLowerCase()
@@ -91,10 +99,95 @@ function createJobFromEmail(thread: EmailThread) {
   useViewStore.getState().openWizard(null)
 }
 
-/** Sortable key for 'dd-mm-yy HH:MM'. */
-const atKey = (at: string) => `${at.slice(6, 8)}-${at.slice(3, 5)}-${at.slice(0, 2)} ${at.slice(9)}`
+/** Live job context card: linked (persistent) or detected job, with inline actions. */
+function JobContextCard({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (text: string) => void }) {
+  const jobs = useJobsStore((s) => s.jobs)
+  const setProgress = useJobsStore((s) => s.setProgress)
+  const appendJobNote = useJobsStore((s) => s.appendJobNote)
+  const linkJob = useEmailsStore((s) => s.linkJob)
+  const addComment = useEmailsStore((s) => s.addComment)
+  const customers = useCustomersStore((s) => s.customers)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [noting, setNoting] = useState(false)
 
-// ── settings view (rules + templates) ──────────────────────────────────────────
+  // linked job, else first job ref detected in the text
+  const text = threadText(thread).toUpperCase()
+  const detected = jobs.find((j) => j.ref.toUpperCase() === thread.linkedJobRef?.toUpperCase())
+    ?? jobs.find((j) => text.includes(j.ref.toUpperCase()) || (j.custRef && text.includes(j.custRef.toUpperCase())))
+  const persisted = !!thread.linkedJobRef && detected?.ref.toUpperCase() === thread.linkedJobRef.toUpperCase()
+
+  // sender → account recognition
+  const sender = (thread.msgs.find((m) => !m.outbound)?.from.email ?? '').toLowerCase()
+  const account = customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender))
+  const accountJobs = account ? jobs.filter((j) => j.snapshot.book.cust === account.id).length : 0
+
+  const STATUSES = ['Unallocated', 'Posted', 'Pending', 'Allocated', 'En route COL', 'On site COL', 'Collected', 'Part COL', 'En route DEL', 'On site DEL', 'Delivered', 'Part DEL', 'Failed']
+
+  if (!detected && !account) return null
+  return (
+    <div className="ep-job">
+      {account && (
+        <div className="ep-job-acct">
+          <Icon name="building" size={13} /> <b>{account.displayName || account.companyName}</b>
+          <span className="cf-hint">{accountJobs} job{accountJobs === 1 ? '' : 's'} on file</span>
+        </div>
+      )}
+      {detected && (
+        <>
+          <div className="ep-job-h">
+            <b>{detected.ref}</b>
+            {detected.progress && <StatusPill status={detected.progress} />}
+            <span className="db-spacer" />
+            {persisted
+              ? <button className="cm-link" onClick={() => linkJob(thread.id, null)} title="Remove the persistent link">Linked ✓</button>
+              : <button className="cm-link" onClick={() => linkJob(thread.id, detected.ref)} title="Link this thread to the job for life">Link</button>}
+            <button className="cm-link" onClick={() => openJob(detected)}>Open job</button>
+          </div>
+          <div className="ep-job-grid">
+            <span>Coll</span><b>{detected.collectAt || '—'}{detected.collectEta ? ` · ETA ${detected.collectEta}` : ''}</b>
+            <span>Del</span><b>{detected.deliverAt || '—'}{detected.deliverEta ? ` · ETA ${detected.deliverEta}` : ''}</b>
+            <span>Route</span><b>{detected.route}</b>
+            <span>Supplier</span><b>{detected.supplierName || 'Unassigned'}</b>
+          </div>
+          <div className="ep-job-actions">
+            <select className="ep-assign" value={detected.progress || ''} onChange={(e) => setProgress(detected.id, e.target.value)} title="Update job status">
+              <option value="">Status…</option>
+              {STATUSES.map((st) => <option key={st}>{st}</option>)}
+            </select>
+            <button
+              className="btn sm"
+              onClick={() => onInsertEta(`Hi,\n\nUpdate on ${detected.ref}: collection ETA ${detected.collectEta || 'TBC'}, delivery ETA ${detected.deliverEta || 'TBC'}.\n\nThanks,\nCal Delivery`)}
+            >
+              Insert ETA reply
+            </button>
+            {!noting ? (
+              <button className="btn sm" onClick={() => setNoting(true)}>Add job note</button>
+            ) : (
+              <span className="ep-job-note">
+                <input autoFocus placeholder="Note…" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && noteDraft.trim()) { appendJobNote(detected.id, noteDraft.trim()); addComment(thread.id, `Note added to ${detected.ref}: ${noteDraft.trim()}`); setNoteDraft(''); setNoting(false) } }} />
+              </span>
+            )}
+          </div>
+          {thread.msgs.some((m) => m.attachments?.length) && (
+            <div className="ep-job-files">
+              {thread.msgs.flatMap((m) => m.attachments ?? []).map((a) => (
+                <span key={a.id} className="ep-att">
+                  📎 {a.name}
+                  <button className="cm-link" onClick={() => { appendJobNote(detected.id, `Attachment filed from email: ${a.name}`); addComment(thread.id, `📎 ${a.name} filed to ${detected.ref}`) }}>
+                    File to {detected.ref}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── settings view (rules + templates) — unchanged behaviour, rules gain tags ──
 function SettingsView({ onBack }: { onBack: () => void }) {
   const rules = useEmailsStore((s) => s.rules)
   const addRule = useEmailsStore((s) => s.addRule)
@@ -117,12 +210,9 @@ function SettingsView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="ep-settings">
-      <div className="ep-set-h">
-        <button className="cm-link" onClick={onBack}>‹ Back to inbox</button>
-      </div>
-
+      <div className="ep-set-h"><button className="cm-link" onClick={onBack}>‹ Back to inbox</button></div>
       <div className="ep-set-sec">
-        <div className="ep-set-title">Rules <span className="cf-hint">keywords → category · priority · auto-assign (re-run on change)</span></div>
+        <div className="ep-set-title">Rules <span className="cf-hint">keywords → category · auto-assign · auto-tags (re-run on change)</span></div>
         {rules.map((r) => (
           <div className="ep-rule" key={r.id}>
             <div className="ep-rule-top">
@@ -137,14 +227,16 @@ function SettingsView({ onBack }: { onBack: () => void }) {
                 {users.map((u) => <option key={u.id} value={u.id}>→ {u.name}</option>)}
               </select>
             </div>
+            <div className="ep-rule-row">
+              <input value={(r.tags ?? []).join(', ')} placeholder="Auto-tags, comma-separated…" onChange={(e) => updateRule(r.id, { tags: e.target.value.split(',').map((k) => k.trim()).filter(Boolean) })} />
+              <span />
+            </div>
           </div>
         ))}
         <div className="ep-rule ep-rule-new">
           <div className="ep-rule-row">
             <input placeholder="Rule name…" value={rName} onChange={(e) => setRName(e.target.value)} />
-            <select value={rCat} onChange={(e) => setRCat(e.target.value as EmailCategory)}>
-              {CATS.map((c) => <option key={c}>{c}</option>)}
-            </select>
+            <select value={rCat} onChange={(e) => setRCat(e.target.value as EmailCategory)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
           </div>
           <div className="ep-rule-row">
             <input placeholder="Keywords, comma-separated…" value={rKeywords} onChange={(e) => setRKeywords(e.target.value)} />
@@ -153,19 +245,12 @@ function SettingsView({ onBack }: { onBack: () => void }) {
               {users.map((u) => <option key={u.id} value={u.id}>→ {u.name}</option>)}
             </select>
           </div>
-          <button
-            className="btn sm primary"
-            disabled={!rName.trim() || !rKeywords.trim()}
-            onClick={() => {
-              addRule({ name: rName.trim(), enabled: true, keywords: rKeywords.split(',').map((k) => k.trim()).filter(Boolean), category: rCat, priority: PRIO[rCat], assignToId: rAssign })
-              setRName(''); setRKeywords(''); setRAssign('')
-            }}
-          >
+          <button className="btn sm primary" disabled={!rName.trim() || !rKeywords.trim()}
+            onClick={() => { addRule({ name: rName.trim(), enabled: true, keywords: rKeywords.split(',').map((k) => k.trim()).filter(Boolean), category: rCat, priority: PRIO[rCat], assignToId: rAssign }); setRName(''); setRKeywords(''); setRAssign('') }}>
             Add rule
           </button>
         </div>
       </div>
-
       <div className="ep-set-sec">
         <div className="ep-set-title">Templates &amp; macros</div>
         {templates.map((t) => (
@@ -178,9 +263,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
         <div className="ep-rule ep-rule-new">
           <input placeholder="Template name…" value={tName} onChange={(e) => setTName(e.target.value)} />
           <textarea rows={3} placeholder="Template body…" value={tBody} onChange={(e) => setTBody(e.target.value)} />
-          <button className="btn sm primary" disabled={!tName.trim() || !tBody.trim()} onClick={() => { addTemplate(tName.trim(), tBody); setTName(''); setTBody('') }}>
-            Add template
-          </button>
+          <button className="btn sm primary" disabled={!tName.trim() || !tBody.trim()} onClick={() => { addTemplate(tName.trim(), tBody); setTName(''); setTBody('') }}>Add template</button>
         </div>
       </div>
     </div>
@@ -188,8 +271,6 @@ function SettingsView({ onBack }: { onBack: () => void }) {
 }
 
 // ── main panel ──────────────────────────────────────────────────────────────────
-type InboxView = 'inbox' | 'mine' | 'snoozed'
-
 export function EmailPanel() {
   const threads = useEmailsStore((s) => s.threads)
   const selectedId = useEmailsStore((s) => s.selectedId)
@@ -197,47 +278,118 @@ export function EmailPanel() {
   const reply = useEmailsStore((s) => s.reply)
   const addComment = useEmailsStore((s) => s.addComment)
   const assignThread = useEmailsStore((s) => s.assign)
+  const setLane = useEmailsStore((s) => s.setLane)
+  const toggleFlag = useEmailsStore((s) => s.toggleFlag)
+  const markUnread = useEmailsStore((s) => s.markUnread)
+  const addTag = useEmailsStore((s) => s.addTag)
+  const removeTag = useEmailsStore((s) => s.removeTag)
   const snooze = useEmailsStore((s) => s.snooze)
   const unsnooze = useEmailsStore((s) => s.unsnooze)
   const remind = useEmailsStore((s) => s.remind)
   const clearReminder = useEmailsStore((s) => s.clearReminder)
+  const splitThread = useEmailsStore((s) => s.splitThread)
+  const mergeThreads = useEmailsStore((s) => s.mergeThreads)
+  const bulkApply = useEmailsStore((s) => s.bulkApply)
   const templates = useEmailsStore((s) => s.templates)
+  const savedViews = useEmailsStore((s) => s.savedViews)
+  const addSavedView = useEmailsStore((s) => s.addSavedView)
   const togglePanel = useEmailsStore((s) => s.togglePanel)
   const users = useUsersStore((s) => s.users)
   const currentUserId = useUsersStore((s) => s.currentUserId)
 
-  const [view, setView] = useState<InboxView>('inbox')
   const [settings, setSettings] = useState(false)
+  const [text, setText] = useState('')
+  const [mailbox, setMailbox] = useState<'all' | string>('all')
+  const [lane, setLaneFilter] = useState<'all' | Lane>('all')
+  const [mine, setMine] = useState(false)
+  const [snoozedOnly, setSnoozedOnly] = useState(false)
+  const [smart, setSmart] = useState('')
   const [draft, setDraft] = useState('')
   const [mode, setMode] = useState<'reply' | 'comment'>('reply')
-  const [menu, setMenu] = useState<'snooze' | 'remind' | null>(null)
+  const [menu, setMenu] = useState<'snooze' | 'remind' | 'merge' | null>(null)
+  const [checked, setChecked] = useState<string[]>([])
+  const [savingView, setSavingView] = useState(false)
+  const [viewName, setViewName] = useState('')
+  const [showAllMsgs, setShowAllMsgs] = useState(false)
+  const [pending, setPending] = useState<{ threadId: string; body: string; timer: number } | null>(null)
+  const composeRef = useRef<HTMLTextAreaElement>(null)
 
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name ?? ''
 
-  const visible = threads
-    .filter((t) => (view === 'snoozed' ? !!t.snoozedUntil : !t.snoozedUntil))
-    .filter((t) => (view === 'mine' ? t.assigneeId === currentUserId : true))
-    .sort((a, b) => a.priority - b.priority || atKey(b.msgs[b.msgs.length - 1].at).localeCompare(atKey(a.msgs[a.msgs.length - 1].at)))
+  const visible = useMemo(() => {
+    let list = threads.filter((t) => (snoozedOnly ? !!t.snoozedUntil : !t.snoozedUntil))
+    if (mailbox !== 'all') list = list.filter((t) => t.mailbox === mailbox)
+    if (lane !== 'all') list = list.filter((t) => t.lane === lane)
+    if (mine) list = list.filter((t) => t.assigneeId === currentUserId)
+    if (smart === 'needsreply') list = list.filter((t) => !t.msgs[t.msgs.length - 1].outbound && t.lane !== 'Done')
+    if (smart === 'unassigned') list = list.filter((t) => !t.assigneeId)
+    const q = text.trim().toLowerCase()
+    if (q) list = list.filter((t) => threadText(t).includes(q) || t.tags.some((x) => x.toLowerCase().includes(q)))
+    return [...list].sort((a, b) =>
+      Number(!!b.pinned) - Number(!!a.pinned) ||
+      Number(!!a.muted) - Number(!!b.muted) ||
+      a.priority - b.priority ||
+      atKey(b.msgs[b.msgs.length - 1].at).localeCompare(atKey(a.msgs[a.msgs.length - 1].at)),
+    )
+  }, [threads, snoozedOnly, mailbox, lane, mine, smart, text, currentUserId])
 
-  const thread = threads.find((t) => t.id === selectedId && (view === 'snoozed' ? true : !t.snoozedUntil)) ?? null
-  const unread = threads.filter((t) => !t.read && !t.snoozedUntil).length
+  const thread = threads.find((t) => t.id === selectedId) ?? null
+  const unread = threads.filter((t) => !t.read && !t.snoozedUntil && !t.muted).length
   const snoozedCount = threads.filter((t) => !!t.snoozedUntil).length
+  const laneCount = (l: Lane) => threads.filter((t) => t.lane === l && !t.snoozedUntil).length
   const lastInbound = thread?.msgs.filter((m) => !m.outbound).slice(-1)[0]
 
+  // ── undo send: stage the reply for 5s before it actually goes ──
   const send = () => {
     if (!thread || !draft.trim()) return
-    if (mode === 'reply') reply(thread.id, draft.trim())
-    else addComment(thread.id, draft.trim())
+    if (mode === 'comment') { addComment(thread.id, draft.trim()); setDraft(''); return }
+    const body = draft.trim()
+    const timer = window.setTimeout(() => {
+      reply(thread.id, body)
+      setPending(null)
+    }, 5000)
+    setPending({ threadId: thread.id, body, timer })
     setDraft('')
   }
+  const undoSend = () => {
+    if (!pending) return
+    window.clearTimeout(pending.timer)
+    setDraft(pending.body)
+    setPending(null)
+  }
 
-  // merged timeline: messages + internal comments, by time
+  // ── keyboard-first navigation ──
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (settings || ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || e.ctrlKey || e.metaKey || e.altKey) return
+      const ix = visible.findIndex((t) => t.id === selectedId)
+      if (e.key === 'j' && visible.length) selectThread(visible[Math.min(ix + 1, visible.length - 1)]?.id ?? visible[0].id)
+      else if (e.key === 'k' && visible.length) selectThread(visible[Math.max(ix - 1, 0)]?.id ?? visible[0].id)
+      else if (e.key === 'r' && thread) { e.preventDefault(); composeRef.current?.focus() }
+      else if (e.key === 's' && thread) snooze(thread.id, 3_600_000, '1 hour')
+      else if (e.key === 'a' && thread) assignThread(thread.id, currentUserId)
+      else if (e.key === 'u' && thread) markUnread(thread.id)
+      else if (e.key === 'p' && thread) toggleFlag(thread.id, 'pinned')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [visible, selectedId, thread, settings]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleCheck = (id: string) =>
+    setChecked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+
   const timeline = thread
     ? [
-        ...thread.msgs.map((m) => ({ kind: 'msg' as const, at: m.at, m })),
-        ...thread.comments.map((c) => ({ kind: 'comment' as const, at: c.at, c })),
+        ...thread.msgs.map((m, ix) => ({ kind: 'msg' as const, at: m.at, m, ix })),
+        ...thread.comments.map((c) => ({ kind: 'comment' as const, at: c.at, c, ix: -1 })),
       ].sort((a, b) => atKey(a.at).localeCompare(atKey(b.at)))
     : []
+  const collapsed = !showAllMsgs && thread && thread.msgs.length > 3
+  const shownTimeline = collapsed ? timeline.slice(-3) : timeline
+  const hiddenCount = timeline.length - shownTimeline.length
+
+  const [tagDraft, setTagDraft] = useState('')
 
   return (
     <aside className="email-panel">
@@ -245,6 +397,7 @@ export function EmailPanel() {
         <Icon name="mail" size={16} /> <b>Email</b>
         {unread > 0 && <span className="ep-unread">{unread}</span>}
         <span className="db-spacer" />
+        <span className="ep-kbd" title={'Keyboard: j/k next/prev · r reply · s snooze 1h · a assign me · u unread · p pin'}>⌨</span>
         <button className={'btn sm iconbtn' + (settings ? ' on' : '')} title="Email settings — rules & templates" onClick={() => setSettings((o) => !o)}>
           <Icon name="wheel" size={15} />
         </button>
@@ -257,23 +410,105 @@ export function EmailPanel() {
         <SettingsView onBack={() => setSettings(false)} />
       ) : (
         <>
-          <div className="ep-views">
-            {(['inbox', 'mine', 'snoozed'] as InboxView[]).map((v) => (
-              <button key={v} className={'ep-view' + (view === v ? ' on' : '')} onClick={() => setView(v)}>
-                {v === 'inbox' ? 'Inbox' : v === 'mine' ? 'Mine' : `Snoozed${snoozedCount ? ` ${snoozedCount}` : ''}`}
+          {/* search + mailbox + saved views */}
+          <div className="ep-filters">
+            <input className="ep-search" placeholder="Search mail, senders, tags…" value={text} onChange={(e) => setText(e.target.value)} />
+            <select className="ep-assign" value={mailbox} onChange={(e) => setMailbox(e.target.value)} title="Mailbox">
+              <option value="all">All mailboxes</option>
+              {MAILBOXES.map((m) => <option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="ep-filters">
+            <select
+              className="ep-assign"
+              value={smart}
+              title="Smart folders & saved views"
+              onChange={(e) => {
+                const v = e.target.value
+                if (v.startsWith('sv:')) {
+                  const sv = savedViews.find((x) => x.id === v.slice(3))
+                  if (sv) { setMailbox(sv.q.mailbox ?? 'all'); setLaneFilter(sv.q.lane ?? 'all'); setMine(!!sv.q.mine); setText(sv.q.text ?? ''); setSmart('') }
+                } else setSmart(v)
+              }}
+            >
+              <option value="">All conversations</option>
+              <option value="needsreply">Smart: Needs reply</option>
+              <option value="unassigned">Smart: Unassigned</option>
+              {savedViews.map((v) => <option key={v.id} value={'sv:' + v.id}>View: {v.name}</option>)}
+            </select>
+            {!savingView ? (
+              <button className="cm-link" onClick={() => setSavingView(true)}>Save view</button>
+            ) : (
+              <span className="ep-saveview">
+                <input autoFocus placeholder="View name…" value={viewName} onChange={(e) => setViewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
+              </span>
+            )}
+            <span className="db-spacer" />
+            <button className={'ep-view' + (mine ? ' on' : '')} onClick={() => setMine((o) => !o)}>Mine</button>
+            <button className={'ep-view' + (snoozedOnly ? ' on' : '')} onClick={() => setSnoozedOnly((o) => !o)}>
+              Snoozed{snoozedCount ? ` ${snoozedCount}` : ''}
+            </button>
+          </div>
+
+          {/* triage lanes — click filters, drop a dragged row to move it */}
+          <div className="ep-lanes">
+            <button className={'ep-view' + (lane === 'all' ? ' on' : '')} onClick={() => setLaneFilter('all')}>All</button>
+            {LANES.map((l) => (
+              <button
+                key={l}
+                className={'ep-view ep-lane' + (lane === l ? ' on' : '')}
+                onClick={() => setLaneFilter(l)}
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drop-hot') }}
+                onDragLeave={(e) => e.currentTarget.classList.remove('drop-hot')}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.currentTarget.classList.remove('drop-hot')
+                  const id = e.dataTransfer.getData('text/thread')
+                  if (id) setLane(id, l)
+                }}
+              >
+                {l} <i>{laneCount(l)}</i>
               </button>
             ))}
           </div>
+
+          {/* bulk bar when rows are checked */}
+          {checked.length > 0 && (
+            <div className="ep-bulk">
+              <b>{checked.length} selected</b>
+              <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { assigneeId: e.target.value }); setChecked([]) } }}>
+                <option value="">Assign…</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+              <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { lane: e.target.value as Lane }); setChecked([]) } }}>
+                <option value="">Lane…</option>
+                {LANES.map((l) => <option key={l}>{l}</option>)}
+              </select>
+              <input className="ep-bulk-tag" placeholder="Tag + Enter" onKeyDown={(e) => { const v = (e.target as HTMLInputElement).value.trim(); if (e.key === 'Enter' && v) { bulkApply(checked, { tag: v }); (e.target as HTMLInputElement).value = ''; setChecked([]) } }} />
+              <button className="cm-link" onClick={() => { bulkApply(checked, { snoozeMs: 3_600_000, snoozeLabel: '1 hour' }); setChecked([]) }}>Snooze 1h</button>
+              <button className="cm-link" onClick={() => setChecked([])}>Clear</button>
+            </div>
+          )}
 
           <div className="ep-list">
             {visible.map((t) => {
               const last = t.msgs[t.msgs.length - 1]
               const assignee = userName(t.assigneeId)
               return (
-                <button key={t.id} className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read ? '' : ' unread')} onClick={() => selectThread(t.id)}>
+                <div
+                  key={t.id}
+                  className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('text/thread', t.id)}
+                  onClick={() => { selectThread(t.id); setShowAllMsgs(false) }}
+                >
                   <span className="ep-row-top">
+                    <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
+                    {t.pinned && <span title="Pinned">📌</span>}
                     <span className="ep-row-from">{t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name}</span>
                     <span className="ep-row-right">
+                      {t.viewingBy && <span className="ep-presence" title={`${t.viewingBy} is viewing`}>👁</span>}
                       {t.reminderDue && <span className="ep-flag" title="Reminder due">⏰</span>}
                       {assignee && <span className="ep-ava" title={`Assigned to ${assignee}`}>{initials(assignee)}</span>}
                       <span className="ep-row-at">{last.at}</span>
@@ -282,10 +517,12 @@ export function EmailPanel() {
                   <span className="ep-row-subj">{t.subject}</span>
                   <span className="ep-row-tags">
                     <span className={'cat-chip ' + CAT_CLASS[t.category]}>{t.category}</span>
+                    {t.tags.map((x) => <span key={x} className="ep-tag">{x}</span>)}
+                    {t.linkedJobRef && <span className="ep-tag ep-tag-job">{t.linkedJobRef}</span>}
                     {t.snoozedUntil && <span className="ep-snoozed">Snoozed · {t.snoozedUntil}</span>}
                     {t.reminderAt && !t.reminderDue && <span className="ep-remind-tag">⏰ {t.reminderAt}</span>}
                   </span>
-                </button>
+                </div>
               )
             })}
             {!visible.length && <div className="ep-empty">Nothing here.</div>}
@@ -293,14 +530,13 @@ export function EmailPanel() {
 
           {thread ? (
             <div className="ep-reader">
+              {thread.viewingBy && <div className="ep-banner ep-banner-presence">👁 {thread.viewingBy} is viewing this conversation right now.</div>}
               {thread.reminderDue && (
-                <div className="ep-banner">
-                  ⏰ Reminder due on this email.
-                  <button className="cm-link" onClick={() => clearReminder(thread.id)}>Dismiss</button>
-                </div>
+                <div className="ep-banner">⏰ Reminder due on this email.<button className="cm-link" onClick={() => clearReminder(thread.id)}>Dismiss</button></div>
               )}
               <div className="ep-fields">
                 <div className="ep-frow"><span>From</span><b>{lastInbound ? `${lastInbound.from.name} <${lastInbound.from.email}>` : '—'}</b></div>
+                <div className="ep-frow"><span>Mailbox</span><b>{thread.mailbox}</b></div>
                 <div className="ep-frow"><span>Subject</span><b>{thread.subject}</b></div>
                 <div className="ep-frow">
                   <span>Assigned</span>
@@ -309,15 +545,21 @@ export function EmailPanel() {
                     {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>
                 </div>
+                <div className="ep-frow">
+                  <span>Tags</span>
+                  <span className="ep-tagedit">
+                    {thread.tags.map((x) => <span key={x} className="ep-tag">{x}<i onClick={() => removeTag(thread.id, x)}>×</i></span>)}
+                    <input placeholder="+ tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && tagDraft.trim()) { addTag(thread.id, tagDraft.trim()); setTagDraft('') } }} />
+                  </span>
+                </div>
                 <div className="ep-tools">
                   <button className="btn sm" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={13} /> Create job</button>
                   <span className="ep-menu-wrap">
                     <button className="btn sm" onClick={() => setMenu(menu === 'snooze' ? null : 'snooze')}>Snooze ▾</button>
                     {menu === 'snooze' && (
                       <span className="ep-menu">
-                        {SNOOZE_OPTIONS.map(([label, ms]) => (
-                          <button key={label} onClick={() => { snooze(thread.id, ms, label); setMenu(null) }}>{label}</button>
-                        ))}
+                        {SNOOZE_OPTIONS.map(([label, ms]) => <button key={label} onClick={() => { snooze(thread.id, ms, label); setMenu(null) }}>{label}</button>)}
                         {thread.snoozedUntil && <button onClick={() => { unsnooze(thread.id); setMenu(null) }}>Unsnooze now</button>}
                       </span>
                     )}
@@ -326,22 +568,45 @@ export function EmailPanel() {
                     <button className="btn sm" onClick={() => setMenu(menu === 'remind' ? null : 'remind')}>Remind ▾</button>
                     {menu === 'remind' && (
                       <span className="ep-menu">
-                        {SNOOZE_OPTIONS.map(([label, ms]) => (
-                          <button key={label} onClick={() => { remind(thread.id, ms, label); setMenu(null) }}>{label}</button>
-                        ))}
+                        {SNOOZE_OPTIONS.map(([label, ms]) => <button key={label} onClick={() => { remind(thread.id, ms, label); setMenu(null) }}>{label}</button>)}
                         {thread.reminderAt && <button onClick={() => { clearReminder(thread.id); setMenu(null) }}>Clear reminder</button>}
                       </span>
                     )}
                   </span>
+                  <span className="ep-menu-wrap">
+                    <button className="btn sm" onClick={() => setMenu(menu === 'merge' ? null : 'merge')}>Merge ▾</button>
+                    {menu === 'merge' && (
+                      <span className="ep-menu">
+                        {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 6).map((t) => (
+                          <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMenu(null) }}>into: {t.subject.slice(0, 26)}</button>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <button className={'btn sm iconbtn' + (thread.pinned ? ' on' : '')} title="Pin" onClick={() => toggleFlag(thread.id, 'pinned')}>📌</button>
+                  <button className={'btn sm iconbtn' + (thread.following ? ' on' : '')} title="Follow" onClick={() => toggleFlag(thread.id, 'following')}>★</button>
+                  <button className={'btn sm iconbtn' + (thread.muted ? ' on' : '')} title="Mute" onClick={() => toggleFlag(thread.id, 'muted')}>🔕</button>
+                  <button className="btn sm iconbtn" title="Mark unread" onClick={() => markUnread(thread.id)}>✉</button>
                 </div>
               </div>
 
+              <JobContextCard thread={thread} onInsertEta={(t) => { setMode('reply'); setDraft((d) => (d ? d + '\n' + t : t)) }} />
+
               <div className="ep-msgs">
-                {timeline.map((item) =>
+                {collapsed && (
+                  <button className="ep-collapse" onClick={() => setShowAllMsgs(true)}>Show {hiddenCount} earlier message{hiddenCount === 1 ? '' : 's'}</button>
+                )}
+                {shownTimeline.map((item) =>
                   item.kind === 'msg' ? (
                     <div key={item.m.id} className={'ep-msg' + (item.m.outbound ? ' out' : '')}>
-                      <div className="ep-msg-meta">{item.m.from.name} · {item.m.at}</div>
+                      <div className="ep-msg-meta">
+                        {item.m.from.name} · {item.m.at}
+                        {item.ix > 0 && (
+                          <button className="ep-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, item.m.id)}>⎋ split</button>
+                        )}
+                      </div>
                       <div className="ep-msg-body"><RefText text={item.m.body} /></div>
+                      {item.m.attachments?.map((a) => <span key={a.id} className="ep-att">📎 {a.name}</span>)}
                     </div>
                   ) : (
                     <div key={item.c.id} className="ep-msg note">
@@ -352,20 +617,19 @@ export function EmailPanel() {
                 )}
               </div>
 
+              {pending && (
+                <div className="ep-banner ep-banner-undo">
+                  Sending… <button className="cm-link" onClick={undoSend}>Undo</button>
+                </div>
+              )}
+
               <div className="ep-compose-bar">
                 <span className="ep-mode">
                   <button className={mode === 'reply' ? 'on' : ''} onClick={() => setMode('reply')}>Reply</button>
                   <button className={mode === 'comment' ? 'on' : ''} onClick={() => setMode('comment')}>Comment</button>
                 </span>
                 {mode === 'reply' && templates.length > 0 && (
-                  <select
-                    className="ep-tpl-pick"
-                    value=""
-                    onChange={(e) => {
-                      const t = templates.find((x) => x.id === e.target.value)
-                      if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body))
-                    }}
-                  >
+                  <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body)) }}>
                     <option value="">Insert template…</option>
                     {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
@@ -373,13 +637,14 @@ export function EmailPanel() {
               </div>
               <div className={'ep-compose' + (mode === 'comment' ? ' commenting' : '')}>
                 <textarea
+                  ref={composeRef}
                   rows={3}
-                  placeholder={mode === 'reply' ? 'Reply…' : 'Internal comment — not sent to the customer…'}
+                  placeholder={mode === 'reply' ? 'Reply…' : 'Internal comment — @mention a colleague…'}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send() }}
                 />
-                <button className="btn primary sm" disabled={!draft.trim()} onClick={send}>{mode === 'reply' ? 'Send' : 'Add note'}</button>
+                <button className="btn primary sm" disabled={!draft.trim() || !!pending} onClick={send}>{mode === 'reply' ? 'Send' : 'Add note'}</button>
               </div>
             </div>
           ) : (
