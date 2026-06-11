@@ -545,24 +545,44 @@
 /* customer names size their column — don't wrap */
 .cust-stack .cust-name { white-space: nowrap; }
 
-/* ── app shell: screens on the left, the email panel pinned right ── */
-.shell { display: flex; height: 100vh; overflow: hidden; --email-w: clamp(360px, 23vw, 430px); }
+/* ── app shell: job column on the left, the email client on the right ── */
+.shell { display: flex; height: 100vh; overflow: hidden; --jobcol-w: clamp(380px, 26vw, 460px); }
 .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
 
-/* Email open: the left area (job cards OR the wizard) is flexible and the email
- * panel keeps a FIXED width — so opening a job only swaps the left content, the
- * email panel never resizes. Same rule for list + wizard so nothing jumps. */
-.shell.panel-open .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
-.shell.panel-open .email-panel { flex: 0 0 var(--email-w); min-width: 0; }
-/* The wizard's right rail + drawers are position:fixed to the VIEWPORT — shift them
- * left of the panel so they don't sit underneath it (only exist in wizard). */
-.shell.panel-open .siderail:not(.siderail-left) { right: var(--email-w); }
-.shell.panel-open .drawer { right: var(--email-w); }
-/* Let the wizard compress before scrolling (prototype demands 1200px). */
-.shell.panel-open .app { min-width: 1000px; }
-.shell.panel-open .footer { flex-wrap: wrap; row-gap: 8px; }
-.shell.panel-open .foot-actions { flex-wrap: wrap; row-gap: 8px; }
-.shell.panel-open .footer .bar-ref .cb { width: 170px; }
+/* Email OPEN: the email client takes most of the width (it's a full client); the job
+ * column is a NARROW fixed strip — cards use HEIGHT not width, and the SAME width
+ * serves an open booking, so opening a job never widens anything. */
+.shell.panel-open .shell-main { flex: 0 0 var(--jobcol-w); min-width: 0; overflow: auto; }
+.shell.panel-open .email-panel { flex: 1 1 auto; min-width: 0; }
+
+/* An open booking inside the narrow column → a VERTICAL, scrolling form (the wide
+ * two-column wizard doesn't fit). Reflow every section into one stacked column. */
+.shell.panel-open .app { min-width: 0; width: 100%; padding-right: 0; }
+.shell.panel-open .work { overflow: auto; padding: 10px; gap: 10px; display: block; }
+.shell.panel-open .main { display: flex; flex-direction: column; gap: 10px; flex: none; min-height: 0; margin-bottom: 10px; }
+.shell.panel-open .route { height: auto; max-height: none; flex: none; }
+.shell.panel-open .route-scroll { overflow: visible; }
+.shell.panel-open .botrow { display: flex; flex-direction: column; gap: 10px; flex: none; min-height: 0; }
+.shell.panel-open .rail { overflow: visible; flex: none; }
+/* inner reflow: stacked controls wrap / multi-col field grids collapse to one column
+ * so nothing overflows the narrow column */
+.shell.panel-open .stop-head { flex-wrap: wrap; }
+.shell.panel-open .g2,
+.shell.panel-open .g3sm,
+.shell.panel-open .g-cpc,
+.shell.panel-open .g-cte { grid-template-columns: 1fr; }
+.shell.panel-open .pvrow,
+.shell.panel-open .ac-row,
+.shell.panel-open .bar { flex-wrap: wrap; }
+.shell.panel-open .f + .f { border-left: none; padding-left: 0; }
+.shell.panel-open .bar > #ccBox { flex: 1 1 100%; }
+/* the wizard's fixed right rail would sit under the email client — hide it in this
+ * mode (History/Providers aren't part of the vertical quick-booking flow). */
+.shell.panel-open .siderail:not(.siderail-left) { display: none; }
+/* footer stacks in the narrow column */
+.shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 10px; }
+.shell.panel-open .foot-actions { margin-left: 0; flex-wrap: wrap; row-gap: 8px; }
+.shell.panel-open .saveas { margin-left: 0; padding-left: 0; border-left: none; flex-wrap: wrap; }
 
 /* ── left nav collapses to a thin strip while email is open (more room for the
  * jobs area); hover or pin (the › button) to reveal it as an overlay ── */
@@ -797,31 +817,30 @@
 .ep-cdrawer-add { border-top: 1px solid #f0dfa3; padding: 8px 12px; display: flex; gap: 6px; align-items: flex-end; flex: none; }
 .ep-cdrawer-add textarea { flex: 1; border: 1px solid #f0dfa3; border-radius: 8px; font: inherit; font-size: 12px; padding: 6px 8px; resize: none; background: #fff; }
 
-/* ── jobs as cards (replaces the table while the email panel is open) ── */
+/* ── jobs as a narrow single-column card list (while the email panel is open) ── */
 .email-jobs-app { padding-top: 0; }
 .email-jobs { height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.ej-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--line); flex: none; background: var(--panel); }
+.ej-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex: none; background: var(--panel); }
 .ej-tabs { display: flex; gap: 4px; }
 .ej-tabs .ep-view i { font-style: normal; font-size: 9.5px; opacity: .7; margin-left: 3px; }
-.ej-search { width: 220px; flex: none; }
-/* responsive card grid: fills the freed width, compact card height */
+.ej-search { flex: 1 1 140px; min-width: 120px; }
+/* single column — cards stack and the list scrolls */
 .ej-grid {
-  flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 24px;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px; align-content: start;
+  flex: 1; min-height: 0; overflow: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 .jcard {
-  display: flex; flex-direction: column; gap: 6px; text-align: left;
+  display: flex; flex-direction: column; gap: 7px; text-align: left;
   border: 1px solid var(--line); border-radius: 12px; background: #fff;
   padding: 11px 13px; cursor: pointer; font: inherit; min-width: 0;
 }
 .jcard:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(37, 99, 235, .08); }
 .jcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
-.jcard-cust { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jcard-times { display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--ink); }
-.jcard-leg i { font-style: normal; font-weight: 700; font-size: 9px; color: var(--muted); margin-right: 5px; }
+.jcard-cust { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jcard-times { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink); }
+.jcard-leg i { font-style: normal; font-weight: 700; font-size: 9px; color: var(--muted); margin-right: 6px; }
 .jcard-leg em { font-style: normal; color: var(--accent); font-weight: 600; }
-.jcard-foot { display: flex; align-items: center; gap: 8px; font-size: 11.5px; min-width: 0; }
+.jcard-foot { display: flex; align-items: center; gap: 8px; font-size: 12px; min-width: 0; }
 .jcard-route { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jcard-sup { white-space: nowrap; }
 
