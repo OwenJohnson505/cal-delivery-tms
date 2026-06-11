@@ -40,6 +40,9 @@ export interface SavedJob {
   /** Frozen ETAs ('HH:MM'), blank if none. */
   collectEta: string
   deliverEta: string
+  /** Audit for each ETA: where it came from, who set it, when, and the prior ETA. */
+  collectEtaInfo?: EtaInfo
+  deliverEtaInfo?: EtaInfo
   /** The customer reference entered on the job (for the ref-accepted check). */
   custRef: string
   /** Who booked / quoted / drafted the job. */
@@ -48,9 +51,20 @@ export interface SavedJob {
   supplierName: string
   supplierPhone: string
   supplierEmail: string
+  /** Assignment audit: who allocated the supplier and when. */
+  supplierAssignedBy: string
+  supplierAssignedAt: string
 }
 
 export type TimeMode = 'asap' | 'at' | 'by' | 'between'
+
+/** Where an ETA came from (CX feed or a staff member), when, and the ETA it replaced. */
+export interface EtaInfo {
+  source: 'CX' | 'Staff'
+  by?: string
+  at: string
+  previous?: string
+}
 
 function customerName(id: string | null): string {
   if (!id) return '—'
@@ -88,6 +102,8 @@ interface JobsState {
   seq: number
   /** Insert or update a job from a snapshot; returns the saved job. */
   saveJob(opts: { id?: string | null; status: JobStatus; snapshot: BookingState; createdAt: string }): SavedJob
+  /** Staff edit of an ETA — records who/when and keeps the prior ETA in the audit. */
+  setEta(id: string, which: 'collect' | 'deliver', eta: string): void
   deleteJob(id: string): void
 }
 
@@ -122,7 +138,9 @@ type SeedRow = {
   progress: string; revenue: number; cost: number
   collectAt: string; deliverAt: string; collectMode: TimeMode; deliverMode: TimeMode
   collectEta: string; deliverEta: string; custRef: string; notes?: string
+  collectEtaInfo?: EtaInfo; deliverEtaInfo?: EtaInfo
   actorName: string; supplierName: string; supplierPhone?: string; supplierEmail?: string
+  supplierAssignedBy?: string; supplierAssignedAt?: string
 }
 
 function seedJobs(): SavedJob[] {
@@ -132,13 +150,19 @@ function seedJobs(): SavedJob[] {
         coll: { co: 'Brightway DC', ref: 'COL-7781', contact: { name: 'Mark Stiles', tel: '0113 555 0190', email: 'goodsout@brightway.co.uk' } },
         del: { co: 'Tesco Extra', ref: 'DEL-7781', contact: { name: 'Goods-in desk', tel: '01925 555 010', email: 'bay4@tesco-wa2.co.uk' } } }),
       progress: 'Collected', revenue: 420, cost: 280, collectAt: '10-06-26 09:30', deliverAt: '10-06-26 14:15', collectMode: 'at', deliverMode: 'by', collectEta: '09:25', deliverEta: '14:05', custRef: 'PO-7781',
-      actorName: 'Sarah Doyle', supplierName: 'Dave Foster', supplierPhone: '07700 900204', supplierEmail: 'dave.foster@hauliers.co.uk' },
+      collectEtaInfo: { source: 'CX', at: '10-06-26 08:55' },
+      deliverEtaInfo: { source: 'Staff', by: 'Sarah Doyle', at: '10-06-26 12:40', previous: '13:45' },
+      actorName: 'Sarah Doyle', supplierName: 'Dave Foster', supplierPhone: '07700 900204', supplierEmail: 'dave.foster@hauliers.co.uk',
+      supplierAssignedBy: 'Sarah Doyle', supplierAssignedAt: '07-06-26 14:02' },
     { ref: 'BK-100479', status: 'Booking', at: '05-06-2026 11:20',
       snap: sample({ status: 'Booking', cust: 'meridian', collPc: 'M15 4FN', delPc: 'L7 9PG', vehicle: 'Luton',
         coll: { co: 'Meridian Foods', ref: 'MER-C2', contact: { name: 'Dispatch', tel: '0161 555 7781', email: 'dispatch@meridianfoods.com' } },
         del: { co: 'Liverpool RDC', contact: { name: 'Sam Okafor', tel: '0151 555 6620', email: 'sam@lrdc.co.uk' } } }),
       progress: 'En route DEL', revenue: 310, cost: 210, collectAt: '11-06-26 08:00', deliverAt: '11-06-26 16:30', collectMode: 'asap', deliverMode: 'between', collectEta: '08:10', deliverEta: '16:20', custRef: 'MER-22',
-      actorName: 'James Hill', supplierName: 'Aisha Khan', supplierPhone: '07700 900118', supplierEmail: 'aisha.khan@hauliers.co.uk' },
+      collectEtaInfo: { source: 'CX', at: '11-06-26 07:45' },
+      deliverEtaInfo: { source: 'CX', at: '11-06-26 12:10' },
+      actorName: 'James Hill', supplierName: 'Aisha Khan', supplierPhone: '07700 900118', supplierEmail: 'aisha.khan@hauliers.co.uk',
+      supplierAssignedBy: 'James Hill', supplierAssignedAt: '05-06-26 12:00' },
     { ref: 'BK-100485', status: 'Booking', at: '07-06-2026 08:05',
       snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'BD1 2AB', vehicle: '7.5t',
         coll: { co: 'Brightway DC', ref: 'COL-805' }, del: { co: 'Bradford store' } }),
@@ -149,7 +173,10 @@ function seedJobs(): SavedJob[] {
         coll: { co: 'Orbit Retail NDC', ref: 'ORB-C90', contact: { name: 'Yard office', tel: '0113 555 9009', email: 'yard@orbitretail.com' } },
         del: { co: 'Manchester hub' } }),
       progress: 'Part DEL', revenue: 560, cost: 390, collectAt: '11-06-26 06:30', deliverAt: '11-06-26 18:00', collectMode: 'at', deliverMode: 'between', collectEta: '06:30', deliverEta: '17:40', custRef: 'ORB-90',
-      actorName: 'James Hill', supplierName: 'Rob Niles', supplierPhone: '07700 900330', supplierEmail: 'rob.niles@hauliers.co.uk' },
+      collectEtaInfo: { source: 'Staff', by: 'James Hill', at: '10-06-26 17:20' },
+      deliverEtaInfo: { source: 'CX', at: '11-06-26 09:15', previous: '17:10' },
+      actorName: 'James Hill', supplierName: 'Rob Niles', supplierPhone: '07700 900330', supplierEmail: 'rob.niles@hauliers.co.uk',
+      supplierAssignedBy: 'James Hill', supplierAssignedAt: '07-06-26 10:15' },
     { ref: 'QU-100501', status: 'Quote', at: '06-06-2026 09:14', snap: sample({ status: 'Quote', cust: 'orbit', collPc: 'LS4 2AB', delPc: 'WA4 1PX', vehicle: '7.5t' }),
       progress: '', revenue: 180, cost: 120, collectAt: '12-06-26 10:00', deliverAt: '12-06-26 15:00', collectMode: 'at', deliverMode: 'at', collectEta: '', deliverEta: '', custRef: '', actorName: 'Sarah Doyle', supplierName: '' },
     { ref: 'QQ-100503', status: 'Quick Quote', at: '06-06-2026 10:02', snap: sample({ status: 'Quick Quote', cust: 'cal', collPc: 'LS9 0PX', delPc: 'M15 4FN', vehicle: 'Small van' }),
@@ -173,11 +200,15 @@ function seedJobs(): SavedJob[] {
     deliverMode: r.deliverMode,
     collectEta: r.collectEta,
     deliverEta: r.deliverEta,
+    collectEtaInfo: r.collectEtaInfo,
+    deliverEtaInfo: r.deliverEtaInfo,
     custRef: r.custRef,
     actorName: r.actorName,
     supplierName: r.supplierName,
     supplierPhone: r.supplierPhone ?? '',
     supplierEmail: r.supplierEmail ?? '',
+    supplierAssignedBy: r.supplierAssignedBy ?? '',
+    supplierAssignedAt: r.supplierAssignedAt ?? '',
   }))
 }
 
@@ -217,10 +248,29 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       supplierName: drv?.name ?? '',
       supplierPhone: '',
       supplierEmail: '',
+      supplierAssignedBy: drv ? actorName : '',
+      supplierAssignedAt: drv ? createdAt : '',
     }
     set((s) => ({ jobs: [job, ...s.jobs], seq }))
     return job
   },
+
+  setEta: (id, which, eta) =>
+    set((s) => ({
+      jobs: s.jobs.map((j) => {
+        if (j.id !== id) return j
+        const us = useUsersStore.getState()
+        const by = us.users.find((u) => u.id === us.currentUserId)?.name ?? '—'
+        const d = new Date()
+        const p = (n: number) => ('0' + n).slice(-2)
+        const at = `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(-2)} ${p(d.getHours())}:${p(d.getMinutes())}`
+        const prev = which === 'collect' ? j.collectEta : j.deliverEta
+        const info: EtaInfo = { source: 'Staff', by, at, ...(prev ? { previous: prev } : {}) }
+        return which === 'collect'
+          ? { ...j, collectEta: eta, collectEtaInfo: info }
+          : { ...j, deliverEta: eta, deliverEtaInfo: info }
+      }),
+    })),
 
   deleteJob: (id) => set((s) => ({ jobs: s.jobs.filter((j) => j.id !== id) })),
 }))

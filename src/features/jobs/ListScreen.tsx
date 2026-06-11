@@ -3,7 +3,7 @@
  * actions (open in the wizard, delete) and an "Add new booking" button that opens a
  * fresh wizard. Basic data-table version; filtering is by tab + search for now.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { StatusPill } from '@/app/StatusPill.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
@@ -56,9 +56,32 @@ function actionLabel(tab: ListTab): string {
   return tab === 'bookings' ? 'Booked by' : tab === 'quotes' ? 'Quoted by' : 'Drafted by'
 }
 
+/** Small self-contained editor for the ETA popover (own state, saves via the store). */
+function EtaEditor({ initial, label, onSave }: { initial: string; label: string; onSave: (v: string) => void }) {
+  const [v, setV] = useState(initial)
+  const valid = /^\d{2}:\d{2}$/.test(v)
+  return (
+    <div className="cp-card">
+      <div className="cp-h">Change {label} ETA</div>
+      <input
+        className="eta-input"
+        placeholder="HH:MM"
+        autoFocus
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && valid) onSave(v) }}
+      />
+      <div className="cp-actions">
+        <button className="btn sm primary" disabled={!valid} onClick={() => onSave(v)}>Save ETA</button>
+      </div>
+    </div>
+  )
+}
+
 export function ListScreen() {
   const jobs = useJobsStore((s) => s.jobs)
   const deleteJob = useJobsStore((s) => s.deleteJob)
+  const setEta = useJobsStore((s) => s.setEta)
   const tab = useViewStore((s) => s.listTab)
   const setListTab = useViewStore((s) => s.setListTab)
   const openWizard = useViewStore((s) => s.openWizard)
@@ -77,13 +100,16 @@ export function ListScreen() {
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
   const [panelOpen, setPanelOpen] = useState(true)
-  // Click-to-open detail popover (address contact/ref, or supplier contact).
+  // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
     e.stopPropagation()
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     setPop({ x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6, node })
   }
+  // ETA cells: single click = audit, double click = edit. Delay the single-click
+  // popover briefly so a double-click goes straight to the editor.
+  const etaClickTimer = useRef<number | null>(null)
 
   const custById = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers])
   const scope = useMemo(() => userScope(currentUserId, departments, teams), [currentUserId, departments, teams])
@@ -261,7 +287,9 @@ export function ListScreen() {
       case 'customer':
         return (
           <div className="cust-stack">
-            <span className="cust-name">{cust?.displayName || j.customer}</span>
+            <button className="cell-link cust-name" onClick={(e) => openPop(e, contactNode(j))}>
+              {cust?.displayName || j.customer}
+            </button>
             {j.progress && <StatusPill status={j.progress} />}
           </div>
         )
@@ -275,8 +303,8 @@ export function ListScreen() {
         const [d, t] = j.deliverAt.split(' ')
         return <div className="dt-stack"><span>{d}</span><span className="dtt">{t} <TimeTag mode={j.deliverMode} /></span></div>
       }
-      case 'collectionEta': return j.collectEta || dash
-      case 'deliveryEta': return j.deliverEta || dash
+      case 'collectionEta': return etaCell(j, 'collect')
+      case 'deliveryEta': return etaCell(j, 'deliver')
       case 'refAccepted':
         if (!j.custRef && !(cust?.invoicing?.poRequired || cust?.invoicing?.poPrefixes?.length)) return dash
         return refOk(j.custRef, cust)
@@ -338,8 +366,96 @@ export function ListScreen() {
       {j.supplierEmail
         ? <a className="cp-link" href={`mailto:${j.supplierEmail}`}><Icon name="mail" size={13} /> {j.supplierEmail}</a>
         : <div className="cp-row"><span className="cp-k">Email</span><span>—</span></div>}
+      {(j.supplierAssignedBy || j.supplierAssignedAt) && (
+        <div className="cp-audit">Assigned by {j.supplierAssignedBy || '—'} · {j.supplierAssignedAt}</div>
+      )}
     </div>
   )
+
+  // Customer contact: the contact booked on the job, falling back to the account's
+  // main contact.
+  const contactNode = (j: SavedJob) => {
+    const cust = custById[j.snapshot.book.cust ?? '']
+    const booked = j.snapshot.book.contact
+    const main = cust?.contacts.find((c) => c.isMain) ?? cust?.contacts[0]
+    const c = booked ?? (main ? { name: main.name, email: main.email, tel: main.phone } : null)
+    return (
+      <div className="cp-card">
+        <div className="cp-h">{cust?.displayName || j.customer} · contact</div>
+        {c ? (
+          <>
+            <div className="cp-row"><span className="cp-k">Name</span><span>{c.name || '—'}</span></div>
+            {c.email
+              ? <a className="cp-link" href={`mailto:${c.email}`}><Icon name="mail" size={13} /> {c.email}</a>
+              : <div className="cp-row"><span className="cp-k">Email</span><span>—</span></div>}
+            {c.tel
+              ? <a className="cp-link" href={`tel:${c.tel}`}><Icon name="phone" size={13} /> {c.tel}</a>
+              : <div className="cp-row"><span className="cp-k">Phone</span><span>—</span></div>}
+            {!booked && <div className="cp-audit">Account main contact (none picked on the job).</div>}
+          </>
+        ) : (
+          <div className="cp-row"><span className="cp-k">Contact</span><span>—</span></div>
+        )}
+      </div>
+    )
+  }
+
+  // ETA audit popover: source (CX feed or staff member), when, and the prior ETA.
+  const etaAuditNode = (j: SavedJob, which: 'collect' | 'deliver') => {
+    const eta = which === 'collect' ? j.collectEta : j.deliverEta
+    const info = which === 'collect' ? j.collectEtaInfo : j.deliverEtaInfo
+    return (
+      <div className="cp-card">
+        <div className="cp-h">{which === 'collect' ? 'Collection' : 'Delivery'} ETA · {eta || '—'}</div>
+        {info ? (
+          <>
+            <div className="cp-row"><span className="cp-k">Source</span><span>{info.source}</span></div>
+            {info.source === 'Staff' && <div className="cp-row"><span className="cp-k">Set by</span><span>{info.by || '—'}</span></div>}
+            <div className="cp-row"><span className="cp-k">When</span><span>{info.at}</span></div>
+            {info.previous && <div className="cp-row"><span className="cp-k">Previous ETA</span><span>{info.previous}</span></div>}
+          </>
+        ) : (
+          <div className="cp-row"><span className="cp-k">Source</span><span>No ETA recorded yet</span></div>
+        )}
+        <div className="cp-audit">Double-click the cell to change the ETA.</div>
+      </div>
+    )
+  }
+
+  const etaCell = (j: SavedJob, which: 'collect' | 'deliver') => {
+    const eta = which === 'collect' ? j.collectEta : j.deliverEta
+    return (
+      <button
+        className="cell-link"
+        title="Click: ETA audit · double-click: change ETA"
+        onClick={(e) => {
+          e.stopPropagation()
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+          if (etaClickTimer.current) window.clearTimeout(etaClickTimer.current)
+          etaClickTimer.current = window.setTimeout(() => {
+            setPop({ x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6, node: etaAuditNode(j, which) })
+          }, 220)
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation()
+          if (etaClickTimer.current) window.clearTimeout(etaClickTimer.current)
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+          setPop({
+            x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6,
+            node: (
+              <EtaEditor
+                initial={eta}
+                label={which === 'collect' ? 'collection' : 'delivery'}
+                onSave={(v) => { setEta(j.id, which, v); setPop(null) }}
+              />
+            ),
+          })
+        }}
+      >
+        {eta || '—'}
+      </button>
+    )
+  }
 
   // Per-row quick-actions menu (kebab). Just Delete for now.
   const openRowMenu = (e: React.MouseEvent, j: SavedJob) => {

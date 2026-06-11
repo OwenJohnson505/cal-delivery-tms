@@ -535,7 +535,7 @@
 .tb-field { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .tb-field > span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
 .tb-select { width: auto; max-width: 210px; height: 30px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font: inherit; font-size: 12.5px; padding: 0 10px; }
-.tb-search { display: flex; align-items: center; gap: 7px; width: 300px; flex: none; height: 32px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 13px; color: var(--muted); }
+.tb-search { display: flex; align-items: center; gap: 7px; width: 240px; flex: none; height: 32px; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 0 13px; color: var(--muted); }
 .tb-search input { border: none; background: none; outline: none; width: 100%; height: auto; padding: 0; font: inherit; font-size: 12.5px; color: var(--ink); }
 .list-toolbar .list-count { color: var(--muted); font-size: 12px; white-space: nowrap; }
 
@@ -547,11 +547,12 @@
 
 /* bookings screen: table + collapsible right panel side by side */
 .bookings-layout { display: flex; align-items: stretch; min-height: 100%; }
-/* margin:0 — the inherited `margin:0 auto` from .list-work would otherwise eat all the
- * flex free space and shrink the table column to its min-content. */
-.bookings-main { flex: 1 1 auto; min-width: 0; margin: 0; }
+/* The main column hugs its content (toolbar/table), so the panel dynamically gets
+ * whatever the table doesn't need. margin:0 overrides .list-work's margin:0 auto,
+ * which would otherwise eat the flex free space. */
+.bookings-main { flex: 0 1 auto; width: fit-content; min-width: 0; margin: 0; }
 .bookings-panel {
-  flex: 0 0 clamp(320px, 27vw, 460px);
+  flex: 1 1 320px; min-width: 320px;
   background: var(--panel); border-left: 1px solid var(--line);
   position: sticky; top: 0; align-self: flex-start; height: 100vh;
   display: flex; flex-direction: column;
@@ -640,6 +641,12 @@
 .cp-row .cp-k { color: var(--muted); }
 .cp-link { display: flex; align-items: center; gap: 7px; padding: 6px 7px; margin: 0 -5px; border-radius: 7px; color: var(--accent); text-decoration: none; }
 .cp-link:hover { background: var(--accent-soft); }
+/* audit footnote inside a detail popover */
+.cp-audit { border-top: 1px dashed var(--line); margin-top: 5px; padding-top: 6px; font-size: 11px; color: var(--muted); }
+/* ETA editor */
+.eta-input { height: 30px; border: 1px solid var(--line); border-radius: 8px; padding: 0 9px; font: inherit; font-size: 13px; width: 100%; }
+.eta-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.cp-actions { display: flex; justify-content: flex-end; margin-top: 7px; }
 /* per-row quick-actions kebab + menu */
 .kebab { width: 26px; height: 26px; border: none; background: transparent; border-radius: 999px; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; display: inline-grid; place-items: center; }
 .kebab:hover { background: var(--field); color: var(--ink); }
