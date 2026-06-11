@@ -545,25 +545,54 @@
 /* customer names size their column — don't wrap */
 .cust-stack .cust-name { white-space: nowrap; }
 
-/* bookings screen: table + collapsible right panel side by side */
-.bookings-layout { display: flex; align-items: stretch; min-height: 100%; }
-/* The main column hugs its content (toolbar/table), so the panel dynamically gets
- * whatever the table doesn't need. margin:0 overrides .list-work's margin:0 auto,
- * which would otherwise eat the flex free space. */
+/* ── app shell: screens on the left, the email panel pinned right ── */
+.shell { display: flex; height: 100vh; overflow: hidden; }
+.shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
+/* with the panel open the main area hugs its content so the panel gets the rest */
+.shell-main.hug { flex: 0 1 auto; width: fit-content; }
+
+/* bookings main column hugs the table; margin:0 overrides .list-work's
+ * margin:0 auto, which would otherwise eat the flex free space. */
 .bookings-main { flex: 0 1 auto; width: fit-content; min-width: 0; margin: 0; gap: 10px; }
 /* row 1: tabs + Add new booking on the same line (no page title) */
 .bk-tabsrow { display: flex; align-items: center; gap: 12px; }
-/* row 3: view config (View select · Columns · Panel) sits close to the table */
+/* row 3: view config (View select · Columns · Email) sits close to the table */
 .bk-viewrow { margin-top: -2px; }
-.bookings-panel {
-  flex: 1 1 320px; min-width: 320px;
+
+/* ── email panel ── */
+.email-panel {
+  flex: 1 1 380px; min-width: 360px;
   background: var(--panel); border-left: 1px solid var(--line);
-  position: sticky; top: 0; align-self: flex-start; height: 100vh;
-  display: flex; flex-direction: column;
+  height: 100vh; display: flex; flex-direction: column;
 }
-.bp-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-.bp-head b { font-size: 13px; }
-.bp-body { flex: 1; min-height: 0; }
+.ep-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.ep-unread { font-size: 10.5px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 999px; padding: 1px 7px; }
+.ep-list { flex: none; max-height: 32%; overflow: auto; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; }
+.ep-row { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 14px; border: none; background: none; border-bottom: 1px solid var(--field); font: inherit; cursor: pointer; }
+.ep-row:hover { background: var(--field); }
+.ep-row.on { background: var(--accent-soft); }
+.ep-row.unread .ep-row-from, .ep-row.unread .ep-row-subj { font-weight: 700; color: var(--ink); }
+.ep-row-top { display: flex; justify-content: space-between; gap: 8px; }
+.ep-row-from { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.ep-row-at { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.ep-row-subj { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-reader { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ep-fields { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; flex: none; }
+.ep-frow { display: flex; gap: 8px; font-size: 12px; min-width: 0; }
+.ep-frow > span { width: 54px; flex: none; color: var(--muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding-top: 1px; }
+.ep-frow b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-tools { margin-top: 6px; }
+.ep-msgs { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ep-msg { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: #fff; max-width: 92%; align-self: flex-start; }
+.ep-msg.out { align-self: flex-end; background: var(--accent-soft); border-color: #dbe7fb; }
+.ep-msg-meta { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; }
+.ep-msg-body { font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; }
+.ep-compose { flex: none; border-top: 1px solid var(--line); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end; }
+.ep-compose textarea { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 12.5px; resize: none; height: auto; }
+.ep-empty { padding: 20px; color: var(--muted); font-size: 12.5px; }
+/* clickable job/customer references inside email bodies */
+.email-ref { display: inline; border: none; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: inherit; font-weight: 700; border-radius: 6px; padding: 0 4px; cursor: pointer; }
+.email-ref:hover { text-decoration: underline; }
 
 /* "live" jobs table — content-sized: every column crops to its longest entry and
  * the card hugs the table (scrolling only if it genuinely can't fit) */

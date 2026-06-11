@@ -321,6 +321,8 @@ function seedCustomers(): Customer[] {
         ...(c.id === 'brightway' ? { poRequired: true, poPrefixes: ['PO', 'BWT'] } : {}),
       },
       customFields: SEED_CUSTOM_FIELDS[c.id] ?? [],
+      // Account note — carried onto jobs created from emails (create-job flow).
+      notes: c.id === 'brightway' ? 'Gate code 4471 — always call ahead. PO required on every job.' : '',
     }
   })
 }

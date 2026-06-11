@@ -10,23 +10,34 @@ import { UsersScreen } from '@/features/users/UsersScreen.tsx'
 import { TeamsScreen } from '@/features/teams/TeamsScreen.tsx'
 import { TariffsScreen } from '@/features/tariffs/TariffsScreen.tsx'
 import { AddressesScreen } from '@/features/addresses/AddressesScreen.tsx'
+import { EmailPanel } from '@/features/email/EmailPanel.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
+import { useEmailsStore } from '@/store/emailsStore.ts'
 
 export function App() {
   const screen = useViewStore((s) => s.screen)
+  const emailOpen = useEmailsStore((s) => s.panelOpen)
 
-  if (screen === 'wizard') {
-    return <BookingWizard />
-  }
+  // The email panel lives at app level so it stays open while moving between the
+  // list and an open booking (refs in an email jump straight to the job).
   return (
-    <>
-      <LeftRail />
-      {screen === 'customers' && <CustomersScreen />}
-      {screen === 'users' && <UsersScreen />}
-      {screen === 'teams' && <TeamsScreen />}
-      {screen === 'tariffs' && <TariffsScreen />}
-      {screen === 'addresses' && <AddressesScreen />}
-      {screen === 'list' && <ListScreen />}
-    </>
+    <div className="shell">
+      <div className={'shell-main' + (emailOpen ? ' hug' : '')}>
+        {screen === 'wizard' ? (
+          <BookingWizard />
+        ) : (
+          <>
+            <LeftRail />
+            {screen === 'customers' && <CustomersScreen />}
+            {screen === 'users' && <UsersScreen />}
+            {screen === 'teams' && <TeamsScreen />}
+            {screen === 'tariffs' && <TariffsScreen />}
+            {screen === 'addresses' && <AddressesScreen />}
+            {screen === 'list' && <ListScreen />}
+          </>
+        )}
+      </div>
+      {emailOpen && <EmailPanel />}
+    </div>
   )
 }

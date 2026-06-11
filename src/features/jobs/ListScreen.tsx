@@ -13,6 +13,7 @@ import { useUsersStore } from '@/store/usersStore.ts'
 import { useOrgStore, userScope } from '@/store/orgStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
+import { useEmailsStore } from '@/store/emailsStore.ts'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
 import { outcode } from '@/lib/index.ts'
 import type { JobStatus, Stop } from '@/types/index.ts'
@@ -99,7 +100,8 @@ export function ListScreen() {
 
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
-  const [panelOpen, setPanelOpen] = useState(true)
+  const emailOpen = useEmailsStore((s) => s.panelOpen)
+  const toggleEmailPanel = useEmailsStore((s) => s.togglePanel)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -473,7 +475,6 @@ export function ListScreen() {
 
   return (
     <div className="list-app">
-      <div className={'bookings-layout' + (panelOpen ? ' with-panel' : '')}>
       <div className="list-work wide bookings-main">
         {/* row 1: tabs + add (no page title — the active tab says where you are) */}
         <div className="bk-tabsrow">
@@ -528,8 +529,8 @@ export function ListScreen() {
         {/* row 3: view configuration */}
         <div className="list-toolbar bk-viewrow">
           <ColumnsMenu />
-          <button className={'btn sm' + (panelOpen ? ' primary' : '')} onClick={() => setPanelOpen((o) => !o)} title="Toggle side panel">
-            <Icon name="sidebar" size={14} /> Panel
+          <button className={'btn sm' + (emailOpen ? ' primary' : '')} onClick={toggleEmailPanel} title="Toggle email panel">
+            <Icon name="sidebar" size={14} /> Email
           </button>
         </div>
 
@@ -579,19 +580,6 @@ export function ListScreen() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {panelOpen && (
-        <aside className="bookings-panel">
-          <div className="bp-head">
-            <b>Panel</b>
-            <button className="btn sm iconbtn" title="Collapse panel" onClick={() => setPanelOpen(false)}>
-              <Icon name="close" size={16} />
-            </button>
-          </div>
-          <div className="bp-body" />
-        </aside>
-      )}
       </div>
 
       {pop && (
