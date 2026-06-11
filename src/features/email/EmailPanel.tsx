@@ -302,7 +302,11 @@ export function EmailPanel() {
   const [viewName, setViewName] = useState('')
   const [showAllMsgs, setShowAllMsgs] = useState(false)
   const [tagDraft, setTagDraft] = useState('')
-  const [pending, setPending] = useState<{ threadId: string; body: string; timer: number } | null>(null)
+  // The composer opens like a real mail client: Reply / Reply all / Forward, with a
+  // generous editing area (the old always-on 3-row box was unreadable).
+  type ComposeState = { kind: 'reply' | 'replyall' | 'forward'; to: string; subject: string }
+  const [compose, setCompose] = useState<ComposeState | null>(null)
+  const [pending, setPending] = useState<{ threadId: string; body: string; timer: number; compose: ComposeState } | null>(null)
   const composeRef = useRef<HTMLTextAreaElement>(null)
 
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name ?? ''
@@ -331,17 +335,37 @@ export function EmailPanel() {
   const lastInbound = thread?.msgs.filter((m) => !m.outbound).slice(-1)[0]
   const lastAt = thread?.msgs[thread.msgs.length - 1]?.at
 
+  const startCompose = (kind: 'reply' | 'replyall' | 'forward') => {
+    if (!thread) return
+    const sender = lastInbound?.from.email ?? ''
+    const others = thread.participants.filter((p) => !p.endsWith('@cal.delivery'))
+    const reSubject = `Re: ${thread.subject.replace(/^(Re|Fwd):\s*/i, '')}`
+    if (kind === 'reply') setCompose({ kind, to: sender, subject: reSubject })
+    if (kind === 'replyall') setCompose({ kind, to: others.join(', '), subject: reSubject })
+    if (kind === 'forward') {
+      setCompose({ kind, to: '', subject: `Fwd: ${thread.subject.replace(/^(Re|Fwd):\s*/i, '')}` })
+      const q = lastInbound
+        ? `\n\n---------- Forwarded message ----------\nFrom: ${lastInbound.from.name} <${lastInbound.from.email}>\nSent: ${lastInbound.at}\n\n${lastInbound.body}`
+        : ''
+      setDraft(q)
+    }
+    window.setTimeout(() => composeRef.current?.focus(), 50)
+  }
+
   const send = () => {
-    if (!thread || !draft.trim()) return
+    if (!thread || !draft.trim() || !compose) return
     const body = draft.trim()
+    const composeSnapshot = compose
     const timer = window.setTimeout(() => { reply(thread.id, body); setPending(null) }, 5000)
-    setPending({ threadId: thread.id, body, timer })
+    setPending({ threadId: thread.id, body, timer, compose: composeSnapshot })
     setDraft('')
+    setCompose(null)
   }
   const undoSend = () => {
     if (!pending) return
     window.clearTimeout(pending.timer)
     setDraft(pending.body)
+    setCompose(pending.compose)
     setPending(null)
   }
 
@@ -352,7 +376,7 @@ export function EmailPanel() {
       const ix = visible.findIndex((t) => t.id === selectedId)
       if (e.key === 'j' && visible.length) selectThread(visible[Math.min(ix + 1, visible.length - 1)]?.id ?? visible[0].id)
       else if (e.key === 'k' && visible.length) selectThread(visible[Math.max(ix - 1, 0)]?.id ?? visible[0].id)
-      else if (e.key === 'r' && thread) { e.preventDefault(); composeRef.current?.focus() }
+      else if (e.key === 'r' && thread) { e.preventDefault(); startCompose('reply') }
       else if (e.key === 's' && thread) snooze(thread.id, 3_600_000, '1 hour')
       else if (e.key === 'a' && thread) assignThread(thread.id, currentUserId)
       else if (e.key === 'u' && thread) markUnread(thread.id)
@@ -476,7 +500,7 @@ export function EmailPanel() {
                     className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData('text/thread', t.id)}
-                    onClick={() => { selectThread(t.id); setShowAllMsgs(false); setComments(false) }}
+                    onClick={() => { selectThread(t.id); setShowAllMsgs(false); setComments(false); setCompose(null); setDraft('') }}
                   >
                     <span className="ep-row-line">
                       <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
@@ -581,25 +605,40 @@ export function EmailPanel() {
                   <div className="ep-banner ep-banner-undo">Sending… <button className="cm-link" onClick={undoSend}>Undo</button></div>
                 )}
 
-                <div className="ep-compose">
-                  <textarea
-                    ref={composeRef}
-                    rows={3}
-                    placeholder="Reply…"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send() }}
-                  />
-                  <span className="ep-compose-side">
-                    {templates.length > 0 && (
-                      <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body)) }}>
-                        <option value="">Template…</option>
-                        {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
-                    )}
-                    <button className="btn primary sm" disabled={!draft.trim() || !!pending} onClick={send}>Send</button>
-                  </span>
-                </div>
+                {!compose ? (
+                  <div className="ep-actionbar">
+                    <button className="btn sm" onClick={() => startCompose('reply')}>↩ Reply</button>
+                    <button className="btn sm" onClick={() => startCompose('replyall')}>↩↩ Reply all</button>
+                    <button className="btn sm" onClick={() => startCompose('forward')}>↪ Forward</button>
+                  </div>
+                ) : (
+                  <div className="ep-composer">
+                    <div className="ep-composer-h">
+                      <b>{compose.kind === 'reply' ? 'Reply' : compose.kind === 'replyall' ? 'Reply all' : 'Forward'}</b>
+                      <input className="ep-to" placeholder="To…" value={compose.to} onChange={(e) => setCompose({ ...compose, to: e.target.value })} />
+                      {templates.length > 0 && (
+                        <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body)) }}>
+                          <option value="">Template…</option>
+                          {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      )}
+                      <button className="btn sm iconbtn" title="Discard" onClick={() => { setCompose(null); setDraft('') }}><Icon name="close" size={14} /></button>
+                    </div>
+                    <div className="ep-composer-sub">{compose.subject}</div>
+                    <textarea
+                      ref={composeRef}
+                      placeholder="Write your message…"
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send() }}
+                    />
+                    <div className="ep-composer-f">
+                      <span className="ep-hint">Ctrl/⌘ + Enter to send · 5s undo window after sending</span>
+                      <span className="db-spacer" />
+                      <button className="btn primary sm" disabled={!draft.trim() || !!pending} onClick={send}>Send</button>
+                    </div>
+                  </div>
+                )}
 
                 {/* pop-out comments drawer */}
                 {comments && (
