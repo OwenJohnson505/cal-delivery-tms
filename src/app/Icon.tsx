@@ -30,6 +30,7 @@ const ICONS: Record<string, string> = {
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
   users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.2a3 3 0 0 1 0 5.6M21.5 20a6 6 0 0 0-4.2-5.7"/>',
   tag: '<path d="M3 11.4 11.4 3H20a1 1 0 0 1 1 1v8.6L12.6 21a1.6 1.6 0 0 1-2.2 0L3 13.6a1.6 1.6 0 0 1 0-2.2Z"/><circle cx="16.4" cy="7.6" r="1.3"/>',
+  sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/>',
   camera:
     '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/>',
   check: '<path d="M5 13l4 4L19 7"/>',

@@ -73,6 +73,7 @@ export function ListScreen() {
 
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
+  const [panelOpen, setPanelOpen] = useState(true)
   // Click-to-open detail popover (address contact/ref, or supplier contact).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -231,7 +232,8 @@ export function ListScreen() {
 
   return (
     <div className="list-app">
-      <div className="list-work wide">
+      <div className={'bookings-layout' + (panelOpen ? ' with-panel' : '')}>
+      <div className="list-work wide bookings-main">
         <div className="list-head">
           <h1>{TAB_LABEL[tab]}</h1>
           <button className="btn primary" onClick={addNew}>
@@ -278,6 +280,9 @@ export function ListScreen() {
           <span className="list-count">{rows.length} {rows.length === 1 ? 'item' : 'items'}</span>
           <span className="db-spacer" />
           <ColumnsMenu />
+          <button className={'btn sm' + (panelOpen ? ' primary' : '')} onClick={() => setPanelOpen((o) => !o)} title="Toggle side panel">
+            <Icon name="sidebar" size={14} /> Panel
+          </button>
         </div>
 
         <div className="list-tablewrap">
@@ -313,6 +318,19 @@ export function ListScreen() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {panelOpen && (
+        <aside className="bookings-panel">
+          <div className="bp-head">
+            <b>Panel</b>
+            <button className="btn sm iconbtn" title="Collapse panel" onClick={() => setPanelOpen(false)}>
+              <Icon name="close" size={16} />
+            </button>
+          </div>
+          <div className="bp-body" />
+        </aside>
+      )}
       </div>
 
       {pop && (
