@@ -13,17 +13,20 @@ import { AddressesScreen } from '@/features/addresses/AddressesScreen.tsx'
 import { EmailPanel } from '@/features/email/EmailPanel.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
+import { useUiStore } from '@/store/uiStore.ts'
 
 export function App() {
   const screen = useViewStore((s) => s.screen)
   const emailOpen = useEmailsStore((s) => s.panelOpen)
+  const navOpen = useUiStore((s) => s.navOpen)
 
   // The email panel lives at app level so it stays open while moving between the
-  // list and an open booking (refs in an email jump straight to the job).
+  // list (job cards) and an open booking — opening a job swaps only the left area's
+  // content (cards → wizard); the email panel keeps its width so nothing else moves.
   const wiz = screen === 'wizard'
   return (
-    <div className={'shell' + (wiz ? ' wiz' : '') + (emailOpen ? ' panel-open' : '')}>
-      <div className={'shell-main' + (emailOpen && !wiz ? ' hug' : '')}>
+    <div className={'shell' + (wiz ? ' wiz' : '') + (emailOpen ? ' panel-open' : '') + (emailOpen && navOpen ? ' nav-pinned' : '')}>
+      <div className="shell-main">
         {screen === 'wizard' ? (
           <BookingWizard />
         ) : (

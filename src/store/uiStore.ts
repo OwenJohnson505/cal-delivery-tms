@@ -18,6 +18,8 @@ interface UiState {
   customFieldsStopId: number | null
   /** Count of provider options the user has seen (drives the unseen badge). */
   provSeen: number
+  /** Pin the left nav rail open (it collapses by default while the email panel is open). */
+  navOpen: boolean
 
   openDrawer(d: DrawerName): void
   closeDrawers(): void
@@ -28,6 +30,7 @@ interface UiState {
   editStop(id: number | null): void
   viewPod(stopId: number | null): void
   setProvSeen(n: number): void
+  toggleNav(): void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -37,6 +40,7 @@ export const useUiStore = create<UiState>((set) => ({
   podStopId: null,
   customFieldsStopId: null,
   provSeen: 0,
+  navOpen: false,
 
   openDrawer: (d) => set({ drawer: d }),
   closeDrawers: () => set({ drawer: null }),
@@ -46,4 +50,5 @@ export const useUiStore = create<UiState>((set) => ({
   editStop: (id) => set({ editingStopId: id }),
   viewPod: (stopId) => set({ podStopId: stopId, modal: stopId == null ? null : 'pod' }),
   setProvSeen: (n) => set({ provSeen: n }),
+  toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
 }))

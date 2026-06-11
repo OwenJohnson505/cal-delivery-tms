@@ -546,25 +546,48 @@
 .cust-stack .cust-name { white-space: nowrap; }
 
 /* ── app shell: screens on the left, the email panel pinned right ── */
-.shell { display: flex; height: 100vh; overflow: hidden; --email-w: clamp(360px, 26vw, 460px); }
+.shell { display: flex; height: 100vh; overflow: hidden; --email-w: clamp(360px, 23vw, 430px); }
 .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
-/* with the panel open the main area hugs its content so the panel gets the rest */
-.shell-main.hug { flex: 0 1 auto; width: fit-content; }
 
-/* Wizard + panel: the wizard stays flexible and scrolls INSIDE shell-main (nothing
- * clipped), while the panel keeps a fixed width so it's always fully visible. */
-.shell.wiz .shell-main { flex: 1 1 auto; min-width: 0; width: auto; overflow: auto; }
-.shell.wiz.panel-open .email-panel { flex: 0 0 var(--email-w); min-width: 0; }
+/* Email open: the left area (job cards OR the wizard) is flexible and the email
+ * panel keeps a FIXED width — so opening a job only swaps the left content, the
+ * email panel never resizes. Same rule for list + wizard so nothing jumps. */
+.shell.panel-open .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
+.shell.panel-open .email-panel { flex: 0 0 var(--email-w); min-width: 0; }
 /* The wizard's right rail + drawers are position:fixed to the VIEWPORT — shift them
- * left of the panel so they don't sit underneath it. */
-.shell.wiz.panel-open .siderail:not(.siderail-left) { right: var(--email-w); }
-.shell.wiz.panel-open .drawer { right: var(--email-w); }
+ * left of the panel so they don't sit underneath it (only exist in wizard). */
+.shell.panel-open .siderail:not(.siderail-left) { right: var(--email-w); }
+.shell.panel-open .drawer { right: var(--email-w); }
 /* Let the wizard compress before scrolling (prototype demands 1200px). */
-.shell.wiz.panel-open .app { min-width: 1040px; }
-/* In the tighter width the footer wraps instead of running under the panel. */
-.shell.wiz.panel-open .footer { flex-wrap: wrap; row-gap: 8px; }
-.shell.wiz.panel-open .foot-actions { flex-wrap: wrap; row-gap: 8px; }
-.shell.wiz.panel-open .footer .bar-ref .cb { width: 170px; }
+.shell.panel-open .app { min-width: 1000px; }
+.shell.panel-open .footer { flex-wrap: wrap; row-gap: 8px; }
+.shell.panel-open .foot-actions { flex-wrap: wrap; row-gap: 8px; }
+.shell.panel-open .footer .bar-ref .cb { width: 170px; }
+
+/* ── left nav collapses to a thin strip while email is open (more room for the
+ * jobs area); hover or pin (the › button) to reveal it as an overlay ── */
+.shell.panel-open .siderail-left {
+  width: 16px; overflow: hidden; transition: width .14s ease; z-index: 320;
+}
+.shell.panel-open .siderail-left::after {
+  content: '⋮'; position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);
+  text-align: center; color: var(--muted); font-size: 12px; pointer-events: none;
+}
+.shell.panel-open .siderail-left:hover,
+.shell.panel-open .siderail-left.nav-pinned { width: 56px; overflow: visible; }
+.shell.panel-open .siderail-left:hover::after,
+.shell.panel-open .siderail-left.nav-pinned::after { content: none; }
+/* reclaim the freed space — content clears only the 16px strip (pinned → full 56px) */
+.shell.panel-open .list-app { padding-left: 16px; }
+.shell.panel-open .app { padding-left: 16px; }
+.shell.panel-open.nav-pinned .list-app { padding-left: 56px; }
+.shell.panel-open.nav-pinned .app { padding-left: 56px; }
+.sr-pin {
+  border: 1px solid var(--line-strong); background: #fff; color: var(--muted);
+  width: 22px; height: 22px; border-radius: 7px; cursor: pointer; font-size: 13px;
+  display: grid; place-items: center; padding: 0; margin-bottom: 2px;
+}
+.sr-pin:hover { color: var(--accent); border-color: var(--accent); }
 
 /* bookings main column hugs the table; margin:0 overrides .list-work's
  * margin:0 auto, which would otherwise eat the flex free space. */
@@ -774,41 +797,33 @@
 .ep-cdrawer-add { border-top: 1px solid #f0dfa3; padding: 8px 12px; display: flex; gap: 6px; align-items: flex-end; flex: none; }
 .ep-cdrawer-add textarea { flex: 1; border: 1px solid #f0dfa3; border-radius: 8px; font: inherit; font-size: 12px; padding: 6px 8px; resize: none; background: #fff; }
 
-/* ── jobs card sidebar (replaces the table while the email panel is open) ──
- * Collapsed strip by default; expands on hover or pinned via the chevron. */
-.sidecard-mode { display: flex; }
-.jobs-side {
-  flex: none; height: 100%; width: 46px;
-  background: var(--panel); border-right: 1px solid var(--line);
-  display: flex; flex-direction: column; min-height: 0;
-  transition: width .15s ease;
+/* ── jobs as cards (replaces the table while the email panel is open) ── */
+.email-jobs-app { padding-top: 0; }
+.email-jobs { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.ej-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--line); flex: none; background: var(--panel); }
+.ej-tabs { display: flex; gap: 4px; }
+.ej-tabs .ep-view i { font-style: normal; font-size: 9.5px; opacity: .7; margin-left: 3px; }
+.ej-search { width: 220px; flex: none; }
+/* responsive card grid: fills the freed width, compact card height */
+.ej-grid {
+  flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 24px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px; align-content: start;
 }
-.jobs-side.open { width: 330px; }
-.js-strip { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 0; height: 100%; }
-.js-vlabel { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--muted); flex: 1; display: flex; align-items: center; }
-.js-expand, .js-addmini {
-  width: 26px; height: 26px; border: 1px solid var(--line); background: #fff; border-radius: 999px;
-  cursor: pointer; color: var(--muted); display: grid; place-items: center; font-size: 13px; padding: 0;
-}
-.js-expand:hover, .js-addmini:hover { color: var(--accent); border-color: var(--accent); }
-.js-full { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.js-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); flex: none; }
-.js-tabs { display: flex; gap: 4px; flex: 1; }
-.js-pin { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 13px; padding: 0 4px; }
-.js-pin.on { color: var(--accent); }
-.js-search { margin: 8px 10px 0; flex: none; }
-.js-cards { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px 16px; display: flex; flex-direction: column; gap: 8px; }
 .jcard {
-  display: flex; flex-direction: column; gap: 3px; text-align: left;
-  border: 1px solid var(--line); border-radius: 10px; background: #fff;
-  padding: 8px 10px; cursor: pointer; font: inherit; min-width: 0;
+  display: flex; flex-direction: column; gap: 6px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  padding: 11px 13px; cursor: pointer; font: inherit; min-width: 0;
 }
-.jcard:hover { border-color: var(--accent); }
-.jcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; min-width: 0; }
-.jcard-top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jcard-mid { font-size: 11.5px; color: var(--ink); white-space: nowrap; }
-.jcard-mid i { color: var(--muted); font-style: normal; margin: 0 2px; }
-.jcard-sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jcard:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(37, 99, 235, .08); }
+.jcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.jcard-cust { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jcard-times { display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--ink); }
+.jcard-leg i { font-style: normal; font-weight: 700; font-size: 9px; color: var(--muted); margin-right: 5px; }
+.jcard-leg em { font-style: normal; color: var(--accent); font-weight: 600; }
+.jcard-foot { display: flex; align-items: center; gap: 8px; font-size: 11.5px; min-width: 0; }
+.jcard-route { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jcard-sup { white-space: nowrap; }
 
 /* ── proper email composer (Reply / Reply all / Forward) ── */
 .ep-actionbar { flex: none; border-top: 1px solid var(--line); padding: 9px 12px; display: flex; gap: 8px; }

@@ -14,7 +14,7 @@ import { useOrgStore, userScope } from '@/store/orgStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
-import { JobsSidebar } from './JobsSidebar.tsx'
+import { JobsCards } from './JobsCards.tsx'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
 import { outcode } from '@/lib/index.ts'
 import type { JobStatus, Stop } from '@/types/index.ts'
@@ -474,12 +474,12 @@ export function ListScreen() {
     setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
   }
 
-  // Email open → the table gives way to the compact card sidebar (collapsed by
-  // default), freeing the width for the email client.
+  // Email open → the table gives way to compact job cards (always visible), which
+  // need far less width than the table, freeing room for the email client.
   if (emailOpen) {
     return (
-      <div className="list-app sidecard-mode">
-        <JobsSidebar />
+      <div className="list-app email-jobs-app">
+        <JobsCards />
       </div>
     )
   }
