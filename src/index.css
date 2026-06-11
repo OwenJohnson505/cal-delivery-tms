@@ -546,7 +546,7 @@
 .cust-stack .cust-name { white-space: nowrap; }
 
 /* ── app shell: job column on the left, the email client on the right ── */
-.shell { display: flex; height: 100vh; overflow: hidden; --jobcol-w: clamp(380px, 26vw, 460px); }
+.shell { display: flex; height: 100vh; overflow: hidden; --jobcol-w: clamp(520px, 35vw, 600px); }
 .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
 
 /* Email OPEN: the email client takes most of the width (it's a full client); the job
@@ -562,7 +562,10 @@
 .shell.panel-open .main { display: flex; flex-direction: column; gap: 10px; flex: none; min-height: 0; margin-bottom: 10px; }
 .shell.panel-open .route { height: auto; max-height: none; flex: none; }
 .shell.panel-open .route-scroll { overflow: visible; }
-.shell.panel-open .botrow { display: flex; flex-direction: column; gap: 10px; flex: none; min-height: 0; }
+/* requirements/notes row sizes to content (it has a fixed 128px height in the wide
+ * layout, which clipped the requirements list here) */
+.shell.panel-open .botrow,
+.shell.panel-open .left .botrow { display: flex; flex-direction: column; gap: 10px; flex: none; height: auto; min-height: 0; }
 .shell.panel-open .rail { overflow: visible; flex: none; }
 /* inner reflow: stacked controls wrap / multi-col field grids collapse to one column
  * so nothing overflows the narrow column */
@@ -576,6 +579,16 @@
 .shell.panel-open .bar { flex-wrap: wrap; }
 .shell.panel-open .f + .f { border-left: none; padding-left: 0; }
 .shell.panel-open .bar > #ccBox { flex: 1 1 100%; }
+/* the stop editor's "Address & timing | Site contact" two-up stacks into one column
+ * (side-by-side is unusable at this width — tiny find box, clipped labels) */
+.shell.panel-open .ed-2col { grid-template-columns: 1fr; gap: 12px; }
+.shell.panel-open .ed-2col .ed-col:first-child { padding-right: 0; }
+.shell.panel-open .ed-2col .ed-col:last-child { padding-left: 0; border-left: none; padding-top: 12px; border-top: 1px solid #e7ebf0; }
+.shell.panel-open .ed-2col .g-cpc, .shell.panel-open .ed-2col .g-cte { grid-template-columns: 1fr 1fr; }
+/* requirements: 2 columns (3 is cramped in the narrower section) */
+.shell.panel-open .panelbox #reqBox { grid-template-columns: 1fr 1fr; }
+/* slightly smaller section headers/labels for the tighter section */
+.shell.panel-open .rtitle, .shell.panel-open .sechd { font-size: 11px; }
 /* the wizard's fixed right rail would sit under the email client — hide it in this
  * mode (History/Providers aren't part of the vertical quick-booking flow). */
 .shell.panel-open .siderail:not(.siderail-left) { display: none; }
@@ -584,30 +597,32 @@
 .shell.panel-open .foot-actions { margin-left: 0; flex-wrap: wrap; row-gap: 8px; }
 .shell.panel-open .saveas { margin-left: 0; padding-left: 0; border-left: none; flex-wrap: wrap; }
 
-/* ── left nav collapses to a thin strip while email is open (more room for the
- * jobs area); hover or pin (the › button) to reveal it as an overlay ── */
+/* ── left nav while email is open: a slim, clean icon strip — no logo, no boxes
+ * around the icons (just the glyphs). Pin (the › button) to widen it a touch. ── */
 .shell.panel-open .siderail-left {
-  width: 16px; overflow: hidden; transition: width .14s ease; z-index: 320;
+  width: 44px; transition: width .14s ease; z-index: 320; padding-top: 8px; gap: 2px;
 }
-.shell.panel-open .siderail-left::after {
-  content: '⋮'; position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);
-  text-align: center; color: var(--muted); font-size: 12px; pointer-events: none;
+.shell.panel-open .siderail-left .sr-logo { display: none; }
+.shell.panel-open .siderail-left .sr-ic {
+  border: none; background: none; width: 30px; height: 30px;
 }
+.shell.panel-open .siderail-left .sr-item:hover .sr-ic,
+.shell.panel-open .siderail-left .sr-item.active .sr-ic { background: var(--accent-soft); }
 .shell.panel-open .siderail-left:hover,
-.shell.panel-open .siderail-left.nav-pinned { width: 56px; overflow: visible; }
-.shell.panel-open .siderail-left:hover::after,
-.shell.panel-open .siderail-left.nav-pinned::after { content: none; }
-/* reclaim the freed space — content clears only the 16px strip (pinned → full 56px) */
-.shell.panel-open .list-app { padding-left: 16px; }
-.shell.panel-open .app { padding-left: 16px; }
+.shell.panel-open .siderail-left.nav-pinned { width: 56px; }
+.shell.panel-open .siderail-left.nav-pinned .sr-logo,
+.shell.panel-open .siderail-left:hover .sr-logo { display: grid; }
+/* reclaim the freed space — content clears the 44px strip (pinned → 56px) */
+.shell.panel-open .list-app { padding-left: 44px; }
+.shell.panel-open .app { padding-left: 44px; }
 .shell.panel-open.nav-pinned .list-app { padding-left: 56px; }
 .shell.panel-open.nav-pinned .app { padding-left: 56px; }
 .sr-pin {
-  border: 1px solid var(--line-strong); background: #fff; color: var(--muted);
-  width: 22px; height: 22px; border-radius: 7px; cursor: pointer; font-size: 13px;
+  border: none; background: none; color: var(--muted);
+  width: 24px; height: 22px; border-radius: 7px; cursor: pointer; font-size: 14px;
   display: grid; place-items: center; padding: 0; margin-bottom: 2px;
 }
-.sr-pin:hover { color: var(--accent); border-color: var(--accent); }
+.sr-pin:hover { color: var(--accent); background: var(--accent-soft); }
 
 /* bookings main column hugs the table; margin:0 overrides .list-work's
  * margin:0 auto, which would otherwise eat the flex free space. */
