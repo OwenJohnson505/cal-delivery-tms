@@ -184,8 +184,9 @@ export function ListScreen() {
       case 'notes': {
         const has = !!j.snapshot.jobNotes?.trim()
         return (
-          <button className={'notes-btn' + (has ? ' has' : '')} onClick={(e) => { e.stopPropagation(); setNotesJob(j) }} title={has ? 'View notes' : 'No notes'}>
-            <Icon name="note" size={13} /> Notes{has && <span className="notes-dot" />}
+          <button className={'notes-icon' + (has ? ' has' : '')} onClick={(e) => { e.stopPropagation(); setNotesJob(j) }} title={has ? 'View notes' : 'No notes'}>
+            <Icon name="note" size={15} />
+            {has && <span className="notes-dot" />}
           </button>
         )
       }
@@ -304,7 +305,7 @@ export function ListScreen() {
                     </td>
                   ))}
                   <td className="list-actions">
-                    <button className="kebab" title="Quick actions" onClick={(e) => openRowMenu(e, j)}>⋯</button>
+                    <button className="kebab" title="Quick actions" onClick={(e) => openRowMenu(e, j)}>⋮</button>
                   </td>
                 </tr>
               ))}

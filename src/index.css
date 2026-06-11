@@ -548,7 +548,7 @@
  * flex free space and shrink the table column to its min-content. */
 .bookings-main { flex: 1 1 auto; min-width: 0; margin: 0; }
 .bookings-panel {
-  flex: 0 0 clamp(380px, 36vw, 640px);
+  flex: 0 0 clamp(320px, 27vw, 460px);
   background: var(--panel); border-left: 1px solid var(--line);
   position: sticky; top: 0; align-self: flex-start; height: 100vh;
   display: flex; flex-direction: column;
@@ -559,8 +559,8 @@
 
 /* wide "live" jobs table — scrolls horizontally only if it must; tight cells */
 .list-tablewrap:has(.jobs-table) { overflow-x: auto; }
-.jobs-table { font-size: 12px; min-width: 900px; width: 100%; }
-.jobs-table th, .jobs-table td { padding: 7px 9px; vertical-align: top; }
+.jobs-table { font-size: 12px; min-width: 820px; width: 100%; }
+.jobs-table th, .jobs-table td { padding: 6px 8px; vertical-align: middle; }
 .jobs-table .nowrap { white-space: nowrap; }
 .jobs-table .muted { color: var(--muted); }
 .jobs-table .cell-sub { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
@@ -574,17 +574,18 @@
 .ref-ok { color: #15803d; background: #dcf3e3; }
 .ref-bad { color: #b91c1c; background: #fde0e0; }
 /* notes button */
-.notes-btn { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 1px solid var(--line); background: #fff; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
-.notes-btn:hover { border-color: var(--accent); color: var(--accent); }
-.notes-btn.has { color: var(--ink); }
-.notes-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+/* notes: just the file icon (the column header already says "Notes") */
+.notes-icon { position: relative; width: 28px; height: 26px; display: inline-grid; place-items: center; border: none; background: transparent; border-radius: 7px; color: var(--muted); cursor: pointer; }
+.notes-icon:hover { background: var(--field); color: var(--ink); }
+.notes-icon.has { color: var(--ink); }
+.notes-dot { position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .notes-text { white-space: pre-wrap; line-height: 1.5; font-size: 13px; }
 /* clickable route points + supplier — same ink as everything else (clickability is
  * conveyed by the slight bold + hover underline, not by colour). */
-.route-cell { display: inline-flex; align-items: center; gap: 4px; }
-.route-pt { background: none; border: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.route-cell { display: inline-flex; align-items: center; gap: 3px; flex-wrap: nowrap; white-space: nowrap; }
+.route-pt { background: none; border: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; white-space: nowrap; }
 .route-pt:hover { text-decoration: underline; }
-.route-arrow { color: var(--muted); margin: 0 2px; }
+.route-arrow { color: var(--muted); margin: 0 1px; }
 .cell-link { background: none; border: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: left; }
 .cell-link:hover { text-decoration: underline; }
 /* click-to-open detail popover */
