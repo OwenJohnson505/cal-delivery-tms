@@ -56,9 +56,9 @@ function viewFrom(id: string, name: string, visible: ColumnKey[], system = true)
 
 // Admin presets — pre-loaded for everyone (as if authored on an admin page).
 const PRESETS: SavedView[] = [
-  viewFrom('sys-standard', 'Standard', ['customer', 'status', 'collection', 'delivery', 'collectionEta', 'deliveryEta', 'refAccepted', 'route', 'vehicle', 'supplier', 'notes']),
+  viewFrom('sys-standard', 'Standard', ['customer', 'status', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes', 'refAccepted']),
   viewFrom('sys-financials', 'Financials', ['customer', 'status', 'revenue', 'cost', 'margin', 'actor']),
-  viewFrom('sys-operations', 'Operations', ['customer', 'status', 'collection', 'delivery', 'collectionEta', 'deliveryEta', 'route', 'vehicle', 'supplier', 'notes']),
+  viewFrom('sys-operations', 'Operations', ['customer', 'status', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
 ]
 
 const LS_KEY = 'cd-booking-views-v3'
