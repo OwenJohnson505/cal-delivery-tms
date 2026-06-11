@@ -111,7 +111,11 @@ interface JobsState {
 }
 
 // ---- seed samples -------------------------------------------------------------
-type StopSeed = { co?: string; ref?: string; contact?: { name: string; tel: string; email: string } }
+type StopSeed = {
+  co?: string; ref?: string; contact?: { name: string; tel: string; email: string }
+  /** Values for the customer's stop-level custom fields, keyed by field id. */
+  custom?: Record<string, string>
+}
 function sample(opts: {
   status: JobStatus
   cust: string
@@ -121,16 +125,20 @@ function sample(opts: {
   charges?: Array<{ label: string; rate: number }>
   coll?: StopSeed
   del?: StopSeed
+  /** Values for the customer's job-level custom fields, keyed by field id. */
+  customJob?: Record<string, string>
 }): BookingState {
   const base = createInitialState()
   base.book = { cust: opts.cust, contact: null }
   base.tariff = { q: opts.vehicle }
   base.jobStatus = opts.status
   base.charges = (opts.charges ?? []).map((c, i) => ({ id: `seed-c${i}`, ...c }))
+  if (opts.customJob) base.customJob = { ...base.customJob, ...opts.customJob }
   const mk = (id: number, type: 'Collection' | 'Delivery', pc: string, s?: StopSeed): BookingState['stops'][number] => ({
     id, type, q: '', addr: { co: s?.co || '', address: '', city: '', pc, country: 'England', src: '', cls: 'manual' },
     contact: s?.contact ?? null, time: { mode: 'asap' }, reference: s?.ref || '', note: '', goods: '', goodsTouched: false,
     alloc: [], allocTouched: false, svc: {}, status: 'booked', eta: '', pod: null,
+    ...(s?.custom ? { custom: s.custom } : {}),
   })
   base.stops = [mk(1, 'Collection', opts.collPc, opts.coll), mk(2, 'Delivery', opts.delPc, opts.del)]
   return base
@@ -150,8 +158,9 @@ function seedJobs(): SavedJob[] {
   const rows: SeedRow[] = [
     { ref: 'BK-100482', status: 'Booking', at: '06-06-2026 18:53', notes: 'Call ahead — gate code 4471.',
       snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'WA2 7NE', vehicle: '18t', charges: [{ label: 'Handballing', rate: 35 }],
+        customJob: { 'cf-order': 'ORD-55021', 'cf-cc': 'North' },
         coll: { co: 'Brightway DC', ref: 'COL-7781', contact: { name: 'Mark Stiles', tel: '0113 555 0190', email: 'goodsout@brightway.co.uk' } },
-        del: { co: 'Tesco Extra', ref: 'DEL-7781', contact: { name: 'Goods-in desk', tel: '01925 555 010', email: 'bay4@tesco-wa2.co.uk' } } }),
+        del: { co: 'Tesco Extra', ref: 'DEL-7781', contact: { name: 'Goods-in desk', tel: '01925 555 010', email: 'bay4@tesco-wa2.co.uk' }, custom: { 'cf-bay': 'Bay 4', 'cf-exchange': 'Yes' } } }),
       progress: 'Collected', revenue: 420, cost: 280, collectAt: '10-06-26 09:30', deliverAt: '10-06-26 14:15', collectMode: 'at', deliverMode: 'by', collectEta: '09:25', deliverEta: '14:05', custRef: 'PO-7781',
       collectEtaInfo: { source: 'CX', at: '10-06-26 08:55' },
       deliverEtaInfo: { source: 'Staff', by: 'Sarah Doyle', at: '10-06-26 12:40', previous: '13:45' },

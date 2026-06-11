@@ -10,10 +10,9 @@
  */
 import { create } from 'zustand'
 
-export type ColumnKey =
-  | 'customer' | 'collection' | 'delivery'
-  | 'collectionEta' | 'deliveryEta' | 'refAccepted' | 'route' | 'vehicle'
-  | 'supplier' | 'revenue' | 'cost' | 'margin' | 'actor' | 'notes'
+/** Column key. Standard keys are catalogued in COLUMNS; per-customer custom-field
+ * columns use dynamic `cf:job:<id>` / `cf:stop:<id>` keys handled outside this store. */
+export type ColumnKey = string
 
 export interface ColumnDef { key: ColumnKey; label: string }
 export interface ColumnState { key: ColumnKey; visible: boolean }
@@ -25,24 +24,67 @@ export interface SavedView {
   system?: boolean
 }
 
-/** The full column catalogue, in its natural default order. */
+/** The full column catalogue — every data point on a booking — in default order. */
 export const COLUMNS: ColumnDef[] = [
+  // identity / status
   { key: 'customer', label: 'Customer / Status' },
+  { key: 'progress', label: 'Job status' },
+  { key: 'ourRef', label: 'Our ref' },
+  { key: 'custRef', label: 'Customer ref' },
+  { key: 'refAccepted', label: 'Ref OK' },
+  { key: 'accountCode', label: 'Account code' },
+  // timing
   { key: 'collection', label: 'Coll Time' },
   { key: 'delivery', label: 'Del Time' },
   { key: 'collectionEta', label: 'Coll ETA' },
   { key: 'deliveryEta', label: 'Del ETA' },
-  { key: 'refAccepted', label: 'Ref OK' },
+  // route
   { key: 'route', label: 'Route' },
+  { key: 'stopCount', label: 'Stops' },
+  // collection stop
+  { key: 'collCompany', label: 'Collection company' },
+  { key: 'collContact', label: 'Collection contact' },
+  { key: 'collPhone', label: 'Collection phone' },
+  { key: 'collRef', label: 'Collection ref' },
+  { key: 'collPostcode', label: 'Collection postcode' },
+  { key: 'collCity', label: 'Collection city' },
+  // delivery stop
+  { key: 'delCompany', label: 'Delivery company' },
+  { key: 'delContact', label: 'Delivery contact' },
+  { key: 'delPhone', label: 'Delivery phone' },
+  { key: 'delRef', label: 'Delivery ref' },
+  { key: 'delPostcode', label: 'Delivery postcode' },
+  { key: 'delCity', label: 'Delivery city' },
+  // goods / service
+  { key: 'goods', label: 'Goods' },
   { key: 'vehicle', label: 'Vehicle' },
+  { key: 'bodyType', label: 'Body type' },
+  { key: 'equipment', label: 'Equipment' },
+  { key: 'serviceType', label: 'Service type' },
+  // supplier
   { key: 'supplier', label: 'Supplier' },
+  { key: 'supplierPhone', label: 'Supplier phone' },
+  { key: 'supplierEmail', label: 'Supplier email' },
+  // money
   { key: 'revenue', label: 'Revenue' },
   { key: 'cost', label: 'Cost' },
   { key: 'margin', label: 'Margin' },
+  // audit
   { key: 'actor', label: 'Booked / quoted by' },
+  { key: 'created', label: 'Created' },
   { key: 'notes', label: 'Notes' },
 ]
 const ALL_KEYS = COLUMNS.map((c) => c.key)
+const CATALOGUE = new Set(ALL_KEYS)
+
+/** Keep a view's columns covering the full catalogue: drop stale keys, append any
+ * newly-added catalogue columns (hidden). So every data point is always toggleable. */
+function reconcile(cols: ColumnState[]): ColumnState[] {
+  const valid = cols.filter((c) => CATALOGUE.has(c.key))
+  const have = new Set(valid.map((c) => c.key))
+  const missing = ALL_KEYS.filter((k) => !have.has(k)).map((key) => ({ key, visible: false }))
+  return [...valid, ...missing]
+}
 
 /** Build a view: the given keys visible (in that order), the rest appended hidden. */
 function viewFrom(id: string, name: string, visible: ColumnKey[], system = true): SavedView {
@@ -60,7 +102,7 @@ const PRESETS: SavedView[] = [
   viewFrom('sys-operations', 'Operations', ['customer', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
 ]
 
-const LS_KEY = 'cd-booking-views-v4'
+const LS_KEY = 'cd-booking-views-v5'
 
 interface Persisted {
   userViews: SavedView[]
@@ -114,7 +156,7 @@ function initial() {
   const p = load()
   const all = [...PRESETS, ...p.userViews]
   const active = all.find((v) => v.id === p.activeViewId) ?? all.find((v) => v.id === p.defaultViewId) ?? PRESETS[0]
-  return { ...p, columns: clone(active.columns), activeViewId: active.id }
+  return { ...p, columns: reconcile(clone(active.columns)), activeViewId: active.id }
 }
 
 export const useViewsStore = create<ViewsState>((set, get) => {
@@ -137,7 +179,7 @@ export const useViewsStore = create<ViewsState>((set, get) => {
     applyView: (id) => {
       const v = get().getView(id)
       if (!v) return
-      set({ activeViewId: id, columns: clone(v.columns), dirty: false })
+      set({ activeViewId: id, columns: reconcile(clone(v.columns)), dirty: false })
       persist()
     },
 
@@ -155,7 +197,7 @@ export const useViewsStore = create<ViewsState>((set, get) => {
 
     resetWorking: () => {
       const v = get().getView(get().activeViewId)
-      if (v) set({ columns: clone(v.columns), dirty: false })
+      if (v) set({ columns: reconcile(clone(v.columns)), dirty: false })
     },
 
     saveAsView: (name) => {

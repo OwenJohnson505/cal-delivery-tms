@@ -1030,6 +1030,15 @@
 .cm-save input { height: 28px; border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font: inherit; font-size: 12px; width: 130px; }
 .cm-foot { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 2px; margin-top: 6px; border-top: 1px solid var(--line); }
 
+/* per-customer custom-field columns section in the columns menu */
+.cm-extra { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 1px; }
+.cm-extra-h { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); padding: 2px 4px 4px; }
+.cm-extra-row { padding: 4px 4px; border-radius: 6px; }
+.cm-extra-row:hover { background: var(--field); }
+.cm-extra-hint { font-size: 11px; color: var(--muted); padding: 2px 4px 4px; line-height: 1.4; }
+/* custom-field column headers read as muted (not sortable) */
+.jobs-table th.cf-col { color: var(--accent); cursor: default; }
+
 /* Teams & departments */
 .org-wrap { display: flex; flex-direction: column; gap: 14px; }
 .org-dept { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }

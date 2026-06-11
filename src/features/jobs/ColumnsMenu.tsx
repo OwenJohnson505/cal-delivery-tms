@@ -10,7 +10,19 @@ import { COLUMNS, useViewsStore, type ColumnKey } from '@/store/viewsStore.ts'
 
 const LABEL: Record<ColumnKey, string> = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
 
-export function ColumnsMenu() {
+/** Per-customer custom-field columns, surfaced only while the list is filtered to a
+ * single customer (passed in by ListScreen; not part of the saved-view system). */
+export interface ExtraColumnsProps {
+  extraTitle?: string
+  extraColumns?: Array<{ key: string; label: string }>
+  activeExtra?: string[]
+  onToggleExtra?: (key: string) => void
+  /** Shown (greyed) when nothing is filtered, to hint how to get custom-field columns. */
+  extraHint?: string
+}
+
+export function ColumnsMenu(props: ExtraColumnsProps = {}) {
+  const { extraTitle, extraColumns = [], activeExtra = [], onToggleExtra, extraHint } = props
   const presets = useViewsStore((s) => s.presets)
   const userViews = useViewsStore((s) => s.userViews)
   const activeViewId = useViewsStore((s) => s.activeViewId)
@@ -90,6 +102,22 @@ export function ColumnsMenu() {
                 </div>
               ))}
             </div>
+
+            {/* per-customer custom-field columns (only when filtered to one customer) */}
+            {extraColumns.length > 0 && (
+              <div className="cm-extra">
+                <div className="cm-extra-h">{extraTitle ?? 'Custom fields'}</div>
+                {extraColumns.map((c) => (
+                  <label className="cm-chk cm-extra-row" key={c.key}>
+                    <input type="checkbox" checked={activeExtra.includes(c.key)} onChange={() => onToggleExtra?.(c.key)} />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            )}
+            {extraColumns.length === 0 && extraHint && (
+              <div className="cm-extra"><div className="cm-extra-hint">{extraHint}</div></div>
+            )}
 
             <div className="cm-actions">
               {activeIsUser && dirty && <button className="btn sm primary" onClick={updateActiveView}>Update “{activeView?.name}”</button>}

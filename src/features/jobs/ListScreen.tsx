@@ -233,7 +233,7 @@ export function ListScreen() {
   }
   const facetById = useMemo(() => {
     const m: Record<string, Facet> = {}
-    Object.values(colMeta).forEach((c) => c.facets.forEach((f) => { m[f.id] = f }))
+    Object.values(colMeta).forEach((c) => c?.facets.forEach((f) => { m[f.id] = f }))
     return m
   }, [colMeta]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -273,6 +273,28 @@ export function ListScreen() {
   const colIsFiltered = (key: ColumnKey) => (colMeta[key]?.facets ?? []).some((f) => colFilters[f.id]?.length)
   const anyColFilter = Object.keys(colFilters).length > 0
 
+  // ── per-customer custom-field columns ───────────────────────────────────────
+  // Available ONLY while the list is filtered to ONE customer (otherwise the column
+  // catalogue would explode across every customer's fields). Ephemeral: cleared when
+  // the single-customer filter changes/clears, and never saved into a view.
+  const singleCustomerName = colFilters['cust']?.length === 1 ? colFilters['cust'][0] : null
+  const singleCustomer = useMemo(
+    () => (singleCustomerName ? customers.find((c) => (c.displayName || c.companyName) === singleCustomerName) : undefined),
+    [singleCustomerName, customers],
+  )
+  const cfColumns = useMemo(
+    () => (singleCustomer?.customFields ?? []).map((f) => ({ key: `cf:${f.scope}:${f.id}`, label: `${f.label}${f.scope === 'stop' ? ' (stop)' : ''}` })),
+    [singleCustomer],
+  )
+  const cfLabel = useMemo(() => Object.fromEntries(cfColumns.map((c) => [c.key, c.label])), [cfColumns])
+  const [activeCf, setActiveCf] = useState<string[]>([])
+  // reset the chosen custom columns whenever the filtered customer changes/clears
+  useEffect(() => { setActiveCf([]) }, [singleCustomer?.id])
+  const validActiveCf = activeCf.filter((k) => cfColumns.some((c) => c.key === k))
+  const toggleCf = (key: string) => setActiveCf((p) => (p.includes(key) ? p.filter((x) => x !== key) : [...p, key]))
+  // standard visible columns + any active custom-field columns (appended)
+  const renderCols = [...visibleCols, ...validActiveCf]
+
   function addNew() {
     newBooking()
     openWizard(null)
@@ -282,8 +304,56 @@ export function ListScreen() {
     openWizard(job.id)
   }
 
-  const headerFor = (key: ColumnKey) => (key === 'actor' ? actionLabel(tab) : COL_LABEL[key])
+  const headerFor = (key: ColumnKey) =>
+    key.startsWith('cf:') ? (cfLabel[key] ?? 'Custom') : key === 'actor' ? actionLabel(tab) : COL_LABEL[key]
+  // collection = first collection/both stop; delivery = last delivery/both stop
+  const firstColl = (j: SavedJob) => j.snapshot.stops.find((s) => s.type === 'Collection' || s.type === 'Both')
+  const lastDel = (j: SavedJob) => [...j.snapshot.stops].reverse().find((s) => s.type === 'Delivery' || s.type === 'Both')
+  const txt = (v?: string | null) => (v && String(v).trim() ? <>{v}</> : <span className="muted">—</span>)
+
+  /** Value for a per-customer custom-field column key: cf:job:<id> or cf:stop:<id>. */
+  const cfCell = (j: SavedJob, key: string) => {
+    const [, scope, id] = key.split(':')
+    if (scope === 'job') return txt(j.snapshot.customJob?.[id])
+    const vals = j.snapshot.stops.map((s) => s.custom?.[id]).filter(Boolean)
+    return txt(vals.length ? [...new Set(vals)].join(', ') : '')
+  }
+
+  /** Plain (non-interactive) data-point columns. */
+  const simpleCell = (key: ColumnKey, j: SavedJob, cust?: Customer): ReactNode => {
+    const c = firstColl(j)
+    const d = lastDel(j)
+    switch (key) {
+      case 'progress': return j.progress ? <StatusPill status={j.progress} /> : txt('')
+      case 'ourRef': return txt(j.ref)
+      case 'custRef': return txt(j.custRef)
+      case 'accountCode': return txt(cust?.accountCode)
+      case 'stopCount': return <>{j.snapshot.stops.length}</>
+      case 'collCompany': return txt(c?.addr.co)
+      case 'collContact': return txt(c?.contact?.name)
+      case 'collPhone': return txt(c?.contact?.tel)
+      case 'collRef': return txt(c?.reference)
+      case 'collPostcode': return txt(c?.addr.pc)
+      case 'collCity': return txt(c?.addr.city)
+      case 'delCompany': return txt(d?.addr.co)
+      case 'delContact': return txt(d?.contact?.name)
+      case 'delPhone': return txt(d?.contact?.tel)
+      case 'delRef': return txt(d?.reference)
+      case 'delPostcode': return txt(d?.addr.pc)
+      case 'delCity': return txt(d?.addr.city)
+      case 'goods': return txt(j.snapshot.stops.map((s) => s.goods).filter(Boolean).join('; '))
+      case 'bodyType': return txt(j.snapshot.ms.body.sel.join(', '))
+      case 'equipment': return txt(j.snapshot.ms.equip.sel.join(', '))
+      case 'serviceType': return txt(j.snapshot.ms.service.sel.join(', '))
+      case 'supplierPhone': return txt(j.supplierPhone)
+      case 'supplierEmail': return txt(j.supplierEmail)
+      case 'created': return txt(j.createdAt)
+      default: return null
+    }
+  }
+
   function cell(key: ColumnKey, j: SavedJob) {
+    if (key.startsWith('cf:')) return cfCell(j, key)
     const cust = custById[j.snapshot.book.cust ?? '']
     const dash = <span className="muted">—</span>
     switch (key) {
@@ -345,7 +415,7 @@ export function ListScreen() {
           </button>
         )
       }
-      default: return null
+      default: return simpleCell(key, j, cust)
     }
   }
 
@@ -539,7 +609,13 @@ export function ListScreen() {
 
         {/* row 3: view configuration */}
         <div className="list-toolbar bk-viewrow">
-          <ColumnsMenu />
+          <ColumnsMenu
+            extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
+            extraColumns={cfColumns}
+            activeExtra={validActiveCf}
+            onToggleExtra={toggleCf}
+            extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
+          />
           <button className={'btn sm' + (emailOpen ? ' primary' : '')} onClick={toggleEmailPanel} title="Toggle email panel">
             <Icon name="sidebar" size={14} /> Email
           </button>
@@ -549,11 +625,12 @@ export function ListScreen() {
           <table className="list-table jobs-table">
             <thead>
               <tr>
-                {visibleCols.map((key) => (
+                {renderCols.map((key) => (
                   <th
                     key={key}
-                    className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + 'th-sortable'}
+                    className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + (key.startsWith('cf:') ? 'cf-col ' : 'th-sortable')}
                     onClick={(e) => {
+                      if (key.startsWith('cf:')) return
                       const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
                       setHeaderMenu({ key, x: Math.min(r.left, window.innerWidth - 260), y: r.bottom + 4 })
                     }}
@@ -571,7 +648,7 @@ export function ListScreen() {
             <tbody>
               {rows.map((j) => (
                 <tr key={j.id} onDoubleClick={() => open(j)}>
-                  {visibleCols.map((key) => (
+                  {renderCols.map((key) => (
                     <td key={key} className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + (NOWRAP_COLS.has(key) ? 'nowrap' : '')}>
                       {cell(key, j)}
                     </td>
@@ -583,7 +660,7 @@ export function ListScreen() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td className="empty" colSpan={visibleCols.length + 1}>
+                  <td className="empty" colSpan={renderCols.length + 1}>
                     No {TAB_LABEL[tab].toLowerCase()} {query ? 'match your search' : 'yet'}.
                   </td>
                 </tr>
