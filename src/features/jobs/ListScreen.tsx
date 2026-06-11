@@ -21,6 +21,8 @@ import type { ReactNode } from 'react'
 const COL_LABEL = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
 const NUM_COLS = new Set<ColumnKey>(['revenue', 'cost', 'margin'])
 const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'actor', 'supplier'])
+/** Columns that hug their content (width:1%) so flexible ones absorb the slack. */
+const FIT_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'vehicle', 'refAccepted', 'notes'])
 
 /** Small ASAP / AT / BY tag next to a time ('between' shows nothing — implied by a range). */
 function TimeTag({ mode }: { mode: string }) {
@@ -265,12 +267,12 @@ export function ListScreen() {
       case 'collection': {
         if (!j.collectAt) return dash
         const [d, t] = j.collectAt.split(' ')
-        return <div className="dt-stack"><span>{d}</span><span className="dt-time">{t} <TimeTag mode={j.collectMode} /></span></div>
+        return <div className="dt-stack"><span>{d}</span><span className="dtt">{t} <TimeTag mode={j.collectMode} /></span></div>
       }
       case 'delivery': {
         if (!j.deliverAt) return dash
         const [d, t] = j.deliverAt.split(' ')
-        return <div className="dt-stack"><span>{d}</span><span className="dt-time">{t} <TimeTag mode={j.deliverMode} /></span></div>
+        return <div className="dt-stack"><span>{d}</span><span className="dtt">{t} <TimeTag mode={j.deliverMode} /></span></div>
       }
       case 'collectionEta': return j.collectEta || dash
       case 'deliveryEta': return j.deliverEta || dash
@@ -417,7 +419,7 @@ export function ListScreen() {
                 {visibleCols.map((key) => (
                   <th
                     key={key}
-                    className={(NUM_COLS.has(key) ? 'num ' : '') + 'th-sortable'}
+                    className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + 'th-sortable'}
                     onClick={(e) => {
                       const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
                       setHeaderMenu({ key, x: Math.min(r.left, window.innerWidth - 260), y: r.bottom + 4 })
@@ -437,7 +439,7 @@ export function ListScreen() {
               {rows.map((j) => (
                 <tr key={j.id} onDoubleClick={() => open(j)}>
                   {visibleCols.map((key) => (
-                    <td key={key} className={(NUM_COLS.has(key) ? 'num ' : '') + (NOWRAP_COLS.has(key) ? 'nowrap' : '')}>
+                    <td key={key} className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + (NOWRAP_COLS.has(key) ? 'nowrap' : '')}>
                       {cell(key, j)}
                     </td>
                   ))}
