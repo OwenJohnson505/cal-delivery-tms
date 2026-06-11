@@ -14,7 +14,9 @@ import { useOrgStore, userScope } from '@/store/orgStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
-import type { JobStatus } from '@/types/index.ts'
+import { outcode } from '@/lib/index.ts'
+import type { JobStatus, Stop } from '@/types/index.ts'
+import type { ReactNode } from 'react'
 
 const COL_LABEL = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
 const NUM_COLS = new Set<ColumnKey>(['revenue', 'cost', 'margin'])
@@ -71,6 +73,13 @@ export function ListScreen() {
 
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
+  // Click-to-open detail popover (address contact/ref, or supplier contact).
+  const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
+  const openPop = (e: React.MouseEvent, node: ReactNode) => {
+    e.stopPropagation()
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setPop({ x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6, node })
+  }
 
   const custById = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers])
   const scope = useMemo(() => userScope(currentUserId, departments, teams), [currentUserId, departments, teams])
@@ -100,12 +109,28 @@ export function ListScreen() {
     return c
   }, [scoped])
 
+  // Search looks inside the job, not just the visible table: ref, names, route,
+  // vehicle, supplier, status, custom ref, every stop's address/ref/contact, and notes.
+  const haystack = (j: SavedJob) => {
+    const cust = custById[j.snapshot.book.cust ?? '']
+    const parts: string[] = [
+      j.ref, j.customer, cust?.displayName ?? '', ...(cust?.altNames ?? []),
+      j.route, j.vehicle, j.supplierName, j.progress, j.status, j.custRef,
+      j.snapshot.jobNotes ?? '',
+    ]
+    j.snapshot.stops.forEach((s) => {
+      parts.push(s.addr.co, s.addr.pc, s.addr.address, s.addr.city, s.reference,
+        s.contact?.name ?? '', s.contact?.email ?? '', s.contact?.tel ?? '')
+    })
+    return parts.filter(Boolean).join(' ').toLowerCase()
+  }
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     return scoped
       .filter((j) => TAB_STATUSES[tab].includes(j.status))
-      .filter((j) => !q || `${j.ref} ${j.customer} ${j.route} ${j.vehicle}`.toLowerCase().includes(q))
-  }, [scoped, tab, query])
+      .filter((j) => !q || haystack(j).includes(q))
+  }, [scoped, tab, query]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function addNew() {
     newBooking()
@@ -121,7 +146,6 @@ export function ListScreen() {
     const cust = custById[j.snapshot.book.cust ?? '']
     const dash = <span className="muted">—</span>
     switch (key) {
-      case 'ref': return <b>{j.ref}</b>
       case 'customer': return cust?.displayName || j.customer
       case 'status': return j.progress ? <StatusPill status={j.progress} /> : dash
       case 'collection': return j.collectAt ? <span className="dt-cell"><span>{j.collectAt}</span><TimeTag mode={j.collectMode} /></span> : dash
@@ -133,9 +157,25 @@ export function ListScreen() {
         return refOk(j.custRef, cust)
           ? <span className="ref-ok" title={j.custRef ? `Accepted: ${j.custRef}` : 'Accepted'}>✓</span>
           : <span className="ref-bad" title={j.custRef ? `Not accepted: ${j.custRef}` : 'Missing PO'}>✕</span>
-      case 'route': return j.route
+      case 'route': {
+        const pts = j.snapshot.stops.filter((s) => s.addr.pc)
+        if (!pts.length) return dash
+        return (
+          <span className="route-cell">
+            {pts.map((s, idx) => (
+              <span key={s.id}>
+                {idx > 0 && <span className="route-arrow">→</span>}
+                <button className="route-pt" onClick={(e) => openPop(e, addressNode(s))}>{outcode(s.addr.pc)}</button>
+              </span>
+            ))}
+          </span>
+        )
+      }
       case 'vehicle': return j.vehicle || '—'
-      case 'supplier': return j.supplierName || <span className="muted">Unassigned</span>
+      case 'supplier':
+        return j.supplierName
+          ? <button className="cell-link" onClick={(e) => openPop(e, supplierNode(j))}>{j.supplierName}</button>
+          : <span className="muted">Unassigned</span>
       case 'revenue': return `£${j.revenue.toFixed(0)}`
       case 'cost': return `£${j.cost.toFixed(0)}`
       case 'margin': return <b style={{ color: 'var(--ok)' }}>£{(j.revenue - j.cost).toFixed(0)}</b>
@@ -151,6 +191,29 @@ export function ListScreen() {
       default: return null
     }
   }
+
+  // popover content builders
+  const addressNode = (s: Stop) => (
+    <div className="cp-card">
+      <div className="cp-h">{s.type} · {s.addr.co || s.addr.pc}</div>
+      <div className="cp-row"><span className="cp-k">Postcode</span><span>{s.addr.pc || '—'}</span></div>
+      <div className="cp-row"><span className="cp-k">Reference</span><span>{s.reference || '—'}</span></div>
+      <div className="cp-row"><span className="cp-k">Contact</span><span>{s.contact?.name || '—'}</span></div>
+      {s.contact?.tel && <a className="cp-link" href={`tel:${s.contact.tel}`}><Icon name="phone" size={13} /> {s.contact.tel}</a>}
+      {s.contact?.email && <a className="cp-link" href={`mailto:${s.contact.email}`}><Icon name="mail" size={13} /> {s.contact.email}</a>}
+    </div>
+  )
+  const supplierNode = (j: SavedJob) => (
+    <div className="cp-card">
+      <div className="cp-h">{j.supplierName}</div>
+      {j.supplierPhone
+        ? <a className="cp-link" href={`tel:${j.supplierPhone}`}><Icon name="phone" size={13} /> {j.supplierPhone}</a>
+        : <div className="cp-row"><span className="cp-k">Phone</span><span>—</span></div>}
+      {j.supplierEmail
+        ? <a className="cp-link" href={`mailto:${j.supplierEmail}`}><Icon name="mail" size={13} /> {j.supplierEmail}</a>
+        : <div className="cp-row"><span className="cp-k">Email</span><span>—</span></div>}
+    </div>
+  )
 
   return (
     <div className="list-app">
@@ -248,6 +311,13 @@ export function ListScreen() {
           </table>
         </div>
       </div>
+
+      {pop && (
+        <>
+          <div className="cc-pop-scrim" onClick={() => setPop(null)} />
+          <div className="cell-pop" style={{ left: pop.x, top: pop.y }}>{pop.node}</div>
+        </>
+      )}
 
       {notesJob && (
         <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && setNotesJob(null)}>

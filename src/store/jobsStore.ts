@@ -44,8 +44,10 @@ export interface SavedJob {
   custRef: string
   /** Who booked / quoted / drafted the job. */
   actorName: string
-  /** Allocated supplier name (blank if none). */
+  /** Allocated supplier name + contact (blank if none). */
   supplierName: string
+  supplierPhone: string
+  supplierEmail: string
 }
 
 export type TimeMode = 'asap' | 'at' | 'by' | 'between'
@@ -90,6 +92,7 @@ interface JobsState {
 }
 
 // ---- seed samples -------------------------------------------------------------
+type StopSeed = { co?: string; ref?: string; contact?: { name: string; tel: string; email: string } }
 function sample(opts: {
   status: JobStatus
   cust: string
@@ -97,18 +100,20 @@ function sample(opts: {
   delPc: string
   vehicle: string
   charges?: Array<{ label: string; rate: number }>
+  coll?: StopSeed
+  del?: StopSeed
 }): BookingState {
   const base = createInitialState()
   base.book = { cust: opts.cust, contact: null }
   base.tariff = { q: opts.vehicle }
   base.jobStatus = opts.status
   base.charges = (opts.charges ?? []).map((c, i) => ({ id: `seed-c${i}`, ...c }))
-  const mk = (id: number, type: 'Collection' | 'Delivery', pc: string): BookingState['stops'][number] => ({
-    id, type, q: '', addr: { co: '', address: '', city: '', pc, country: 'England', src: '', cls: 'manual' },
-    contact: null, time: { mode: 'asap' }, reference: '', note: '', goods: '', goodsTouched: false,
+  const mk = (id: number, type: 'Collection' | 'Delivery', pc: string, s?: StopSeed): BookingState['stops'][number] => ({
+    id, type, q: '', addr: { co: s?.co || '', address: '', city: '', pc, country: 'England', src: '', cls: 'manual' },
+    contact: s?.contact ?? null, time: { mode: 'asap' }, reference: s?.ref || '', note: '', goods: '', goodsTouched: false,
     alloc: [], allocTouched: false, svc: {}, status: 'booked', eta: '', pod: null,
   })
-  base.stops = [mk(1, 'Collection', opts.collPc), mk(2, 'Delivery', opts.delPc)]
+  base.stops = [mk(1, 'Collection', opts.collPc, opts.coll), mk(2, 'Delivery', opts.delPc, opts.del)]
   return base
 }
 
@@ -117,21 +122,36 @@ type SeedRow = {
   progress: string; revenue: number; cost: number
   collectAt: string; deliverAt: string; collectMode: TimeMode; deliverMode: TimeMode
   collectEta: string; deliverEta: string; custRef: string; notes?: string
-  actorName: string; supplierName: string
+  actorName: string; supplierName: string; supplierPhone?: string; supplierEmail?: string
 }
 
 function seedJobs(): SavedJob[] {
   const rows: SeedRow[] = [
-    { ref: 'BK-100482', status: 'Booking', at: '06-06-2026 18:53', snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'WA2 7NE', vehicle: '18t', charges: [{ label: 'Handballing', rate: 35 }] }), notes: 'Call ahead — gate code 4471.',
-      progress: 'Collected', revenue: 420, cost: 280, collectAt: '100626 09:30', deliverAt: '100626 14:15', collectMode: 'at', deliverMode: 'by', collectEta: '09:25', deliverEta: '14:05', custRef: 'PO-7781', actorName: 'Sarah Doyle', supplierName: 'Dave Foster' },
-    { ref: 'BK-100479', status: 'Booking', at: '05-06-2026 11:20', snap: sample({ status: 'Booking', cust: 'meridian', collPc: 'M15 4FN', delPc: 'L7 9PG', vehicle: 'Luton' }),
-      progress: 'En route DEL', revenue: 310, cost: 210, collectAt: '110626 08:00', deliverAt: '110626 16:30', collectMode: 'asap', deliverMode: 'between', collectEta: '08:10', deliverEta: '16:20', custRef: 'MER-22', actorName: 'James Hill', supplierName: 'Aisha Khan' },
-    { ref: 'BK-100485', status: 'Booking', at: '07-06-2026 08:05', snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'BD1 2AB', vehicle: '7.5t' }),
-      progress: 'Unallocated', revenue: 240, cost: 150, collectAt: '120626 11:00', deliverAt: '120626 15:30', collectMode: 'at', deliverMode: 'by', collectEta: '', deliverEta: '', custRef: 'WRONG-1', actorName: 'Sarah Doyle', supplierName: '' },
-    { ref: 'BK-100486', status: 'Booking', at: '07-06-2026 09:40', snap: sample({ status: 'Booking', cust: 'orbit', collPc: 'LS4 2AB', delPc: 'M1 4ET', vehicle: 'Artic' }),
-      progress: 'Part DEL', revenue: 560, cost: 390, collectAt: '110626 06:30', deliverAt: '110626 18:00', collectMode: 'at', deliverMode: 'between', collectEta: '06:30', deliverEta: '17:40', custRef: 'ORB-90', actorName: 'James Hill', supplierName: 'Rob Niles' },
+    { ref: 'BK-100482', status: 'Booking', at: '06-06-2026 18:53', notes: 'Call ahead — gate code 4471.',
+      snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'WA2 7NE', vehicle: '18t', charges: [{ label: 'Handballing', rate: 35 }],
+        coll: { co: 'Brightway DC', ref: 'COL-7781', contact: { name: 'Mark Stiles', tel: '0113 555 0190', email: 'goodsout@brightway.co.uk' } },
+        del: { co: 'Tesco Extra', ref: 'DEL-7781', contact: { name: 'Goods-in desk', tel: '01925 555 010', email: 'bay4@tesco-wa2.co.uk' } } }),
+      progress: 'Collected', revenue: 420, cost: 280, collectAt: '10-06-26 09:30', deliverAt: '10-06-26 14:15', collectMode: 'at', deliverMode: 'by', collectEta: '09:25', deliverEta: '14:05', custRef: 'PO-7781',
+      actorName: 'Sarah Doyle', supplierName: 'Dave Foster', supplierPhone: '07700 900204', supplierEmail: 'dave.foster@hauliers.co.uk' },
+    { ref: 'BK-100479', status: 'Booking', at: '05-06-2026 11:20',
+      snap: sample({ status: 'Booking', cust: 'meridian', collPc: 'M15 4FN', delPc: 'L7 9PG', vehicle: 'Luton',
+        coll: { co: 'Meridian Foods', ref: 'MER-C2', contact: { name: 'Dispatch', tel: '0161 555 7781', email: 'dispatch@meridianfoods.com' } },
+        del: { co: 'Liverpool RDC', contact: { name: 'Sam Okafor', tel: '0151 555 6620', email: 'sam@lrdc.co.uk' } } }),
+      progress: 'En route DEL', revenue: 310, cost: 210, collectAt: '11-06-26 08:00', deliverAt: '11-06-26 16:30', collectMode: 'asap', deliverMode: 'between', collectEta: '08:10', deliverEta: '16:20', custRef: 'MER-22',
+      actorName: 'James Hill', supplierName: 'Aisha Khan', supplierPhone: '07700 900118', supplierEmail: 'aisha.khan@hauliers.co.uk' },
+    { ref: 'BK-100485', status: 'Booking', at: '07-06-2026 08:05',
+      snap: sample({ status: 'Booking', cust: 'brightway', collPc: 'LS9 0PX', delPc: 'BD1 2AB', vehicle: '7.5t',
+        coll: { co: 'Brightway DC', ref: 'COL-805' }, del: { co: 'Bradford store' } }),
+      progress: 'Unallocated', revenue: 240, cost: 150, collectAt: '12-06-26 11:00', deliverAt: '12-06-26 15:30', collectMode: 'at', deliverMode: 'by', collectEta: '', deliverEta: '', custRef: 'WRONG-1',
+      actorName: 'Sarah Doyle', supplierName: '' },
+    { ref: 'BK-100486', status: 'Booking', at: '07-06-2026 09:40',
+      snap: sample({ status: 'Booking', cust: 'orbit', collPc: 'LS4 2AB', delPc: 'M1 4ET', vehicle: 'Artic',
+        coll: { co: 'Orbit Retail NDC', ref: 'ORB-C90', contact: { name: 'Yard office', tel: '0113 555 9009', email: 'yard@orbitretail.com' } },
+        del: { co: 'Manchester hub' } }),
+      progress: 'Part DEL', revenue: 560, cost: 390, collectAt: '11-06-26 06:30', deliverAt: '11-06-26 18:00', collectMode: 'at', deliverMode: 'between', collectEta: '06:30', deliverEta: '17:40', custRef: 'ORB-90',
+      actorName: 'James Hill', supplierName: 'Rob Niles', supplierPhone: '07700 900330', supplierEmail: 'rob.niles@hauliers.co.uk' },
     { ref: 'QU-100501', status: 'Quote', at: '06-06-2026 09:14', snap: sample({ status: 'Quote', cust: 'orbit', collPc: 'LS4 2AB', delPc: 'WA4 1PX', vehicle: '7.5t' }),
-      progress: '', revenue: 180, cost: 120, collectAt: '120626 10:00', deliverAt: '120626 15:00', collectMode: 'at', deliverMode: 'at', collectEta: '', deliverEta: '', custRef: '', actorName: 'Sarah Doyle', supplierName: '' },
+      progress: '', revenue: 180, cost: 120, collectAt: '12-06-26 10:00', deliverAt: '12-06-26 15:00', collectMode: 'at', deliverMode: 'at', collectEta: '', deliverEta: '', custRef: '', actorName: 'Sarah Doyle', supplierName: '' },
     { ref: 'QQ-100503', status: 'Quick Quote', at: '06-06-2026 10:02', snap: sample({ status: 'Quick Quote', cust: 'cal', collPc: 'LS9 0PX', delPc: 'M15 4FN', vehicle: 'Small van' }),
       progress: '', revenue: 95, cost: 70, collectAt: '', deliverAt: '', collectMode: 'asap', deliverMode: 'asap', collectEta: '', deliverEta: '', custRef: '', actorName: 'Tom Baker', supplierName: '' },
     { ref: 'DR-100510', status: 'Draft', at: '06-06-2026 16:41', snap: sample({ status: 'Draft', cust: 'brightway', collPc: 'WA2 7NE', delPc: 'LS9 0PX', vehicle: '' }),
@@ -156,6 +176,8 @@ function seedJobs(): SavedJob[] {
     custRef: r.custRef,
     actorName: r.actorName,
     supplierName: r.supplierName,
+    supplierPhone: r.supplierPhone ?? '',
+    supplierEmail: r.supplierEmail ?? '',
   }))
 }
 
@@ -193,6 +215,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       collectEta: '', deliverEta: '', custRef: '',
       actorName,
       supplierName: drv?.name ?? '',
+      supplierPhone: '',
+      supplierEmail: '',
     }
     set((s) => ({ jobs: [job, ...s.jobs], seq }))
     return job
