@@ -587,8 +587,36 @@
 .shell.panel-open .ed-2col .g-cpc, .shell.panel-open .ed-2col .g-cte { grid-template-columns: 1fr 1fr; }
 /* requirements: 2 columns (3 is cramped in the narrower section) */
 .shell.panel-open .panelbox #reqBox { grid-template-columns: 1fr 1fr; }
-/* slightly smaller section headers/labels for the tighter section */
-.shell.panel-open .rtitle, .shell.panel-open .sechd { font-size: 11px; }
+
+/* ── calm + shrink the booking form for the narrower section ── */
+/* section headers a touch smaller */
+.shell.panel-open .rtitle,
+.shell.panel-open .panelbox .sechead { font-size: 10px; }
+/* stop head: smaller, less busy */
+.shell.panel-open .stop-head { gap: 6px; padding: 5px 9px; }
+.shell.panel-open .stop-head h3 { font-size: 11.5px; }
+.shell.panel-open .stop-head .num { width: 18px; height: 18px; font-size: 10px; }
+.shell.panel-open .stop-head .typesel { height: 22px; font-size: 11px; }
+.shell.panel-open .sh-actions { gap: 5px; }
+.shell.panel-open .sh-actions .btn { height: 22px; font-size: 11px; padding: 0 8px; }
+.shell.panel-open .sh-actions .status-pill { font-size: 9px; padding: 1px 6px; }
+/* mute the ref chip — it was a strong blue for a tiny bit of data */
+.shell.panel-open .stop-ref-tag {
+  background: var(--field); color: var(--muted); border-color: var(--line);
+  font-size: 10px; padding: 1px 7px; font-weight: 600;
+}
+/* preview rows stack to one column so values stop truncating; smaller text */
+.shell.panel-open .prow { display: flex; flex-direction: column; gap: 1px; }
+.shell.panel-open .pv .f { padding-right: 0; }
+.shell.panel-open .f .k { font-size: 9px; }
+.shell.panel-open .f .v { font-size: 11.5px; }
+/* edit view: smaller, calmer (section heads were strong accent-blue) */
+.shell.panel-open .edsec { padding: 11px; gap: 7px; }
+.shell.panel-open .edhead { font-size: 10px; letter-spacing: .05em; color: var(--head); }
+.shell.panel-open .ed-compact .fld > label { font-size: 10px; }
+.shell.panel-open .ed-compact input,
+.shell.panel-open .ed-compact select,
+.shell.panel-open .ed-compact textarea { font-size: 12px; }
 /* the wizard's fixed right rail would sit under the email client — hide it in this
  * mode (History/Providers aren't part of the vertical quick-booking flow). */
 .shell.panel-open .siderail:not(.siderail-left) { display: none; }
