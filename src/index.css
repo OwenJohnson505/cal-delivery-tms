@@ -552,10 +552,8 @@
 .jobs-table .num { text-align: right; white-space: nowrap; }
 /* date/time cell + timing tag */
 .dt-cell { display: inline-flex; align-items: center; gap: 6px; }
-.tt { font-size: 9px; font-weight: 800; letter-spacing: .03em; border-radius: 999px; padding: 1px 6px; }
-.tt-asap { color: #475569; background: #eef1f5; }
-.tt-at { color: var(--accent); background: var(--accent-soft); }
-.tt-by { color: #b45309; background: #fdeccb; }
+/* timing tag — no colour cue: ink text, no fill, just a faint outline */
+.tt { font-size: 9px; font-weight: 700; letter-spacing: .03em; border-radius: 999px; padding: 1px 6px; color: var(--ink); background: transparent; border: 1px solid var(--line); }
 /* ref-accepted tick / cross */
 .ref-ok, .ref-bad { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 800; }
 .ref-ok { color: #15803d; background: #dcf3e3; }
@@ -566,12 +564,13 @@
 .notes-btn.has { color: var(--ink); }
 .notes-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .notes-text { white-space: pre-wrap; line-height: 1.5; font-size: 13px; }
-/* clickable route points + supplier */
+/* clickable route points + supplier — same ink as everything else (clickability is
+ * conveyed by the slight bold + hover underline, not by colour). */
 .route-cell { display: inline-flex; align-items: center; gap: 4px; }
-.route-pt { background: none; border: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.route-pt { background: none; border: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; }
 .route-pt:hover { text-decoration: underline; }
 .route-arrow { color: var(--muted); margin: 0 2px; }
-.cell-link { background: none; border: none; padding: 0; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; text-align: left; }
+.cell-link { background: none; border: none; padding: 0; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: left; }
 .cell-link:hover { text-decoration: underline; }
 /* click-to-open detail popover */
 .cell-pop { position: fixed; z-index: 600; }
