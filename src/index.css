@@ -794,12 +794,16 @@
   padding: 28px;
   font-style: italic;
 }
+/* keep this a real table-cell (display:flex on a td detaches it from the row —
+ * misaligned borders); right-align inline buttons and hug the content instead */
 .list-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
+  text-align: right;
   white-space: nowrap;
+  width: 1%;
 }
+.list-actions .btn + .btn,
+.list-actions .btn + .kebab,
+.list-actions .kebab + .btn { margin-left: 6px; }
 
 /* ============================================================
  * TOP-BAR DESIGN PROTOCOL

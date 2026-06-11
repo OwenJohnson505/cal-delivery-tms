@@ -21,8 +21,9 @@ import type { ReactNode } from 'react'
 const COL_LABEL = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
 const NUM_COLS = new Set<ColumnKey>(['revenue', 'cost', 'margin'])
 const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'actor', 'supplier'])
-/** Columns that hug their content (width:1%) so flexible ones absorb the slack. */
-const FIT_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'vehicle', 'refAccepted', 'notes'])
+/** Columns that hug their content (width:1%) so flexible ones absorb the slack —
+ * anything whose data length barely varies (dates, times, postcodes, icons). */
+const FIT_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'route', 'vehicle', 'refAccepted', 'notes'])
 
 /** Small ASAP / AT / BY tag next to a time ('between' shows nothing — implied by a range). */
 function TimeTag({ mode }: { mode: string }) {
