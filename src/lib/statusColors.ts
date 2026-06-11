@@ -28,6 +28,10 @@ const P = {
   rose: { fg: '#be123c', bg: '#fce4ea' },
   teal: { fg: '#0f766e', bg: '#d2efeb' },
   deepGreen: { fg: '#0e7a57', bg: '#ccecdc' },
+  lime: { fg: '#4d7c0f', bg: '#e9f3d2' },
+  orange: { fg: '#c2410c', bg: '#fde3cf' },
+  red: { fg: '#b91c1c', bg: '#fde0e0' },
+  slate: { fg: '#3f5573', bg: '#e6ecf5' },
 } satisfies Record<string, StatusColor>
 
 // Canonical status (normalised key) → colour. Keys are lowercase, no digits/counts.
@@ -48,6 +52,17 @@ const STATUS: Record<string, StatusColor> = {
   'on route to delivery': P.violet,
   'at delivery': P.rose,
   delivered: P.deepGreen,
+
+  // ── Booking job statuses (the booking-list "Status" column) ──
+  unallocated: P.grey,
+  pending: P.amber,
+  'en route col': P.cyan,
+  'on site col': P.teal,
+  'part col': P.lime,
+  'en route del': P.violet,
+  'on site del': P.rose,
+  'part del': P.orange,
+  failed: P.red,
 
   // ── Aliases for the current stop-status vocabulary ──
   booked: P.blue,

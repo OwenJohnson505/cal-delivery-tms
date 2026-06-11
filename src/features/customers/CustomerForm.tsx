@@ -119,6 +119,7 @@ export function CustomerForm({ customer, onClose, onSave }: { customer?: Custome
     }
     onSave({
       ...d,
+      displayName: d.displayName.trim() || d.companyName,
       invoicing: { ...d.invoicing, tradingName: d.invoicing.sameAsCompany ? d.companyName : d.invoicing.tradingName },
     })
   }
@@ -245,10 +246,13 @@ function AccountTab({ d, set, setKind, setStartDate, accountCode, applyCompany }
             <label>Find company</label>
             <CompanySearch onPick={applyCompany} />
           </div>
-          <div className="fld"><label>Company name *</label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Shown across the system" /></div>
+          <div className="g2">
+            <div className="fld"><label>Company name * <span className="cf-hint">legal / system</span></label><input value={d.companyName} onChange={(e) => set({ companyName: e.target.value })} placeholder="Legal name" /></div>
+            <div className="fld"><label>Display name <span className="cf-hint">shown across the app</span></label><input value={d.displayName} onChange={(e) => set({ displayName: e.target.value })} placeholder={d.companyName || 'Defaults to company name'} /></div>
+          </div>
           <div className="fld">
-            <label>Alternative / reference names</label>
-            <ChipList values={d.altNames} placeholder="Other names / nicknames this customer is known by…" onChange={(v) => set({ altNames: v })} />
+            <label>Nicknames / reference names</label>
+            <ChipList values={d.altNames} placeholder="Other names this customer is known by…" onChange={(v) => set({ altNames: v })} />
           </div>
         </Section>
       ) : (

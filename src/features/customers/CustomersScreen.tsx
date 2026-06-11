@@ -89,7 +89,7 @@ export function CustomersScreen() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id} onDoubleClick={() => setEditing(c)}>
-                  <td><b>{c.companyName}</b></td>
+                  <td><b>{c.displayName || c.companyName}</b>{c.displayName && c.displayName !== c.companyName && <div className="cell-sub">{c.companyName}</div>}</td>
                   <td>{c.accountKind === 'personal' ? 'Personal' : c.companyType}</td>
                   <td>{c.accountCode}</td>
                   <td><span className={'itag' + (c.status === 'inactive' ? ' itag-muted' : '')}>{c.status === 'active' ? 'Active' : 'Inactive'}</span></td>

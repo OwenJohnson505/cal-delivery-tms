@@ -133,8 +133,10 @@ export interface Customer {
   // Account — type first; it drives the rest of the form
   accountKind: AccountKind
   companyType: string // company sub-type (company accounts only)
-  /** System / display name. For a company: the company name; for personal: the full name. */
+  /** System name. For a company: the legal/company name; for personal: the full name. */
   companyName: string
+  /** The name shown across the app (booking list, header). Defaults to the company name. */
+  displayName: string
   altNames: string[] // alternative / reference names + nicknames
   /** Personal accounts: the individual's own contact details. */
   personalEmail: string
@@ -174,6 +176,7 @@ export function blankCustomerDraft(): CustomerDraft {
     accountKind: 'company',
     companyType: COMPANY_TYPES[0],
     companyName: '',
+    displayName: '',
     altNames: [],
     personalEmail: '',
     personalPhone: '',
@@ -303,6 +306,7 @@ function seedCustomers(): Customer[] {
       accountCode: `CUS-${1001 + i}`,
       accountKind: 'company' as const,
       companyName: c.name,
+      displayName: c.altNames[0] || c.name,
       altNames: c.altNames,
       startDate: '01-04-2025',
       departmentId: org.departmentId,
@@ -310,7 +314,12 @@ function seedCustomers(): Customer[] {
       contacts: c.contacts.map(([name, email, phone, role], ci) => ({
         id: crypto.randomUUID(), name, email, phone, role, isMain: ci === 0, defaultPo: '',
       })),
-      invoicing: { ...base.invoicing, tradingName: c.name },
+      invoicing: {
+        ...base.invoicing,
+        tradingName: c.name,
+        // Brightway requires a PO with an accepted prefix (drives the Ref-OK check).
+        ...(c.id === 'brightway' ? { poRequired: true, poPrefixes: ['PO', 'BWT'] } : {}),
+      },
       customFields: SEED_CUSTOM_FIELDS[c.id] ?? [],
     }
   })

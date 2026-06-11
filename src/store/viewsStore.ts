@@ -11,8 +11,9 @@
 import { create } from 'zustand'
 
 export type ColumnKey =
-  | 'ref' | 'customer' | 'progress' | 'status' | 'route' | 'vehicle'
-  | 'collection' | 'delivery' | 'revenue' | 'cost' | 'margin' | 'actor' | 'driver'
+  | 'ref' | 'customer' | 'status' | 'collection' | 'delivery'
+  | 'collectionEta' | 'deliveryEta' | 'refAccepted' | 'route' | 'vehicle'
+  | 'supplier' | 'revenue' | 'cost' | 'margin' | 'actor' | 'notes'
 
 export interface ColumnDef { key: ColumnKey; label: string }
 export interface ColumnState { key: ColumnKey; visible: boolean }
@@ -28,17 +29,20 @@ export interface SavedView {
 export const COLUMNS: ColumnDef[] = [
   { key: 'ref', label: 'Ref' },
   { key: 'customer', label: 'Customer' },
-  { key: 'progress', label: 'Progress' },
   { key: 'status', label: 'Status' },
-  { key: 'route', label: 'Route' },
-  { key: 'vehicle', label: 'Vehicle' },
   { key: 'collection', label: 'Collection' },
   { key: 'delivery', label: 'Delivery' },
+  { key: 'collectionEta', label: 'Coll ETA' },
+  { key: 'deliveryEta', label: 'Del ETA' },
+  { key: 'refAccepted', label: 'Ref OK' },
+  { key: 'route', label: 'Route' },
+  { key: 'vehicle', label: 'Vehicle' },
+  { key: 'supplier', label: 'Supplier' },
   { key: 'revenue', label: 'Revenue' },
   { key: 'cost', label: 'Cost' },
   { key: 'margin', label: 'Margin' },
   { key: 'actor', label: 'Booked / quoted by' },
-  { key: 'driver', label: 'Driver' },
+  { key: 'notes', label: 'Notes' },
 ]
 const ALL_KEYS = COLUMNS.map((c) => c.key)
 
@@ -53,12 +57,12 @@ function viewFrom(id: string, name: string, visible: ColumnKey[], system = true)
 
 // Admin presets — pre-loaded for everyone (as if authored on an admin page).
 const PRESETS: SavedView[] = [
-  viewFrom('sys-standard', 'Standard', ['ref', 'customer', 'progress', 'status', 'route', 'vehicle', 'revenue', 'margin', 'driver']),
+  viewFrom('sys-standard', 'Standard', ['ref', 'customer', 'status', 'collection', 'delivery', 'collectionEta', 'deliveryEta', 'refAccepted', 'route', 'vehicle', 'supplier', 'notes']),
   viewFrom('sys-financials', 'Financials', ['ref', 'customer', 'status', 'revenue', 'cost', 'margin', 'actor']),
-  viewFrom('sys-operations', 'Operations', ['ref', 'customer', 'progress', 'route', 'vehicle', 'collection', 'delivery', 'driver']),
+  viewFrom('sys-operations', 'Operations', ['ref', 'customer', 'status', 'collection', 'delivery', 'collectionEta', 'deliveryEta', 'route', 'vehicle', 'supplier', 'notes']),
 ]
 
-const LS_KEY = 'cd-booking-views-v1'
+const LS_KEY = 'cd-booking-views-v2'
 
 interface Persisted {
   userViews: SavedView[]

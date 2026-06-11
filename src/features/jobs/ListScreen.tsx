@@ -11,14 +11,34 @@ import { useViewStore, type ListTab } from '@/store/viewStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUsersStore } from '@/store/usersStore.ts'
 import { useOrgStore, userScope } from '@/store/orgStore.ts'
-import { useCustomersStore } from '@/store/customersStore.ts'
+import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
 import type { JobStatus } from '@/types/index.ts'
 
 const COL_LABEL = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
 const NUM_COLS = new Set<ColumnKey>(['revenue', 'cost', 'margin'])
-const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'actor', 'driver'])
+const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'actor', 'supplier'])
+
+/** Small ASAP / AT / BY tag next to a time ('between' shows nothing — implied by a range). */
+function TimeTag({ mode }: { mode: string }) {
+  if (mode === 'between') return null
+  const label = mode === 'asap' ? 'ASAP' : mode === 'by' ? 'BY' : mode === 'at' ? 'AT' : ''
+  if (!label) return null
+  return <span className={'tt tt-' + mode}>{label}</span>
+}
+
+/** Is the customer ref accepted? fixed PO must match; else an accepted prefix; else any
+ * ref if one is required; else fine. */
+function refOk(custRef: string, cust?: Customer): boolean {
+  const inv = cust?.invoicing
+  if (!inv) return true
+  const ref = (custRef || '').trim()
+  if (inv.fixedPo?.trim()) return ref.toUpperCase() === inv.fixedPo.trim().toUpperCase()
+  if (inv.poPrefixes?.length) return !!ref && inv.poPrefixes.some((p) => ref.toUpperCase().startsWith(p.toUpperCase()))
+  if (inv.poRequired) return !!ref
+  return true
+}
 
 const TAB_STATUSES: Record<ListTab, JobStatus[]> = {
   bookings: ['Booking'],
@@ -50,6 +70,7 @@ export function ListScreen() {
   const visibleCols = useMemo(() => columnCfg.filter((c) => c.visible).map((c) => c.key), [columnCfg])
 
   const [query, setQuery] = useState('')
+  const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
 
   const custById = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers])
   const scope = useMemo(() => userScope(currentUserId, departments, teams), [currentUserId, departments, teams])
@@ -97,20 +118,36 @@ export function ListScreen() {
 
   const headerFor = (key: ColumnKey) => (key === 'actor' ? actionLabel(tab) : COL_LABEL[key])
   function cell(key: ColumnKey, j: SavedJob) {
+    const cust = custById[j.snapshot.book.cust ?? '']
+    const dash = <span className="muted">—</span>
     switch (key) {
       case 'ref': return <b>{j.ref}</b>
-      case 'customer': return j.customer
-      case 'progress': return j.progress ? <StatusPill status={j.progress} /> : <span className="muted">—</span>
-      case 'status': return <StatusPill status={j.status} />
+      case 'customer': return cust?.displayName || j.customer
+      case 'status': return j.progress ? <StatusPill status={j.progress} /> : dash
+      case 'collection': return j.collectAt ? <span className="dt-cell"><span>{j.collectAt}</span><TimeTag mode={j.collectMode} /></span> : dash
+      case 'delivery': return j.deliverAt ? <span className="dt-cell"><span>{j.deliverAt}</span><TimeTag mode={j.deliverMode} /></span> : dash
+      case 'collectionEta': return j.collectEta || dash
+      case 'deliveryEta': return j.deliverEta || dash
+      case 'refAccepted':
+        if (!j.custRef && !(cust?.invoicing?.poRequired || cust?.invoicing?.poPrefixes?.length)) return dash
+        return refOk(j.custRef, cust)
+          ? <span className="ref-ok" title={j.custRef ? `Accepted: ${j.custRef}` : 'Accepted'}>✓</span>
+          : <span className="ref-bad" title={j.custRef ? `Not accepted: ${j.custRef}` : 'Missing PO'}>✕</span>
       case 'route': return j.route
       case 'vehicle': return j.vehicle || '—'
-      case 'collection': return j.collectAt
-      case 'delivery': return j.deliverAt
+      case 'supplier': return j.supplierName || <span className="muted">Unassigned</span>
       case 'revenue': return `£${j.revenue.toFixed(0)}`
       case 'cost': return `£${j.cost.toFixed(0)}`
       case 'margin': return <b style={{ color: 'var(--ok)' }}>£{(j.revenue - j.cost).toFixed(0)}</b>
       case 'actor': return <>{j.actorName}<div className="cell-sub">{j.createdAt}</div></>
-      case 'driver': return j.driverName ? <>{j.driverName}<div className="cell-sub">{j.driverId}</div></> : <span className="muted">Unassigned</span>
+      case 'notes': {
+        const has = !!j.snapshot.jobNotes?.trim()
+        return (
+          <button className={'notes-btn' + (has ? ' has' : '')} onClick={(e) => { e.stopPropagation(); setNotesJob(j) }} title={has ? 'View notes' : 'No notes'}>
+            <Icon name="note" size={13} /> Notes{has && <span className="notes-dot" />}
+          </button>
+        )
+      }
       default: return null
     }
   }
@@ -211,6 +248,19 @@ export function ListScreen() {
           </table>
         </div>
       </div>
+
+      {notesJob && (
+        <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && setNotesJob(null)}>
+          <div className="modal">
+            <div className="modal-h"><b>Notes · {notesJob.ref}</b><span className="x" style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={() => setNotesJob(null)}>✕</span></div>
+            <div className="modal-b">
+              {notesJob.snapshot.jobNotes?.trim()
+                ? <div className="notes-text">{notesJob.snapshot.jobNotes}</div>
+                : <div className="hint">No notes on this job.</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
