@@ -565,6 +565,36 @@
 .jobs-table .muted { color: var(--muted); }
 .jobs-table .cell-sub { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
 .jobs-table .num { text-align: right; white-space: nowrap; }
+/* stacked cells: customer+status, date+time */
+.cust-stack { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.cust-stack .cust-name { font-weight: 600; }
+.dt-stack { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
+.dt-stack .dt-time { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11.5px; }
+
+/* sortable headers: click opens the sort+filter menu */
+.th-sortable { cursor: pointer; user-select: none; }
+.th-sortable:hover { color: var(--ink); }
+.th-lab { display: inline-flex; align-items: center; gap: 5px; }
+.th-arrow { font-size: 8px; color: var(--accent); }
+.th-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+/* header sort + filter menu */
+.hm {
+  position: fixed; z-index: 600; width: 240px;
+  background: #fff; border: 1px solid var(--line-strong); border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(16, 24, 40, .2); padding: 9px 10px;
+}
+.hm-sec-h { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 6px 2px 4px; }
+.hm-sortrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 2px; font-size: 12.5px; }
+.hm-dirs { display: inline-flex; gap: 4px; }
+.hm-dir { width: 24px; height: 22px; border: 1px solid var(--line); background: #fff; border-radius: 999px; cursor: pointer; color: var(--muted); font-size: 12px; padding: 0; }
+.hm-dir.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.hm-list { max-height: 170px; overflow: auto; display: flex; flex-direction: column; }
+.hm-chk { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+.hm-chk:hover { background: var(--field); }
+.hm-empty { font-size: 11.5px; color: var(--muted); padding: 3px 4px; }
+.hm-foot { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 7px; padding: 7px 2px 0; }
+
 /* date/time cell + timing tag */
 .dt-cell { display: inline-flex; align-items: center; gap: 6px; }
 /* timing tag — no colour cue: ink text, no fill, just a faint outline */

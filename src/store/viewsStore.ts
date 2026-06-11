@@ -11,7 +11,7 @@
 import { create } from 'zustand'
 
 export type ColumnKey =
-  | 'customer' | 'status' | 'collection' | 'delivery'
+  | 'customer' | 'collection' | 'delivery'
   | 'collectionEta' | 'deliveryEta' | 'refAccepted' | 'route' | 'vehicle'
   | 'supplier' | 'revenue' | 'cost' | 'margin' | 'actor' | 'notes'
 
@@ -27,10 +27,9 @@ export interface SavedView {
 
 /** The full column catalogue, in its natural default order. */
 export const COLUMNS: ColumnDef[] = [
-  { key: 'customer', label: 'Customer' },
-  { key: 'status', label: 'Status' },
-  { key: 'collection', label: 'Collection' },
-  { key: 'delivery', label: 'Delivery' },
+  { key: 'customer', label: 'Customer / Status' },
+  { key: 'collection', label: 'Coll Time' },
+  { key: 'delivery', label: 'Del Time' },
   { key: 'collectionEta', label: 'Coll ETA' },
   { key: 'deliveryEta', label: 'Del ETA' },
   { key: 'refAccepted', label: 'Ref OK' },
@@ -56,12 +55,12 @@ function viewFrom(id: string, name: string, visible: ColumnKey[], system = true)
 
 // Admin presets — pre-loaded for everyone (as if authored on an admin page).
 const PRESETS: SavedView[] = [
-  viewFrom('sys-standard', 'Standard', ['customer', 'status', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes', 'refAccepted']),
-  viewFrom('sys-financials', 'Financials', ['customer', 'status', 'revenue', 'cost', 'margin', 'actor']),
-  viewFrom('sys-operations', 'Operations', ['customer', 'status', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
+  viewFrom('sys-standard', 'Standard', ['customer', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes', 'refAccepted']),
+  viewFrom('sys-financials', 'Financials', ['customer', 'revenue', 'cost', 'margin', 'actor']),
+  viewFrom('sys-operations', 'Operations', ['customer', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
 ]
 
-const LS_KEY = 'cd-booking-views-v3'
+const LS_KEY = 'cd-booking-views-v4'
 
 interface Persisted {
   userViews: SavedView[]
