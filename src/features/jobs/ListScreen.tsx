@@ -475,25 +475,26 @@ export function ListScreen() {
     <div className="list-app">
       <div className={'bookings-layout' + (panelOpen ? ' with-panel' : '')}>
       <div className="list-work wide bookings-main">
-        <div className="list-head">
-          <h1>{TAB_LABEL[tab]}</h1>
+        {/* row 1: tabs + add (no page title — the active tab says where you are) */}
+        <div className="bk-tabsrow">
+          <div className="list-tabs">
+            {(Object.keys(TAB_LABEL) as ListTab[]).map((t) => (
+              <button
+                key={t}
+                className={'list-tab' + (t === tab ? ' on' : '')}
+                onClick={() => setListTab(t)}
+              >
+                {TAB_LABEL[t]} <span className="list-tab-n">{counts[t]}</span>
+              </button>
+            ))}
+          </div>
+          <span className="db-spacer" />
           <button className="btn primary" onClick={addNew}>
             <Icon name="plus" size={15} /> Add new booking
           </button>
         </div>
 
-        <div className="list-tabs">
-          {(Object.keys(TAB_LABEL) as ListTab[]).map((t) => (
-            <button
-              key={t}
-              className={'list-tab' + (t === tab ? ' on' : '')}
-              onClick={() => setListTab(t)}
-            >
-              {TAB_LABEL[t]} <span className="list-tab-n">{counts[t]}</span>
-            </button>
-          ))}
-        </div>
-
+        {/* row 2: search + data filters */}
         <div className="list-toolbar">
           <div className="tb-search">
             <Icon name="search" size={15} />
@@ -522,7 +523,10 @@ export function ListScreen() {
           {anyColFilter && (
             <button className="cm-link" onClick={() => setColFilters({})}>Clear filters</button>
           )}
-          <span className="db-spacer" />
+        </div>
+
+        {/* row 3: view configuration */}
+        <div className="list-toolbar bk-viewrow">
           <ColumnsMenu />
           <button className={'btn sm' + (panelOpen ? ' primary' : '')} onClick={() => setPanelOpen((o) => !o)} title="Toggle side panel">
             <Icon name="sidebar" size={14} /> Panel
