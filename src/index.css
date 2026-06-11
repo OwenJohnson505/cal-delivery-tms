@@ -706,6 +706,74 @@
 .ep-banner-presence { background: var(--accent-soft); border-bottom-color: #dbe7fb; }
 .ep-banner-undo { background: #fff8e1; border-top: 1px solid #f0dfa3; border-bottom: none; }
 
+/* ── email panel: two-column, width-first redesign ──
+ * Inbox list (left) · reader (right) so the message body gets the height.
+ * Below ~620px panel width (wizard open) the columns stack via container query. */
+.email-panel { container-type: inline-size; }
+.ep-body { display: flex; flex: 1; min-height: 0; }
+.ep-listcol { width: 290px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.ep-readcol { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+.ep-listcol .ep-list { flex: 1; max-height: none; border-bottom: none; }
+@container (max-width: 619px) {
+  .ep-body { flex-direction: column; }
+  .ep-listcol { width: auto; border-right: none; border-bottom: 1px solid var(--line); max-height: 40%; }
+  .ep-listcol .ep-list { max-height: none; }
+}
+
+/* compact two-line inbox rows: category dot + sender + meta / subject */
+.ep-row { padding: 5px 10px; gap: 1px; }
+.ep-row-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ep-catdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.ep-catdot.cat-urgent { background: #b91c1c; }
+.ep-catdot.cat-eta { background: #d97706; }
+.ep-catdot.cat-driver { background: #0e7490; }
+.ep-catdot.cat-general { background: #c4ccd6; }
+.ep-row-from { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ep-row-subj { flex: 1; min-width: 0; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.ep-row.unread .ep-row-subj { color: var(--ink); font-weight: 600; }
+.ep-row-at { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.ep-mini { font-size: 10px; flex: none; }
+.ep-check { width: 12px; height: 12px; margin: 0; opacity: 0; flex: none; }
+.ep-row:hover .ep-check, .ep-check:checked { opacity: 1; }
+.ep-ava { width: 16px; height: 16px; font-size: 8px; }
+
+/* reader: one tight header block (title · meta · toolbar) */
+.ep-rhead { padding: 8px 12px 7px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; flex: none; }
+.ep-rtitle { display: flex; align-items: center; gap: 7px; font-size: 13px; min-width: 0; }
+.ep-rtitle b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-rmeta { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ep-rtools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* linked-job strip (one line, expandable) */
+.ep-jobwrap { flex: none; border-bottom: 1px solid var(--line); background: #fafbfd; }
+.ep-jobstrip { display: flex; align-items: center; gap: 8px; padding: 5px 12px; font-size: 11.5px; min-width: 0; }
+.ep-js-acct { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
+.ep-js-acct i { font-style: normal; color: var(--muted); font-weight: 400; }
+.ep-js-eta { color: var(--muted); white-space: nowrap; }
+.ep-js-toggle { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 11px; padding: 0 4px; }
+.ep-js-toggle:hover { color: var(--ink); }
+.ep-jobwrap .ep-job { margin: 0; border: none; border-top: 1px dashed var(--line); border-radius: 0; }
+
+/* the ⋯ More menu (right-aligned, with section labels) */
+.ep-menu-right { left: auto; right: 0; z-index: 482; max-height: 320px; overflow: auto; }
+.ep-menu-sec { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 5px 9px 2px; }
+
+/* composer: textarea + side column (template picker above Send) */
+.ep-compose { align-items: stretch; }
+.ep-compose-side { display: flex; flex-direction: column; gap: 6px; justify-content: flex-end; flex: none; }
+
+/* pop-out internal comments drawer */
+.ep-cdrawer {
+  position: absolute; top: 0; left: 0; bottom: 0; width: min(320px, 86%);
+  background: #fffdf2; border-right: 1px solid #f0dfa3;
+  box-shadow: 8px 0 24px rgba(16, 24, 40, .12); z-index: 60;
+  display: flex; flex-direction: column;
+}
+.ep-cdrawer-h { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #f0dfa3; font-size: 12.5px; flex: none; }
+.ep-cdrawer-list { flex: 1; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ep-cdrawer-add { border-top: 1px solid #f0dfa3; padding: 8px 12px; display: flex; gap: 6px; align-items: flex-end; flex: none; }
+.ep-cdrawer-add textarea { flex: 1; border: 1px solid #f0dfa3; border-radius: 8px; font: inherit; font-size: 12px; padding: 6px 8px; resize: none; background: #fff; }
+
 /* "live" jobs table — content-sized: every column crops to its longest entry and
  * the card hugs the table (scrolling only if it genuinely can't fit) */
 .list-tablewrap:has(.jobs-table) { overflow-x: auto; width: fit-content; max-width: 100%; }

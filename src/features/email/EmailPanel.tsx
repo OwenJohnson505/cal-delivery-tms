@@ -1,17 +1,13 @@
 /**
- * EmailPanel — Front-style inbox (phase 1: inbox UX, job context + linking,
- * collaboration, tags, saved views — all dummy data).
- *
- *  • Multi-mailbox inbox with mailbox filter + full-text search.
- *  • Triage lanes (Open → In progress → Waiting → Done): chips with counts; drag a
- *    conversation onto a lane chip to move it.
- *  • Bulk actions (select rows → assign / lane / tag / snooze).
- *  • Pin / mute / follow / unread, presence ("X is viewing"), undo send.
- *  • Collapsed quoted history, split & merge conversations.
- *  • Live job context card (linked or detected job) with inline job actions and
- *    attachment → job filing. Sender → account recognition.
- *  • Conversation tags (manual + rule auto-tags), saved views + smart folders.
- *  • Keyboard: j/k navigate · r reply · s snooze 1h · a assign me · u unread · p pin.
+ * EmailPanel — Front-style inbox, designed width-first:
+ *  • Two columns inside the panel: compact inbox list (left) · reader (right), so the
+ *    message body gets real height. Below ~620px panel width (wizard open) it stacks.
+ *  • Reader chrome is one tight header (subject + meta + a single toolbar row); the
+ *    rarely-used actions live behind a ⋯ More menu; the linked-job context is a
+ *    one-line strip that expands on demand.
+ *  • Internal comments live in a pop-out drawer (💬), keeping the timeline clean.
+ *  • Everything else from phase 1: lanes (drag to move), bulk, rules/triage, tags,
+ *    saved views, snooze/remind, undo send, split/merge, keyboard nav, create job.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
@@ -73,8 +69,6 @@ function RefText({ text }: { text: string }) {
   )
 }
 
-/** Pre-fill a booking from the thread for approval (company by sender, vehicle +
- * postcodes from the text, account note onto the job). */
 function createJobFromEmail(thread: EmailThread) {
   const inbound = thread.msgs.filter((m) => !m.outbound)
   const sender = (inbound[0]?.from.email ?? '').toLowerCase()
@@ -99,24 +93,22 @@ function createJobFromEmail(thread: EmailThread) {
   useViewStore.getState().openWizard(null)
 }
 
-/** Live job context card: linked (persistent) or detected job, with inline actions. */
-function JobContextCard({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (text: string) => void }) {
+/** One-line job strip (linked or detected job) that expands into the full card. */
+function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (text: string) => void }) {
   const jobs = useJobsStore((s) => s.jobs)
   const setProgress = useJobsStore((s) => s.setProgress)
   const appendJobNote = useJobsStore((s) => s.appendJobNote)
   const linkJob = useEmailsStore((s) => s.linkJob)
   const addComment = useEmailsStore((s) => s.addComment)
   const customers = useCustomersStore((s) => s.customers)
+  const [open, setOpen] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
-  const [noting, setNoting] = useState(false)
 
-  // linked job, else first job ref detected in the text
   const text = threadText(thread).toUpperCase()
   const detected = jobs.find((j) => j.ref.toUpperCase() === thread.linkedJobRef?.toUpperCase())
     ?? jobs.find((j) => text.includes(j.ref.toUpperCase()) || (j.custRef && text.includes(j.custRef.toUpperCase())))
   const persisted = !!thread.linkedJobRef && detected?.ref.toUpperCase() === thread.linkedJobRef.toUpperCase()
 
-  // sender → account recognition
   const sender = (thread.msgs.find((m) => !m.outbound)?.from.email ?? '').toLowerCase()
   const account = customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender))
   const accountJobs = account ? jobs.filter((j) => j.snapshot.book.cust === account.id).length : 0
@@ -125,49 +117,47 @@ function JobContextCard({ thread, onInsertEta }: { thread: EmailThread; onInsert
 
   if (!detected && !account) return null
   return (
-    <div className="ep-job">
-      {account && (
-        <div className="ep-job-acct">
-          <Icon name="building" size={13} /> <b>{account.displayName || account.companyName}</b>
-          <span className="cf-hint">{accountJobs} job{accountJobs === 1 ? '' : 's'} on file</span>
-        </div>
-      )}
-      {detected && (
-        <>
+    <div className="ep-jobwrap">
+      <div className="ep-jobstrip">
+        {account && <span className="ep-js-acct"><Icon name="building" size={12} /> {account.displayName || account.companyName} <i>· {accountJobs} job{accountJobs === 1 ? '' : 's'}</i></span>}
+        {detected && (
+          <>
+            <button className="cell-link" onClick={() => openJob(detected)}>{detected.ref}</button>
+            {detected.progress && <StatusPill status={detected.progress} />}
+            <span className="ep-js-eta">ETA {detected.collectEta || '—'} / {detected.deliverEta || '—'}</span>
+          </>
+        )}
+        <span className="db-spacer" />
+        {detected && (
+          <button className="ep-js-toggle" onClick={() => setOpen((o) => !o)} title="Job details & actions">{open ? '▴' : '▾'}</button>
+        )}
+      </div>
+      {open && detected && (
+        <div className="ep-job">
           <div className="ep-job-h">
             <b>{detected.ref}</b>
-            {detected.progress && <StatusPill status={detected.progress} />}
+            <span className="cf-hint">{detected.route} · {detected.vehicle || '—'} · {detected.supplierName || 'Unassigned'}</span>
             <span className="db-spacer" />
             {persisted
-              ? <button className="cm-link" onClick={() => linkJob(thread.id, null)} title="Remove the persistent link">Linked ✓</button>
-              : <button className="cm-link" onClick={() => linkJob(thread.id, detected.ref)} title="Link this thread to the job for life">Link</button>}
-            <button className="cm-link" onClick={() => openJob(detected)}>Open job</button>
+              ? <button className="cm-link" onClick={() => linkJob(thread.id, null)}>Linked ✓</button>
+              : <button className="cm-link" onClick={() => linkJob(thread.id, detected.ref)}>Link</button>}
           </div>
           <div className="ep-job-grid">
             <span>Coll</span><b>{detected.collectAt || '—'}{detected.collectEta ? ` · ETA ${detected.collectEta}` : ''}</b>
             <span>Del</span><b>{detected.deliverAt || '—'}{detected.deliverEta ? ` · ETA ${detected.deliverEta}` : ''}</b>
-            <span>Route</span><b>{detected.route}</b>
-            <span>Supplier</span><b>{detected.supplierName || 'Unassigned'}</b>
           </div>
           <div className="ep-job-actions">
             <select className="ep-assign" value={detected.progress || ''} onChange={(e) => setProgress(detected.id, e.target.value)} title="Update job status">
               <option value="">Status…</option>
               {STATUSES.map((st) => <option key={st}>{st}</option>)}
             </select>
-            <button
-              className="btn sm"
-              onClick={() => onInsertEta(`Hi,\n\nUpdate on ${detected.ref}: collection ETA ${detected.collectEta || 'TBC'}, delivery ETA ${detected.deliverEta || 'TBC'}.\n\nThanks,\nCal Delivery`)}
-            >
+            <button className="btn sm" onClick={() => onInsertEta(`Hi,\n\nUpdate on ${detected.ref}: collection ETA ${detected.collectEta || 'TBC'}, delivery ETA ${detected.deliverEta || 'TBC'}.\n\nThanks,\nCal Delivery`)}>
               Insert ETA reply
             </button>
-            {!noting ? (
-              <button className="btn sm" onClick={() => setNoting(true)}>Add job note</button>
-            ) : (
-              <span className="ep-job-note">
-                <input autoFocus placeholder="Note…" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && noteDraft.trim()) { appendJobNote(detected.id, noteDraft.trim()); addComment(thread.id, `Note added to ${detected.ref}: ${noteDraft.trim()}`); setNoteDraft(''); setNoting(false) } }} />
-              </span>
-            )}
+            <span className="ep-job-note">
+              <input placeholder="Add job note + Enter…" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && noteDraft.trim()) { appendJobNote(detected.id, noteDraft.trim()); addComment(thread.id, `Note added to ${detected.ref}: ${noteDraft.trim()}`); setNoteDraft('') } }} />
+            </span>
           </div>
           {thread.msgs.some((m) => m.attachments?.length) && (
             <div className="ep-job-files">
@@ -181,13 +171,13 @@ function JobContextCard({ thread, onInsertEta }: { thread: EmailThread; onInsert
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )
 }
 
-// ── settings view (rules + templates) — unchanged behaviour, rules gain tags ──
+// ── settings view (rules + templates) ──────────────────────────────────────────
 function SettingsView({ onBack }: { onBack: () => void }) {
   const rules = useEmailsStore((s) => s.rules)
   const addRule = useEmailsStore((s) => s.addRule)
@@ -284,7 +274,6 @@ export function EmailPanel() {
   const addTag = useEmailsStore((s) => s.addTag)
   const removeTag = useEmailsStore((s) => s.removeTag)
   const snooze = useEmailsStore((s) => s.snooze)
-  const unsnooze = useEmailsStore((s) => s.unsnooze)
   const remind = useEmailsStore((s) => s.remind)
   const clearReminder = useEmailsStore((s) => s.clearReminder)
   const splitThread = useEmailsStore((s) => s.splitThread)
@@ -305,12 +294,14 @@ export function EmailPanel() {
   const [snoozedOnly, setSnoozedOnly] = useState(false)
   const [smart, setSmart] = useState('')
   const [draft, setDraft] = useState('')
-  const [mode, setMode] = useState<'reply' | 'comment'>('reply')
-  const [menu, setMenu] = useState<'snooze' | 'remind' | 'merge' | null>(null)
+  const [more, setMore] = useState(false)
+  const [comments, setComments] = useState(false)
+  const [commentDraft, setCommentDraft] = useState('')
   const [checked, setChecked] = useState<string[]>([])
   const [savingView, setSavingView] = useState(false)
   const [viewName, setViewName] = useState('')
   const [showAllMsgs, setShowAllMsgs] = useState(false)
+  const [tagDraft, setTagDraft] = useState('')
   const [pending, setPending] = useState<{ threadId: string; body: string; timer: number } | null>(null)
   const composeRef = useRef<HTMLTextAreaElement>(null)
 
@@ -338,16 +329,12 @@ export function EmailPanel() {
   const snoozedCount = threads.filter((t) => !!t.snoozedUntil).length
   const laneCount = (l: Lane) => threads.filter((t) => t.lane === l && !t.snoozedUntil).length
   const lastInbound = thread?.msgs.filter((m) => !m.outbound).slice(-1)[0]
+  const lastAt = thread?.msgs[thread.msgs.length - 1]?.at
 
-  // ── undo send: stage the reply for 5s before it actually goes ──
   const send = () => {
     if (!thread || !draft.trim()) return
-    if (mode === 'comment') { addComment(thread.id, draft.trim()); setDraft(''); return }
     const body = draft.trim()
-    const timer = window.setTimeout(() => {
-      reply(thread.id, body)
-      setPending(null)
-    }, 5000)
+    const timer = window.setTimeout(() => { reply(thread.id, body); setPending(null) }, 5000)
     setPending({ threadId: thread.id, body, timer })
     setDraft('')
   }
@@ -358,7 +345,6 @@ export function EmailPanel() {
     setPending(null)
   }
 
-  // ── keyboard-first navigation ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
@@ -379,17 +365,10 @@ export function EmailPanel() {
   const toggleCheck = (id: string) =>
     setChecked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
-  const timeline = thread
-    ? [
-        ...thread.msgs.map((m, ix) => ({ kind: 'msg' as const, at: m.at, m, ix })),
-        ...thread.comments.map((c) => ({ kind: 'comment' as const, at: c.at, c, ix: -1 })),
-      ].sort((a, b) => atKey(a.at).localeCompare(atKey(b.at)))
-    : []
-  const collapsed = !showAllMsgs && thread && thread.msgs.length > 3
-  const shownTimeline = collapsed ? timeline.slice(-3) : timeline
-  const hiddenCount = timeline.length - shownTimeline.length
-
-  const [tagDraft, setTagDraft] = useState('')
+  const msgs = thread?.msgs ?? []
+  const collapsed = !showAllMsgs && msgs.length > 3
+  const shownMsgs = collapsed ? msgs.slice(-3) : msgs
+  const hiddenCount = msgs.length - shownMsgs.length
 
   return (
     <aside className="email-panel">
@@ -409,248 +388,248 @@ export function EmailPanel() {
       {settings ? (
         <SettingsView onBack={() => setSettings(false)} />
       ) : (
-        <>
-          {/* search + mailbox + saved views */}
-          <div className="ep-filters">
-            <input className="ep-search" placeholder="Search mail, senders, tags…" value={text} onChange={(e) => setText(e.target.value)} />
-            <select className="ep-assign" value={mailbox} onChange={(e) => setMailbox(e.target.value)} title="Mailbox">
-              <option value="all">All mailboxes</option>
-              {MAILBOXES.map((m) => <option key={m}>{m}</option>)}
-            </select>
-          </div>
-          <div className="ep-filters">
-            <select
-              className="ep-assign"
-              value={smart}
-              title="Smart folders & saved views"
-              onChange={(e) => {
-                const v = e.target.value
-                if (v.startsWith('sv:')) {
-                  const sv = savedViews.find((x) => x.id === v.slice(3))
-                  if (sv) { setMailbox(sv.q.mailbox ?? 'all'); setLaneFilter(sv.q.lane ?? 'all'); setMine(!!sv.q.mine); setText(sv.q.text ?? ''); setSmart('') }
-                } else setSmart(v)
-              }}
-            >
-              <option value="">All conversations</option>
-              <option value="needsreply">Smart: Needs reply</option>
-              <option value="unassigned">Smart: Unassigned</option>
-              {savedViews.map((v) => <option key={v.id} value={'sv:' + v.id}>View: {v.name}</option>)}
-            </select>
-            {!savingView ? (
-              <button className="cm-link" onClick={() => setSavingView(true)}>Save view</button>
-            ) : (
-              <span className="ep-saveview">
-                <input autoFocus placeholder="View name…" value={viewName} onChange={(e) => setViewName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
-              </span>
-            )}
-            <span className="db-spacer" />
-            <button className={'ep-view' + (mine ? ' on' : '')} onClick={() => setMine((o) => !o)}>Mine</button>
-            <button className={'ep-view' + (snoozedOnly ? ' on' : '')} onClick={() => setSnoozedOnly((o) => !o)}>
-              Snoozed{snoozedCount ? ` ${snoozedCount}` : ''}
-            </button>
-          </div>
-
-          {/* triage lanes — click filters, drop a dragged row to move it */}
-          <div className="ep-lanes">
-            <button className={'ep-view' + (lane === 'all' ? ' on' : '')} onClick={() => setLaneFilter('all')}>All</button>
-            {LANES.map((l) => (
-              <button
-                key={l}
-                className={'ep-view ep-lane' + (lane === l ? ' on' : '')}
-                onClick={() => setLaneFilter(l)}
-                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drop-hot') }}
-                onDragLeave={(e) => e.currentTarget.classList.remove('drop-hot')}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  e.currentTarget.classList.remove('drop-hot')
-                  const id = e.dataTransfer.getData('text/thread')
-                  if (id) setLane(id, l)
+        <div className="ep-body">
+          {/* ── left column: filters + lanes + inbox list ── */}
+          <div className="ep-listcol">
+            <div className="ep-filters">
+              <input className="ep-search" placeholder="Search…" value={text} onChange={(e) => setText(e.target.value)} />
+              <select className="ep-assign" value={mailbox} onChange={(e) => setMailbox(e.target.value)} title="Mailbox">
+                <option value="all">All mailboxes</option>
+                {MAILBOXES.map((m) => <option key={m}>{m.split('@')[0]}@</option>)}
+              </select>
+            </div>
+            <div className="ep-filters">
+              <select
+                className="ep-assign"
+                value={smart}
+                title="Smart folders & saved views"
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v.startsWith('sv:')) {
+                    const sv = savedViews.find((x) => x.id === v.slice(3))
+                    if (sv) { setMailbox(sv.q.mailbox ?? 'all'); setLaneFilter(sv.q.lane ?? 'all'); setMine(!!sv.q.mine); setText(sv.q.text ?? ''); setSmart('') }
+                  } else setSmart(v)
                 }}
               >
-                {l} <i>{laneCount(l)}</i>
-              </button>
-            ))}
-          </div>
-
-          {/* bulk bar when rows are checked */}
-          {checked.length > 0 && (
-            <div className="ep-bulk">
-              <b>{checked.length} selected</b>
-              <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { assigneeId: e.target.value }); setChecked([]) } }}>
-                <option value="">Assign…</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                <option value="">All conversations</option>
+                <option value="needsreply">Needs reply</option>
+                <option value="unassigned">Unassigned</option>
+                {savedViews.map((v) => <option key={v.id} value={'sv:' + v.id}>{v.name}</option>)}
               </select>
-              <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { lane: e.target.value as Lane }); setChecked([]) } }}>
-                <option value="">Lane…</option>
-                {LANES.map((l) => <option key={l}>{l}</option>)}
-              </select>
-              <input className="ep-bulk-tag" placeholder="Tag + Enter" onKeyDown={(e) => { const v = (e.target as HTMLInputElement).value.trim(); if (e.key === 'Enter' && v) { bulkApply(checked, { tag: v }); (e.target as HTMLInputElement).value = ''; setChecked([]) } }} />
-              <button className="cm-link" onClick={() => { bulkApply(checked, { snoozeMs: 3_600_000, snoozeLabel: '1 hour' }); setChecked([]) }}>Snooze 1h</button>
-              <button className="cm-link" onClick={() => setChecked([])}>Clear</button>
-            </div>
-          )}
-
-          <div className="ep-list">
-            {visible.map((t) => {
-              const last = t.msgs[t.msgs.length - 1]
-              const assignee = userName(t.assigneeId)
-              return (
-                <div
-                  key={t.id}
-                  className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData('text/thread', t.id)}
-                  onClick={() => { selectThread(t.id); setShowAllMsgs(false) }}
-                >
-                  <span className="ep-row-top">
-                    <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
-                    {t.pinned && <span title="Pinned">📌</span>}
-                    <span className="ep-row-from">{t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name}</span>
-                    <span className="ep-row-right">
-                      {t.viewingBy && <span className="ep-presence" title={`${t.viewingBy} is viewing`}>👁</span>}
-                      {t.reminderDue && <span className="ep-flag" title="Reminder due">⏰</span>}
-                      {assignee && <span className="ep-ava" title={`Assigned to ${assignee}`}>{initials(assignee)}</span>}
-                      <span className="ep-row-at">{last.at}</span>
-                    </span>
-                  </span>
-                  <span className="ep-row-subj">{t.subject}</span>
-                  <span className="ep-row-tags">
-                    <span className={'cat-chip ' + CAT_CLASS[t.category]}>{t.category}</span>
-                    {t.tags.map((x) => <span key={x} className="ep-tag">{x}</span>)}
-                    {t.linkedJobRef && <span className="ep-tag ep-tag-job">{t.linkedJobRef}</span>}
-                    {t.snoozedUntil && <span className="ep-snoozed">Snoozed · {t.snoozedUntil}</span>}
-                    {t.reminderAt && !t.reminderDue && <span className="ep-remind-tag">⏰ {t.reminderAt}</span>}
-                  </span>
-                </div>
-              )
-            })}
-            {!visible.length && <div className="ep-empty">Nothing here.</div>}
-          </div>
-
-          {thread ? (
-            <div className="ep-reader">
-              {thread.viewingBy && <div className="ep-banner ep-banner-presence">👁 {thread.viewingBy} is viewing this conversation right now.</div>}
-              {thread.reminderDue && (
-                <div className="ep-banner">⏰ Reminder due on this email.<button className="cm-link" onClick={() => clearReminder(thread.id)}>Dismiss</button></div>
+              {!savingView ? (
+                <button className="cm-link" onClick={() => setSavingView(true)}>Save</button>
+              ) : (
+                <input className="ep-search" autoFocus placeholder="View name…" value={viewName} onChange={(e) => setViewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
               )}
-              <div className="ep-fields">
-                <div className="ep-frow"><span>From</span><b>{lastInbound ? `${lastInbound.from.name} <${lastInbound.from.email}>` : '—'}</b></div>
-                <div className="ep-frow"><span>Mailbox</span><b>{thread.mailbox}</b></div>
-                <div className="ep-frow"><span>Subject</span><b>{thread.subject}</b></div>
-                <div className="ep-frow">
-                  <span>Assigned</span>
-                  <select className="ep-assign" value={thread.assigneeId ?? ''} onChange={(e) => assignThread(thread.id, e.target.value || null)}>
-                    <option value="">Unassigned</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-                <div className="ep-frow">
-                  <span>Tags</span>
-                  <span className="ep-tagedit">
-                    {thread.tags.map((x) => <span key={x} className="ep-tag">{x}<i onClick={() => removeTag(thread.id, x)}>×</i></span>)}
-                    <input placeholder="+ tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && tagDraft.trim()) { addTag(thread.id, tagDraft.trim()); setTagDraft('') } }} />
-                  </span>
-                </div>
-                <div className="ep-tools">
-                  <button className="btn sm" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={13} /> Create job</button>
-                  <span className="ep-menu-wrap">
-                    <button className="btn sm" onClick={() => setMenu(menu === 'snooze' ? null : 'snooze')}>Snooze ▾</button>
-                    {menu === 'snooze' && (
-                      <span className="ep-menu">
-                        {SNOOZE_OPTIONS.map(([label, ms]) => <button key={label} onClick={() => { snooze(thread.id, ms, label); setMenu(null) }}>{label}</button>)}
-                        {thread.snoozedUntil && <button onClick={() => { unsnooze(thread.id); setMenu(null) }}>Unsnooze now</button>}
-                      </span>
-                    )}
-                  </span>
-                  <span className="ep-menu-wrap">
-                    <button className="btn sm" onClick={() => setMenu(menu === 'remind' ? null : 'remind')}>Remind ▾</button>
-                    {menu === 'remind' && (
-                      <span className="ep-menu">
-                        {SNOOZE_OPTIONS.map(([label, ms]) => <button key={label} onClick={() => { remind(thread.id, ms, label); setMenu(null) }}>{label}</button>)}
-                        {thread.reminderAt && <button onClick={() => { clearReminder(thread.id); setMenu(null) }}>Clear reminder</button>}
-                      </span>
-                    )}
-                  </span>
-                  <span className="ep-menu-wrap">
-                    <button className="btn sm" onClick={() => setMenu(menu === 'merge' ? null : 'merge')}>Merge ▾</button>
-                    {menu === 'merge' && (
-                      <span className="ep-menu">
-                        {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 6).map((t) => (
-                          <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMenu(null) }}>into: {t.subject.slice(0, 26)}</button>
-                        ))}
-                      </span>
-                    )}
-                  </span>
-                  <button className={'btn sm iconbtn' + (thread.pinned ? ' on' : '')} title="Pin" onClick={() => toggleFlag(thread.id, 'pinned')}>📌</button>
-                  <button className={'btn sm iconbtn' + (thread.following ? ' on' : '')} title="Follow" onClick={() => toggleFlag(thread.id, 'following')}>★</button>
-                  <button className={'btn sm iconbtn' + (thread.muted ? ' on' : '')} title="Mute" onClick={() => toggleFlag(thread.id, 'muted')}>🔕</button>
-                  <button className="btn sm iconbtn" title="Mark unread" onClick={() => markUnread(thread.id)}>✉</button>
-                </div>
+              <span className="db-spacer" />
+              <button className={'ep-view' + (mine ? ' on' : '')} onClick={() => setMine((o) => !o)}>Mine</button>
+              <button className={'ep-view' + (snoozedOnly ? ' on' : '')} onClick={() => setSnoozedOnly((o) => !o)} title="Snoozed">
+                💤{snoozedCount ? ` ${snoozedCount}` : ''}
+              </button>
+            </div>
+
+            <div className="ep-lanes">
+              <button className={'ep-view' + (lane === 'all' ? ' on' : '')} onClick={() => setLaneFilter('all')}>All</button>
+              {LANES.map((l) => (
+                <button
+                  key={l}
+                  className={'ep-view ep-lane' + (lane === l ? ' on' : '')}
+                  onClick={() => setLaneFilter(l)}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drop-hot') }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove('drop-hot')}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.classList.remove('drop-hot')
+                    const id = e.dataTransfer.getData('text/thread')
+                    if (id) setLane(id, l)
+                  }}
+                >
+                  {l === 'In progress' ? 'Doing' : l} <i>{laneCount(l)}</i>
+                </button>
+              ))}
+            </div>
+
+            {checked.length > 0 && (
+              <div className="ep-bulk">
+                <b>{checked.length}</b>
+                <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { assigneeId: e.target.value }); setChecked([]) } }}>
+                  <option value="">Assign…</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+                <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { lane: e.target.value as Lane }); setChecked([]) } }}>
+                  <option value="">Lane…</option>
+                  {LANES.map((l) => <option key={l}>{l}</option>)}
+                </select>
+                <button className="cm-link" onClick={() => { bulkApply(checked, { snoozeMs: 3_600_000, snoozeLabel: '1 hour' }); setChecked([]) }}>Snooze</button>
+                <button className="cm-link" onClick={() => setChecked([])}>✕</button>
               </div>
+            )}
 
-              <JobContextCard thread={thread} onInsertEta={(t) => { setMode('reply'); setDraft((d) => (d ? d + '\n' + t : t)) }} />
+            <div className="ep-list">
+              {visible.map((t) => {
+                const last = t.msgs[t.msgs.length - 1]
+                const assignee = userName(t.assigneeId)
+                return (
+                  <div
+                    key={t.id}
+                    className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData('text/thread', t.id)}
+                    onClick={() => { selectThread(t.id); setShowAllMsgs(false); setComments(false) }}
+                  >
+                    <span className="ep-row-line">
+                      <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
+                      <span className={'ep-catdot ' + CAT_CLASS[t.category]} title={t.category} />
+                      {t.pinned && <span className="ep-mini" title="Pinned">📌</span>}
+                      <span className="ep-row-from">{t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name}</span>
+                      {t.viewingBy && <span className="ep-mini" title={`${t.viewingBy} is viewing`}>👁</span>}
+                      {t.reminderDue && <span className="ep-mini" title="Reminder due">⏰</span>}
+                      <span className="db-spacer" />
+                      {assignee && <span className="ep-ava" title={`Assigned to ${assignee}`}>{initials(assignee)}</span>}
+                      <span className="ep-row-at">{last.at.slice(9)}</span>
+                    </span>
+                    <span className="ep-row-line">
+                      <span className="ep-row-subj">{t.subject}</span>
+                      {t.snoozedUntil && <span className="ep-snoozed">💤 {t.snoozedUntil}</span>}
+                    </span>
+                  </div>
+                )
+              })}
+              {!visible.length && <div className="ep-empty">Nothing here.</div>}
+            </div>
+          </div>
 
-              <div className="ep-msgs">
-                {collapsed && (
-                  <button className="ep-collapse" onClick={() => setShowAllMsgs(true)}>Show {hiddenCount} earlier message{hiddenCount === 1 ? '' : 's'}</button>
+          {/* ── right column: reader ── */}
+          <div className="ep-readcol">
+            {thread ? (
+              <div className="ep-reader">
+                {thread.reminderDue && (
+                  <div className="ep-banner">⏰ Reminder due.<button className="cm-link" onClick={() => clearReminder(thread.id)}>Dismiss</button></div>
                 )}
-                {shownTimeline.map((item) =>
-                  item.kind === 'msg' ? (
-                    <div key={item.m.id} className={'ep-msg' + (item.m.outbound ? ' out' : '')}>
+                <div className="ep-rhead">
+                  <div className="ep-rtitle">
+                    <b>{thread.subject}</b>
+                    <span className={'cat-chip ' + CAT_CLASS[thread.category]}>{thread.category}</span>
+                    {thread.viewingBy && <span className="ep-mini" title={`${thread.viewingBy} is viewing now`}>👁 {thread.viewingBy}</span>}
+                  </div>
+                  <div className="ep-rmeta">
+                    {lastInbound ? `${lastInbound.from.name} <${lastInbound.from.email}>` : '—'} · {thread.mailbox} · {lastAt}
+                  </div>
+                  <div className="ep-rtools">
+                    <select className="ep-assign" value={thread.assigneeId ?? ''} onChange={(e) => assignThread(thread.id, e.target.value || null)} title="Assigned to">
+                      <option value="">Unassigned</option>
+                      {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                    <span className="ep-tagedit">
+                      {thread.tags.map((x) => <span key={x} className="ep-tag">{x}<i onClick={() => removeTag(thread.id, x)}>×</i></span>)}
+                      <input placeholder="+tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && tagDraft.trim()) { addTag(thread.id, tagDraft.trim()); setTagDraft('') } }} />
+                    </span>
+                    <span className="db-spacer" />
+                    <button className={'btn sm' + (comments ? ' primary' : '')} onClick={() => setComments((o) => !o)} title="Internal comments">
+                      💬 {thread.comments.length || ''}
+                    </button>
+                    <button className="btn sm" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={13} /> Job</button>
+                    <span className="ep-menu-wrap">
+                      <button className="btn sm" onClick={() => setMore((o) => !o)}>⋯</button>
+                      {more && (
+                        <>
+                          <div className="cc-pop-scrim" onClick={() => setMore(false)} />
+                          <span className="ep-menu ep-menu-right">
+                            <span className="ep-menu-sec">Snooze</span>
+                            {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'s' + label} onClick={() => { snooze(thread.id, ms, label); setMore(false) }}>💤 {label}</button>)}
+                            <span className="ep-menu-sec">Remind</span>
+                            {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'r' + label} onClick={() => { remind(thread.id, ms, label); setMore(false) }}>⏰ {label}</button>)}
+                            <span className="ep-menu-sec">Conversation</span>
+                            <button onClick={() => { toggleFlag(thread.id, 'pinned'); setMore(false) }}>{thread.pinned ? 'Unpin' : 'Pin'}</button>
+                            <button onClick={() => { toggleFlag(thread.id, 'following'); setMore(false) }}>{thread.following ? 'Unfollow' : 'Follow'}</button>
+                            <button onClick={() => { toggleFlag(thread.id, 'muted'); setMore(false) }}>{thread.muted ? 'Unmute' : 'Mute'}</button>
+                            <button onClick={() => { markUnread(thread.id); setMore(false) }}>Mark unread</button>
+                            <span className="ep-menu-sec">Merge into…</span>
+                            {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 4).map((t) => (
+                              <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMore(false) }}>{t.subject.slice(0, 28)}</button>
+                            ))}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <JobStrip thread={thread} onInsertEta={(t) => setDraft((d) => (d ? d + '\n' + t : t))} />
+
+                <div className="ep-msgs">
+                  {collapsed && (
+                    <button className="ep-collapse" onClick={() => setShowAllMsgs(true)}>Show {hiddenCount} earlier message{hiddenCount === 1 ? '' : 's'}</button>
+                  )}
+                  {shownMsgs.map((m, ix) => (
+                    <div key={m.id} className={'ep-msg' + (m.outbound ? ' out' : '')}>
                       <div className="ep-msg-meta">
-                        {item.m.from.name} · {item.m.at}
-                        {item.ix > 0 && (
-                          <button className="ep-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, item.m.id)}>⎋ split</button>
+                        {m.from.name} · {m.at}
+                        {(collapsed ? ix + hiddenCount : ix) > 0 && (
+                          <button className="ep-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋ split</button>
                         )}
                       </div>
-                      <div className="ep-msg-body"><RefText text={item.m.body} /></div>
-                      {item.m.attachments?.map((a) => <span key={a.id} className="ep-att">📎 {a.name}</span>)}
+                      <div className="ep-msg-body"><RefText text={m.body} /></div>
+                      {m.attachments?.map((a) => <span key={a.id} className="ep-att">📎 {a.name}</span>)}
                     </div>
-                  ) : (
-                    <div key={item.c.id} className="ep-msg note">
-                      <div className="ep-msg-meta">Internal · {item.c.by} · {item.c.at}</div>
-                      <div className="ep-msg-body">{item.c.text}</div>
-                    </div>
-                  ),
-                )}
-              </div>
-
-              {pending && (
-                <div className="ep-banner ep-banner-undo">
-                  Sending… <button className="cm-link" onClick={undoSend}>Undo</button>
+                  ))}
                 </div>
-              )}
 
-              <div className="ep-compose-bar">
-                <span className="ep-mode">
-                  <button className={mode === 'reply' ? 'on' : ''} onClick={() => setMode('reply')}>Reply</button>
-                  <button className={mode === 'comment' ? 'on' : ''} onClick={() => setMode('comment')}>Comment</button>
-                </span>
-                {mode === 'reply' && templates.length > 0 && (
-                  <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body)) }}>
-                    <option value="">Insert template…</option>
-                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                {pending && (
+                  <div className="ep-banner ep-banner-undo">Sending… <button className="cm-link" onClick={undoSend}>Undo</button></div>
+                )}
+
+                <div className="ep-compose">
+                  <textarea
+                    ref={composeRef}
+                    rows={3}
+                    placeholder="Reply…"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send() }}
+                  />
+                  <span className="ep-compose-side">
+                    {templates.length > 0 && (
+                      <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body)) }}>
+                        <option value="">Template…</option>
+                        {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    )}
+                    <button className="btn primary sm" disabled={!draft.trim() || !!pending} onClick={send}>Send</button>
+                  </span>
+                </div>
+
+                {/* pop-out comments drawer */}
+                {comments && (
+                  <div className="ep-cdrawer">
+                    <div className="ep-cdrawer-h">
+                      <b>Internal comments</b>
+                      <button className="btn sm iconbtn" onClick={() => setComments(false)}><Icon name="close" size={14} /></button>
+                    </div>
+                    <div className="ep-cdrawer-list">
+                      {thread.comments.map((c) => (
+                        <div key={c.id} className="ep-msg note">
+                          <div className="ep-msg-meta">{c.by} · {c.at}</div>
+                          <div className="ep-msg-body">{c.text}</div>
+                        </div>
+                      ))}
+                      {!thread.comments.length && <div className="ep-empty">No comments yet — visible to the team only.</div>}
+                    </div>
+                    <div className="ep-cdrawer-add">
+                      <textarea rows={2} placeholder="Comment — @mention a colleague…" value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && commentDraft.trim()) { addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }} />
+                      <button className="btn primary sm" disabled={!commentDraft.trim()} onClick={() => { addComment(thread.id, commentDraft.trim()); setCommentDraft('') }}>Add</button>
+                    </div>
+                  </div>
                 )}
               </div>
-              <div className={'ep-compose' + (mode === 'comment' ? ' commenting' : '')}>
-                <textarea
-                  ref={composeRef}
-                  rows={3}
-                  placeholder={mode === 'reply' ? 'Reply…' : 'Internal comment — @mention a colleague…'}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send() }}
-                />
-                <button className="btn primary sm" disabled={!draft.trim() || !!pending} onClick={send}>{mode === 'reply' ? 'Send' : 'Add note'}</button>
-              </div>
-            </div>
-          ) : (
-            <div className="ep-empty">Select an email above.</div>
-          )}
-        </>
+            ) : (
+              <div className="ep-empty">Select an email.</div>
+            )}
+          </div>
+        </div>
       )}
     </aside>
   )
