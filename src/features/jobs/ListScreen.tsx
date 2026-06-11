@@ -215,6 +215,20 @@ export function ListScreen() {
     </div>
   )
 
+  // Per-row quick-actions menu (kebab). Just Delete for now.
+  const openRowMenu = (e: React.MouseEvent, j: SavedJob) => {
+    e.stopPropagation()
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const node = (
+      <div className="rowmenu">
+        <button className="rowmenu-item danger" onClick={() => { setPop(null); if (confirm(`Delete ${j.ref}?`)) deleteJob(j.id) }}>
+          <Icon name="trash" size={14} /> Delete
+        </button>
+      </div>
+    )
+    setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
+  }
+
   return (
     <div className="list-app">
       <div className="list-work wide">
@@ -285,18 +299,7 @@ export function ListScreen() {
                     </td>
                   ))}
                   <td className="list-actions">
-                    <button className="btn sm" onClick={() => open(j)} title="Open">
-                      <Icon name="edit" size={14} /> Open
-                    </button>
-                    <button
-                      className="btn sm iconbtn danger"
-                      title="Delete"
-                      onClick={() => {
-                        if (confirm(`Delete ${j.ref}?`)) deleteJob(j.id)
-                      }}
-                    >
-                      <Icon name="trash" size={14} />
-                    </button>
+                    <button className="kebab" title="Quick actions" onClick={(e) => openRowMenu(e, j)}>⋯</button>
                   </td>
                 </tr>
               ))}
