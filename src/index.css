@@ -542,6 +542,9 @@
 /* bookings list uses the full width (no centred max-width) so columns fit */
 .list-work.wide { max-width: none; }
 
+/* customer names size their column — don't wrap */
+.cust-stack .cust-name { white-space: nowrap; }
+
 /* bookings screen: table + collapsible right panel side by side */
 .bookings-layout { display: flex; align-items: stretch; min-height: 100%; }
 /* margin:0 — the inherited `margin:0 auto` from .list-work would otherwise eat all the
@@ -557,9 +560,10 @@
 .bp-head b { font-size: 13px; }
 .bp-body { flex: 1; min-height: 0; }
 
-/* wide "live" jobs table — scrolls horizontally only if it must; tight cells */
-.list-tablewrap:has(.jobs-table) { overflow-x: auto; }
-.jobs-table { font-size: 12px; min-width: 820px; width: 100%; }
+/* "live" jobs table — content-sized: every column crops to its longest entry and
+ * the card hugs the table (scrolling only if it genuinely can't fit) */
+.list-tablewrap:has(.jobs-table) { overflow-x: auto; width: fit-content; max-width: 100%; }
+.jobs-table { font-size: 12px; width: auto; }
 .jobs-table th, .jobs-table td { padding: 6px 8px; vertical-align: middle; }
 .jobs-table .nowrap { white-space: nowrap; }
 .jobs-table .muted { color: var(--muted); }
