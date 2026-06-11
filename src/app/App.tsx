@@ -20,9 +20,10 @@ export function App() {
 
   // The email panel lives at app level so it stays open while moving between the
   // list and an open booking (refs in an email jump straight to the job).
+  const wiz = screen === 'wizard'
   return (
-    <div className="shell">
-      <div className={'shell-main' + (emailOpen ? ' hug' : '')}>
+    <div className={'shell' + (wiz ? ' wiz' : '') + (emailOpen ? ' panel-open' : '')}>
+      <div className={'shell-main' + (emailOpen && !wiz ? ' hug' : '')}>
         {screen === 'wizard' ? (
           <BookingWizard />
         ) : (

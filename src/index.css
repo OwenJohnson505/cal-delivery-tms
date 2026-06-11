@@ -546,10 +546,25 @@
 .cust-stack .cust-name { white-space: nowrap; }
 
 /* ── app shell: screens on the left, the email panel pinned right ── */
-.shell { display: flex; height: 100vh; overflow: hidden; }
+.shell { display: flex; height: 100vh; overflow: hidden; --email-w: clamp(360px, 26vw, 460px); }
 .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
 /* with the panel open the main area hugs its content so the panel gets the rest */
 .shell-main.hug { flex: 0 1 auto; width: fit-content; }
+
+/* Wizard + panel: the wizard stays flexible and scrolls INSIDE shell-main (nothing
+ * clipped), while the panel keeps a fixed width so it's always fully visible. */
+.shell.wiz .shell-main { flex: 1 1 auto; min-width: 0; width: auto; overflow: auto; }
+.shell.wiz.panel-open .email-panel { flex: 0 0 var(--email-w); min-width: 0; }
+/* The wizard's right rail + drawers are position:fixed to the VIEWPORT — shift them
+ * left of the panel so they don't sit underneath it. */
+.shell.wiz.panel-open .siderail:not(.siderail-left) { right: var(--email-w); }
+.shell.wiz.panel-open .drawer { right: var(--email-w); }
+/* Let the wizard compress before scrolling (prototype demands 1200px). */
+.shell.wiz.panel-open .app { min-width: 1040px; }
+/* In the tighter width the footer wraps instead of running under the panel. */
+.shell.wiz.panel-open .footer { flex-wrap: wrap; row-gap: 8px; }
+.shell.wiz.panel-open .foot-actions { flex-wrap: wrap; row-gap: 8px; }
+.shell.wiz.panel-open .footer .bar-ref .cb { width: 170px; }
 
 /* bookings main column hugs the table; margin:0 overrides .list-work's
  * margin:0 auto, which would otherwise eat the flex free space. */
