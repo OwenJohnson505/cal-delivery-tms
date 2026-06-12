@@ -617,9 +617,30 @@
 .shell.panel-open .ed-compact input,
 .shell.panel-open .ed-compact select,
 .shell.panel-open .ed-compact textarea { font-size: 12px; }
-/* the wizard's fixed right rail would sit under the email client — hide it in this
- * mode (History/Providers aren't part of the vertical quick-booking flow). */
+/* the wizard's fixed right rail would sit under the email client — hide it; its
+ * History / Service-providers buttons move under the booking header (JobRailTabs). */
 .shell.panel-open .siderail:not(.siderail-left) { display: none; }
+/* those drawers open OVER the job column only (not the viewport), so the email
+ * panel stays visible alongside. No backdrop dim; close via the drawer's ×. */
+.shell.panel-open .drawer {
+  left: 0; right: auto; width: var(--jobcol-w); max-width: none; transform: none;
+  box-shadow: 1px 0 0 var(--line), 6px 0 24px rgba(16, 24, 40, .12);
+}
+.shell.panel-open .drawer:not(.open) { display: none; }
+.shell.panel-open .drawer-overlay { display: none; }
+/* the under-header History / Providers buttons (email mode) */
+.jrt { display: flex; gap: 8px; flex-wrap: wrap; padding: 2px 0 0; }
+.jrt-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
+  border: 1px solid var(--line-strong); background: #fff; border-radius: 8px;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; position: relative;
+}
+.jrt-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.jrt-btn.allocated { color: #0b7a55; border-color: #0b7a55; background: #e1f5ee; }
+.jrt-badge {
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: #f5b301; color: #3a2d00;
+  font-size: 10px; font-weight: 800; display: inline-grid; place-items: center;
+}
 /* footer stacks in the narrow column */
 .shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 10px; }
 .shell.panel-open .foot-actions { margin-left: 0; flex-wrap: wrap; row-gap: 8px; }

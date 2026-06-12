@@ -5,6 +5,7 @@
  */
 import { LeftRail, RightRail } from './Rails.tsx'
 import { Header } from './Header.tsx'
+import { JobRailTabs } from './JobRailTabs.tsx'
 import { Footer } from './Footer.tsx'
 import { JobNotes } from './JobNotes.tsx'
 import { RoutePanel } from '@/features/route/RoutePanel.tsx'
@@ -18,11 +19,15 @@ import { ProvidersDrawer } from '@/features/driver/ProvidersDrawer.tsx'
 import { Modals } from './Modals.tsx'
 import { useUiStore } from '@/store/uiStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
+import { useEmailsStore } from '@/store/emailsStore.ts'
 
 export function BookingWizard() {
   const drawerOpen = useUiStore((s) => s.drawer !== null)
   const closeDrawers = useUiStore((s) => s.closeDrawers)
   const quickQuote = useBookingStore((s) => s.quickQuote)
+  // In email-open mode the fixed right rail is hidden, so History / Providers are
+  // reached via buttons under the header instead.
+  const emailOpen = useEmailsStore((s) => s.panelOpen)
 
   return (
     <>
@@ -30,6 +35,7 @@ export function BookingWizard() {
       <div className="app">
         <div className="work">
           <Header />
+          {emailOpen && <JobRailTabs />}
           {quickQuote ? (
             // Quick Quote: a purpose-built condensed middle (top bar / rails / footer stay)
             <QuickQuotePanel />
