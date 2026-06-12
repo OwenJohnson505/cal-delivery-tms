@@ -215,6 +215,10 @@
   font-size: 13px; font-weight: 600; color: var(--ink);
 }
 .stop-ref::placeholder { font-weight: 400; color: var(--muted); }
+/* no bold on any detail within a stop — keep values at a regular weight
+ * (override the prototype's .f .v b / .f .v.co bold) */
+.stop .f .v b, .stop .f .v.co, .stop .pv b, .stop b, .stop strong, .stop-head h3 { font-weight: 500; }
+
 /* reference shown as an identifier on the collapsed card head */
 .stop-ref-tag {
   flex: none; padding: 2px 8px; border-radius: 999px;
