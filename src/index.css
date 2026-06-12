@@ -645,6 +645,11 @@
 .shell.drawer-open .botrow,
 .shell.drawer-open .left .botrow { display: flex; flex-direction: column; gap: 11px; flex: none; height: auto; min-height: 0; }
 .shell.drawer-open .rail { overflow: visible; flex: none; }
+/* header + footer wrap so nothing (esp. the Save buttons) runs under the drawer */
+.shell.drawer-open .bar { flex-wrap: wrap; }
+.shell.drawer-open .footer { flex-wrap: wrap; row-gap: 10px; }
+.shell.drawer-open .foot-actions { flex-wrap: wrap; row-gap: 8px; }
+.shell.drawer-open .saveas { flex-wrap: wrap; }
 
 /* ── left nav while email is open: a slim, clean icon strip — no logo, no boxes
  * around the icons (just the glyphs). Pin (the › button) to widen it a touch. ── */
