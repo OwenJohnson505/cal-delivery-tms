@@ -38,6 +38,9 @@ export function Footer() {
 
   const revenue = useBookingStore((s) => s.charges.reduce((t, c) => t + (c.rate || 0), 0))
 
+  // A confirmed, existing booking (not a new draft) — locked to update/cancel only.
+  const isBooked = editingJobId != null && jobStatus === 'Booking'
+
   return (
     <div className="footer">
       <div className="foot-meta">
@@ -60,7 +63,13 @@ export function Footer() {
           <span className="foot-lbl" style={{ marginRight: 8 }}>Status</span>
           <StatusPill status={jobStatus} />
           <span style={{ width: 8 }} />
-          {quickQuote ? (
+          {isBooked ? (
+            // already a booking → can only update or cancel (no draft/quote)
+            <>
+              <button className="btn" onClick={() => goToList()}>Cancel</button>
+              <button className="btn primary" onClick={() => save('Booking')}>Update booking</button>
+            </>
+          ) : quickQuote ? (
             <>
               <button className="btn" onClick={() => save('Draft')}>Save as draft</button>
               <button className="btn primary" onClick={() => save('Quick Quote')}>Save as Quick Quote</button>

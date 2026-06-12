@@ -520,7 +520,6 @@ export function EmailPanel() {
                   >
                     <span className="ep-row-line">
                       <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
-                      <span className={'ep-catdot ' + CAT_CLASS[t.category]} title={t.category} />
                       {t.pinned && <span className="ep-mini" title="Pinned">📌</span>}
                       <span className="ep-row-from">{t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name}</span>
                       {t.viewingBy && <span className="ep-mini" title={`${t.viewingBy} is viewing`}>👁</span>}

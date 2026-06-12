@@ -617,10 +617,10 @@
 .shell.panel-open .g-cpc,
 .shell.panel-open .g-cte { grid-template-columns: 1fr; }
 .shell.panel-open .pvrow,
-.shell.panel-open .ac-row,
-.shell.panel-open .bar { flex-wrap: wrap; }
+.shell.panel-open .ac-row { flex-wrap: wrap; }
 .shell.panel-open .f + .f { border-left: none; padding-left: 0; }
-.shell.panel-open .bar > #ccBox { flex: 1 1 100%; }
+/* header rows wrap in the narrow column */
+.shell.panel-open .bar-top { flex-wrap: wrap; row-gap: 8px; }
 /* the stop editor's "Address & timing | Site contact" two-up stacks into one column
  * (side-by-side is unusable at this width — tiny find box, clipped labels) */
 .shell.panel-open .ed-2col { grid-template-columns: 1fr; gap: 12px; }
@@ -694,9 +694,13 @@
 .shell.panel-open .drawer .drawer-h { display: none; } /* the tab bar is the header */
 .shell.panel-open .drawer-overlay { display: none; }
 /* footer stacks in the narrow column */
-.shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 10px; }
-.shell.panel-open .foot-actions { margin-left: 0; flex-wrap: wrap; row-gap: 8px; }
-.shell.panel-open .saveas { margin-left: 0; padding-left: 0; border-left: none; flex-wrap: wrap; }
+/* roomier stacked footer in the narrow column (revenue / cust ref / booked-by / our
+ * ref were cramped) — each block on its own line with breathing space */
+.shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 16px; padding: 16px 14px 20px; }
+.shell.panel-open .foot-meta { flex-direction: row; flex-wrap: wrap; gap: 6px 28px; }
+.shell.panel-open .foot-actions { flex-direction: column; align-items: stretch; margin-left: 0; gap: 14px; }
+.shell.panel-open .foot-rev { justify-content: flex-start; gap: 10px; }
+.shell.panel-open .saveas { margin-left: 0; padding-left: 0; border-left: none; flex-wrap: wrap; gap: 8px; row-gap: 8px; }
 
 /* ── wizard side-drawer (Service providers / History) as a push panel ──
  * Like the email panel: the drawer widens and the booking form reflows into a
@@ -1280,6 +1284,11 @@
   --control-h: 28px;
 }
 .bar,
+/* header is two rows: customer name + tools/clear/exit on top, Quick Quote +
+ * Custom fields below */
+.bar { flex-direction: column; align-items: stretch; gap: 8px; }
+.bar-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bar-sub { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .bar .bar-actions {
   align-items: center;
 }
