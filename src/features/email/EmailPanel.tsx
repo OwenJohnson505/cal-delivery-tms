@@ -282,7 +282,8 @@ export function EmailPanel() {
   const templates = useEmailsStore((s) => s.templates)
   const savedViews = useEmailsStore((s) => s.savedViews)
   const addSavedView = useEmailsStore((s) => s.addSavedView)
-  const togglePanel = useEmailsStore((s) => s.togglePanel)
+  const panelState = useEmailsStore((s) => s.panelState)
+  const setPanelState = useEmailsStore((s) => s.setPanelState)
   const users = useUsersStore((s) => s.users)
   const currentUserId = useUsersStore((s) => s.currentUserId)
 
@@ -404,7 +405,12 @@ export function EmailPanel() {
         <button className={'btn sm iconbtn' + (settings ? ' on' : '')} title="Email settings — rules & templates" onClick={() => setSettings((o) => !o)}>
           <Icon name="wheel" size={15} />
         </button>
-        <button className="btn sm iconbtn" title="Close panel" onClick={togglePanel}>
+        {panelState === 'full' ? (
+          <button className="btn sm iconbtn" title="Collapse reader — keep the inbox list" onClick={() => setPanelState('list')}>›</button>
+        ) : (
+          <button className="btn sm iconbtn" title="Expand — show the reader" onClick={() => setPanelState('full')}>‹</button>
+        )}
+        <button className="btn sm iconbtn" title="Close email" onClick={() => setPanelState('closed')}>
           <Icon name="close" size={15} />
         </button>
       </div>
@@ -524,7 +530,8 @@ export function EmailPanel() {
             </div>
           </div>
 
-          {/* ── right column: reader ── */}
+          {/* ── right column: reader (hidden in list-only/partial-collapse state) ── */}
+          {panelState === 'full' && (
           <div className="ep-readcol">
             {thread ? (
               <div className="ep-reader">
@@ -668,8 +675,23 @@ export function EmailPanel() {
               <div className="ep-empty">Select an email.</div>
             )}
           </div>
+          )}
         </div>
       )}
     </aside>
+  )
+}
+
+/** Thin strip shown on the right edge when the email section is fully closed —
+ * click to reopen it (always available, on every screen). */
+export function EmailReopenTab() {
+  const setPanelState = useEmailsStore((s) => s.setPanelState)
+  const unread = useEmailsStore((s) => s.threads.filter((t) => !t.read && !t.snoozedUntil && !t.muted).length)
+  return (
+    <button className="email-reopen" title="Open email" onClick={() => setPanelState('full')}>
+      <Icon name="mail" size={16} />
+      {unread > 0 && <span className="email-reopen-badge">{unread}</span>}
+      <span className="email-reopen-lbl">Email</span>
+    </button>
   )
 }

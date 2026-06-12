@@ -101,8 +101,8 @@ export function ListScreen() {
 
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
-  const emailOpen = useEmailsStore((s) => s.panelOpen)
-  const toggleEmailPanel = useEmailsStore((s) => s.togglePanel)
+  const emailOpen = useEmailsStore((s) => s.panelState !== 'closed')
+  const openEmailPanel = useEmailsStore((s) => s.setPanelState)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -616,7 +616,7 @@ export function ListScreen() {
             onToggleExtra={toggleCf}
             extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
           />
-          <button className={'btn sm' + (emailOpen ? ' primary' : '')} onClick={toggleEmailPanel} title="Toggle email panel">
+          <button className={'btn sm' + (emailOpen ? ' primary' : '')} onClick={() => openEmailPanel(emailOpen ? 'closed' : 'full')} title="Toggle email panel">
             <Icon name="sidebar" size={14} /> Email
           </button>
         </div>

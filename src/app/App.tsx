@@ -10,14 +10,16 @@ import { UsersScreen } from '@/features/users/UsersScreen.tsx'
 import { TeamsScreen } from '@/features/teams/TeamsScreen.tsx'
 import { TariffsScreen } from '@/features/tariffs/TariffsScreen.tsx'
 import { AddressesScreen } from '@/features/addresses/AddressesScreen.tsx'
-import { EmailPanel } from '@/features/email/EmailPanel.tsx'
+import { EmailPanel, EmailReopenTab } from '@/features/email/EmailPanel.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 
 export function App() {
   const screen = useViewStore((s) => s.screen)
-  const emailOpen = useEmailsStore((s) => s.panelOpen)
+  const panelState = useEmailsStore((s) => s.panelState)
+  const emailOpen = panelState !== 'closed' // 'full' or 'list' both occupy the right side
+  const emailList = panelState === 'list'
   const navOpen = useUiStore((s) => s.navOpen)
   // A wizard side-drawer (History / Service providers) open with no email panel →
   // widen the drawer and reflow the booking form into a vertical scroll list beside it.
@@ -28,7 +30,7 @@ export function App() {
   // content (cards → wizard); the email panel keeps its width so nothing else moves.
   const wiz = screen === 'wizard'
   return (
-    <div className={'shell' + (wiz ? ' wiz' : '') + (emailOpen ? ' panel-open' : '') + (emailOpen && navOpen ? ' nav-pinned' : '') + (drawerOpen ? ' drawer-open' : '')}>
+    <div className={'shell' + (wiz ? ' wiz' : '') + (emailOpen ? ' panel-open' : '') + (emailList ? ' email-list' : '') + (emailOpen && navOpen ? ' nav-pinned' : '') + (drawerOpen ? ' drawer-open' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (
           <BookingWizard />
@@ -44,7 +46,7 @@ export function App() {
           </>
         )}
       </div>
-      {emailOpen && <EmailPanel />}
+      {emailOpen ? <EmailPanel /> : <EmailReopenTab />}
     </div>
   )
 }

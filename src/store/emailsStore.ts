@@ -208,15 +208,19 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
   ]
 }
 
+/** Email section: 'full' = inbox list + reader; 'list' = inbox list only (reader
+ * collapsed); 'closed' = collapsed to a thin reopen strip. */
+export type EmailPanelState = 'full' | 'list' | 'closed'
+
 interface EmailsState {
-  panelOpen: boolean
+  panelState: EmailPanelState
   threads: EmailThread[]
   selectedId: string | null
   rules: EmailRule[]
   templates: EmailTemplate[]
   savedViews: SavedEmailView[]
 
-  togglePanel(): void
+  setPanelState(s: EmailPanelState): void
   selectThread(id: string): void
   reply(threadId: string, body: string): void
   addComment(threadId: string, text: string): void
@@ -264,14 +268,14 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
     }, ms)
   }
   return {
-    panelOpen: true,
+    panelState: 'full',
     threads: seedThreads(initialRules),
     selectedId: 'th-0',
     rules: initialRules,
     templates: seedTemplates(),
     savedViews: [],
 
-    togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+    setPanelState: (panelState) => set({ panelState }),
 
     selectThread: (id) =>
       set((s) => ({ selectedId: id, threads: patchThread(s.threads, id, { read: true }) })),

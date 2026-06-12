@@ -555,6 +555,26 @@
 .shell.panel-open .shell-main { flex: 0 0 var(--jobcol-w); min-width: 0; overflow: auto; }
 .shell.panel-open .email-panel { flex: 1 1 auto; min-width: 0; }
 
+/* PARTIAL collapse ('list'): the email panel shrinks to the inbox list only; the job
+ * area grows to take the freed space. (Must follow the .panel-open rules above.) */
+.shell.email-list .email-panel { flex: 0 0 clamp(300px, 22vw, 360px); }
+.shell.email-list .shell-main { flex: 1 1 auto; }
+.shell.email-list .ep-listcol { width: 100%; max-height: none; border-right: none; flex: 1; }
+.shell.email-list .ep-list { flex: 1; max-height: none; }
+
+/* reopen strip — shown on the right edge when the email section is fully closed */
+.email-reopen {
+  flex: 0 0 38px; height: 100vh; border: none; border-left: 1px solid var(--line);
+  background: var(--panel); cursor: pointer; color: var(--muted); font: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: 9px; padding-top: 14px;
+}
+.email-reopen:hover { color: var(--accent); background: var(--field); }
+.email-reopen-lbl { writing-mode: vertical-rl; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.email-reopen-badge {
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 800; display: inline-grid; place-items: center;
+}
+
 /* An open booking inside the narrow column → a VERTICAL, scrolling form (the wide
  * two-column wizard doesn't fit). Reflow every section into one stacked column. */
 .shell.panel-open .app { min-width: 0; width: 100%; padding-right: 0; }
@@ -639,13 +659,15 @@
   font-size: 10px; font-weight: 800; display: inline-grid; place-items: center;
 }
 /* the Providers / History panels render UNDER the tab bar, filling the job column
- * (email panel stays visible to the right). No backdrop dim; switch via the tabs. */
+ * (email panel stays visible to the right). Positioned WITHIN shell-main so they
+ * track its actual width (which differs between the full/list email states). */
+.shell.panel-open .shell-main { position: relative; }
 .shell.panel-open .drawer {
-  top: var(--jobtab-h); left: 44px; right: auto;
-  width: calc(var(--jobcol-w) - 44px); max-width: none; transform: none;
+  position: absolute; top: var(--jobtab-h); left: 44px; right: 0; bottom: 0;
+  width: auto; height: auto; max-width: none; transform: none;
   box-shadow: 1px 0 0 var(--line), 6px 0 24px rgba(16, 24, 40, .1);
 }
-.shell.panel-open.nav-pinned .drawer { left: 56px; width: calc(var(--jobcol-w) - 56px); }
+.shell.panel-open.nav-pinned .drawer { left: 56px; }
 .shell.panel-open .drawer:not(.open) { display: none; }
 .shell.panel-open .drawer .drawer-h { display: none; } /* the tab bar is the header */
 .shell.panel-open .drawer-overlay { display: none; }
@@ -922,10 +944,12 @@
 .ej-tabs { display: flex; gap: 4px; }
 .ej-tabs .ep-view i { font-style: normal; font-size: 9.5px; opacity: .7; margin-left: 3px; }
 .ej-search { flex: 1 1 140px; min-width: 120px; }
-/* single column — cards stack and the list scrolls */
+/* responsive: single column when the job area is narrow (full email), multiple when
+ * it's wide (email collapsed to the list); cards keep their height either way */
 .ej-grid {
   flex: 1; min-height: 0; overflow: auto; padding: 12px;
-  display: flex; flex-direction: column; gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px; align-content: start;
 }
 .jcard {
   display: flex; flex-direction: column; gap: 7px; text-align: left;

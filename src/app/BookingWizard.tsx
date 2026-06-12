@@ -27,7 +27,7 @@ export function BookingWizard() {
   const quickQuote = useBookingStore((s) => s.quickQuote)
   // In email-open mode the fixed right rail is hidden, so History / Providers are
   // reached via buttons under the header instead.
-  const emailOpen = useEmailsStore((s) => s.panelOpen)
+  const emailOpen = useEmailsStore((s) => s.panelState !== 'closed')
 
   return (
     <>
