@@ -14,7 +14,7 @@ export function LeftRail() {
   const goToList = useViewStore((s) => s.goToList)
   const goToCustomers = useViewStore((s) => s.goToCustomers)
   const go = useViewStore((s) => s.go)
-  const emailOpen = useEmailsStore((s) => s.panelState !== 'closed')
+  const emailOpen = useEmailsStore((s) => s.panelState === 'full')
   const navOpen = useUiStore((s) => s.navOpen)
   const toggleNav = useUiStore((s) => s.toggleNav)
   const items: Array<{ icon: string; label: string; onClick?: () => void; active?: boolean }> = [

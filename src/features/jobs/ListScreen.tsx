@@ -101,8 +101,10 @@ export function ListScreen() {
 
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
-  const emailOpen = useEmailsStore((s) => s.panelState !== 'closed')
-  const openEmailPanel = useEmailsStore((s) => s.setPanelState)
+  // Immersive (full) email → compact job cards; collapsed email (list/mini) → the table.
+  const emailFull = useEmailsStore((s) => s.panelState === 'full')
+  const emailMini = useEmailsStore((s) => s.panelState === 'mini')
+  const setEmailPanel = useEmailsStore((s) => s.setPanelState)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -544,9 +546,9 @@ export function ListScreen() {
     setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
   }
 
-  // Email open → the table gives way to compact job cards (always visible), which
-  // need far less width than the table, freeing room for the email client.
-  if (emailOpen) {
+  // Full (immersive) email → the table gives way to compact job cards beside the big
+  // email client. When email is collapsed (list/mini), the table returns.
+  if (emailFull) {
     return (
       <div className="list-app email-jobs-app">
         <JobsCards />
@@ -616,7 +618,7 @@ export function ListScreen() {
             onToggleExtra={toggleCf}
             extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
           />
-          <button className={'btn sm' + (emailOpen ? ' primary' : '')} onClick={() => openEmailPanel(emailOpen ? 'closed' : 'full')} title="Toggle email panel">
+          <button className="btn sm" onClick={() => setEmailPanel(emailMini ? 'full' : 'mini')} title={emailMini ? 'Open email' : 'Minimise email'}>
             <Icon name="sidebar" size={14} /> Email
           </button>
         </div>

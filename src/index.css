@@ -555,14 +555,26 @@
 .shell.panel-open .shell-main { flex: 0 0 var(--jobcol-w); min-width: 0; overflow: auto; }
 .shell.panel-open .email-panel { flex: 1 1 auto; min-width: 0; }
 
-/* PARTIAL collapse ('list'): the email panel shrinks to the inbox list only; the job
- * area grows to take the freed space. (Must follow the .panel-open rules above.) */
-.shell.email-list .email-panel { flex: 0 0 clamp(300px, 22vw, 360px); }
-.shell.email-list .shell-main { flex: 1 1 auto; }
-.shell.email-list .ep-listcol { width: 100%; max-height: none; border-right: none; flex: 1; }
-.shell.email-list .ep-list { flex: 1; max-height: none; }
+/* ── SIDE mode (email collapsed to 'list' or 'mini') ──
+ * The main area is the NORMAL app (full table / normal horizontal wizard); the email
+ * sits as a fixed-width panel ('list' = inbox list only) or a thin rail ('mini') on
+ * the right, like a secondary sidebar. */
+.shell.email-side { --email-side-w: clamp(300px, 22vw, 360px); }
+.shell.email-side.email-mini { --email-side-w: 38px; }
+.shell.email-side .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
+.shell.email-side .email-panel { flex: 0 0 var(--email-side-w); min-width: 0; }
+/* list state shows only the inbox list (reader hidden in JSX) — fill the panel */
+.shell.email-side .ep-listcol { width: 100%; max-height: none; border-right: none; flex: 1; }
+.shell.email-side .ep-list { flex: 1; max-height: none; }
+/* wizard (normal, horizontal): shift the fixed right rail + drawers left of the email */
+.shell.email-side .siderail:not(.siderail-left) { right: var(--email-side-w); }
+.shell.email-side .drawer { right: var(--email-side-w); }
+.shell.email-side .drawer-overlay { right: var(--email-side-w); }
+.shell.email-side .app { min-width: 1000px; }
+.shell.email-side .footer { flex-wrap: wrap; row-gap: 8px; }
+.shell.email-side .foot-actions { flex-wrap: wrap; row-gap: 8px; }
 
-/* reopen strip — shown on the right edge when the email section is fully closed */
+/* MINI rail — a thin sidebar with just the mail icon (like the left nav) */
 .email-reopen {
   flex: 0 0 38px; height: 100vh; border: none; border-left: 1px solid var(--line);
   background: var(--panel); cursor: pointer; color: var(--muted); font: inherit;
@@ -573,6 +585,12 @@
 .email-reopen-badge {
   min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff;
   font-size: 10px; font-weight: 800; display: inline-grid; place-items: center;
+}
+
+/* customer-name chip on email rows (who emailed us) */
+.ep-custchip {
+  flex: none; font-size: 9.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+  border-radius: 999px; padding: 1px 7px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* An open booking inside the narrow column → a VERTICAL, scrolling form (the wide

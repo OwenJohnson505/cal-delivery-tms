@@ -102,10 +102,29 @@ const CANNED_REPLIES = [
   'Thanks for the quick reply. Go ahead.',
 ]
 
+const p2 = (n: number) => ('0' + n).slice(-2)
+function fmtAt(d: Date): string {
+  return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${String(d.getFullYear()).slice(-2)} ${p2(d.getHours())}:${p2(d.getMinutes())}`
+}
 function stampNow(): string {
-  const d = new Date()
-  const p = (n: number) => ('0' + n).slice(-2)
-  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(-2)} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return fmtAt(new Date())
+}
+// Seeds are timestamped relative to load time so the relative ("12m ago") display
+// stays believable on any clock — replies use stampNow(), so it all lines up.
+const SEED_NOW = Date.now()
+const minsAgo = (n: number): string => fmtAt(new Date(SEED_NOW - n * 60_000))
+
+/** Relative arrival time for SLA visibility: 'now' / '12m ago' / '3h ago' / '2d ago'. */
+export function relTime(at: string): string {
+  const m = /^(\d{2})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(at)
+  if (!m) return at
+  const d = new Date(2000 + +m[3], +m[2] - 1, +m[1], +m[4], +m[5])
+  const mins = Math.floor(Math.max(0, Date.now() - d.getTime()) / 60_000)
+  if (mins < 1) return 'now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
 }
 
 const uid = () => crypto.randomUUID().slice(0, 8)
@@ -168,49 +187,49 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
   return [
     base({
       id: 'th-0', read: false, mailbox: 'bookings@cal.delivery', subject: 'URGENT — same-day Luton needed',
-      msgs: [{ id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@meridianfoods.com' }, at: '11-06-26 10:02',
+      msgs: [{ id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@meridianfoods.com' }, at: minsAgo(8),
         body: 'Hi — urgent one, sorry. We need a Luton TODAY, collection M15 4FN before 13:00, delivery L7 9PG. Can you help?\n\nSarah (Meridian)' }],
     }),
     base({
       id: 'th-1', read: false, mailbox: 'bookings@cal.delivery', subject: 'Re: BK-100482 — delivery today', linkedJobRef: 'BK-100482', viewingBy: 'James Hill',
-      msgs: [{ id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: '11-06-26 08:12',
+      msgs: [{ id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: minsAgo(35),
         body: 'Morning,\n\nQuick check on BK-100482 (our ref PO-7781) — is the 14:15 delivery into WA2 still on track? Site closes at 16:00 today.\n\nThanks,\nSarah' }],
     }),
     base({
       id: 'th-2', read: false, mailbox: 'bookings@cal.delivery', subject: '18t needed Friday — LS9 to Bradford',
-      msgs: [{ id: uid(), from: { name: 'James Hill', email: 'j.hill@brightway.co.uk' }, at: '11-06-26 09:47',
+      msgs: [{ id: uid(), from: { name: 'James Hill', email: 'j.hill@brightway.co.uk' }, at: minsAgo(52),
         body: 'Hi team,\n\nWe need an 18t on Friday. Collection from our depot LS9 0PX, delivering to the Bradford store BD1 2AB. Curtain side if possible, tail lift not needed.\n\nRef will be PO-9920.\n\nJames' }],
     }),
     base({
       id: 'th-3', read: true, mailbox: 'bookings@cal.delivery', subject: 'Driver details for BK-100479', linkedJobRef: 'BK-100479',
-      msgs: [{ id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: '11-06-26 07:55',
+      msgs: [{ id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(78),
         body: 'Morning — site security needs the driver name and vehicle registration for BK-100479 before arrival. Could you send the driver details over?\n\nPriya',
         attachments: [{ id: uid(), name: 'site-access-form.pdf' }] }],
     }),
     base({
       id: 'th-4', read: true, mailbox: 'sarah@cal.delivery', subject: 'Re: QU-100501', lane: 'Waiting',
       msgs: [
-        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: '09-06-26 15:20',
+        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(320),
           body: 'Hi Sarah,\n\nCould you quote a 7.5t Leeds to Warrington for next week? Roughly 8 pallets.\n\nPriya' },
-        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: '09-06-26 16:02', outbound: true,
+        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: minsAgo(300), outbound: true,
           body: 'Hi Priya,\n\nOf course — quote QU-100501 attached, £180 all-in. Valid for 7 days.\n\nSarah' },
-        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: '10-06-26 11:05',
+        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(155),
           body: 'Hi,\n\nFollowing up on quote QU-100501 — if you can hold that price we will confirm this week under ORB-90.\n\nPriya' },
-        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: '10-06-26 11:40', outbound: true,
+        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: minsAgo(150), outbound: true,
           body: 'Hi Priya,\n\nNo problem — QU-100501 is held until Friday. Just reply with the go-ahead and we will book it in.\n\nSarah' },
       ],
     }),
     base({
       id: 'th-5', read: true, mailbox: 'accounts@cal.delivery', subject: 'Pallet rates enquiry', lane: 'Done',
-      msgs: [{ id: uid(), from: { name: 'Gary Mills', email: 'gary@millswholesale.example' }, at: '09-06-26 14:20',
+      msgs: [{ id: uid(), from: { name: 'Gary Mills', email: 'gary@millswholesale.example' }, at: minsAgo(300),
         body: 'Hi, do you do ad-hoc pallet work out of Leeds? Looking for a price list. Cheers, Gary' }],
     }),
   ]
 }
 
-/** Email section: 'full' = inbox list + reader; 'list' = inbox list only (reader
- * collapsed); 'closed' = collapsed to a thin reopen strip. */
-export type EmailPanelState = 'full' | 'list' | 'closed'
+/** Email section collapse level: 'full' = inbox list + reader; 'list' = inbox list
+ * only (reader collapsed); 'mini' = a thin rail with just the mail icon. */
+export type EmailPanelState = 'full' | 'list' | 'mini'
 
 interface EmailsState {
   panelState: EmailPanelState

@@ -18,19 +18,20 @@ import { useUiStore } from '@/store/uiStore.ts'
 export function App() {
   const screen = useViewStore((s) => s.screen)
   const panelState = useEmailsStore((s) => s.panelState)
-  const emailOpen = panelState !== 'closed' // 'full' or 'list' both occupy the right side
-  const emailList = panelState === 'list'
+  // 'full' = immersive (narrow job column + cards/vertical-wizard + big email);
+  // 'list' / 'mini' = side mode (normal table / normal wizard + email panel or rail).
+  const emailFull = panelState === 'full'
+  const emailSide = panelState !== 'full'
   const navOpen = useUiStore((s) => s.navOpen)
-  // A wizard side-drawer (History / Service providers) open with no email panel →
-  // widen the drawer and reflow the booking form into a vertical scroll list beside it.
-  const drawerOpen = useUiStore((s) => s.drawer !== null) && !emailOpen
 
-  // The email panel lives at app level so it stays open while moving between the
-  // list (job cards) and an open booking — opening a job swaps only the left area's
-  // content (cards → wizard); the email panel keeps its width so nothing else moves.
   const wiz = screen === 'wizard'
   return (
-    <div className={'shell' + (wiz ? ' wiz' : '') + (emailOpen ? ' panel-open' : '') + (emailList ? ' email-list' : '') + (emailOpen && navOpen ? ' nav-pinned' : '') + (drawerOpen ? ' drawer-open' : '')}>
+    <div className={'shell' + (wiz ? ' wiz' : '')
+      + (emailFull ? ' panel-open' : '')
+      + (emailSide ? ' email-side' : '')
+      + (panelState === 'list' ? ' email-list' : '')
+      + (panelState === 'mini' ? ' email-mini' : '')
+      + (emailFull && navOpen ? ' nav-pinned' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (
           <BookingWizard />
@@ -46,7 +47,7 @@ export function App() {
           </>
         )}
       </div>
-      {emailOpen ? <EmailPanel /> : <EmailReopenTab />}
+      {panelState === 'mini' ? <EmailReopenTab /> : <EmailPanel />}
     </div>
   )
 }

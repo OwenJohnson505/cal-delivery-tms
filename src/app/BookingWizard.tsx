@@ -25,15 +25,15 @@ export function BookingWizard() {
   const drawerOpen = useUiStore((s) => s.drawer !== null)
   const closeDrawers = useUiStore((s) => s.closeDrawers)
   const quickQuote = useBookingStore((s) => s.quickQuote)
-  // In email-open mode the fixed right rail is hidden, so History / Providers are
-  // reached via buttons under the header instead.
-  const emailOpen = useEmailsStore((s) => s.panelState !== 'closed')
+  // In immersive (full) email mode the fixed right rail is hidden, so History /
+  // Providers are reached via the JobTabs bar instead.
+  const emailFull = useEmailsStore((s) => s.panelState === 'full')
 
   return (
     <>
       <LeftRail />
       <div className="app">
-        {emailOpen && <JobTabs />}
+        {emailFull && <JobTabs />}
         <div className="work">
           <Header />
           {quickQuote ? (

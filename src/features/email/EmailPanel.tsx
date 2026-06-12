@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { StatusPill } from '@/app/StatusPill.tsx'
-import { useEmailsStore, LANES, MAILBOXES, type EmailCategory, type EmailThread, type Lane } from '@/store/emailsStore.ts'
+import { useEmailsStore, relTime, LANES, MAILBOXES, type EmailCategory, type EmailThread, type Lane } from '@/store/emailsStore.ts'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
@@ -286,6 +286,15 @@ export function EmailPanel() {
   const setPanelState = useEmailsStore((s) => s.setPanelState)
   const users = useUsersStore((s) => s.users)
   const currentUserId = useUsersStore((s) => s.currentUserId)
+  const customers = useCustomersStore((s) => s.customers)
+
+  // Match an inbound sender to a known customer account (by contact email), so we can
+  // show "who emailed us" at a glance.
+  const customerFor = (t: EmailThread) => {
+    const sender = (t.msgs.find((m) => !m.outbound)?.from.email ?? '').toLowerCase()
+    if (!sender) return null
+    return customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender)) ?? null
+  }
 
   const [settings, setSettings] = useState(false)
   const [text, setText] = useState('')
@@ -410,7 +419,7 @@ export function EmailPanel() {
         ) : (
           <button className="btn sm iconbtn" title="Expand — show the reader" onClick={() => setPanelState('full')}>‹</button>
         )}
-        <button className="btn sm iconbtn" title="Close email" onClick={() => setPanelState('closed')}>
+        <button className="btn sm iconbtn" title="Minimise email to a rail" onClick={() => setPanelState('mini')}>
           <Icon name="close" size={15} />
         </button>
       </div>
@@ -500,6 +509,7 @@ export function EmailPanel() {
               {visible.map((t) => {
                 const last = t.msgs[t.msgs.length - 1]
                 const assignee = userName(t.assigneeId)
+                const cust = customerFor(t)
                 return (
                   <div
                     key={t.id}
@@ -517,9 +527,10 @@ export function EmailPanel() {
                       {t.reminderDue && <span className="ep-mini" title="Reminder due">⏰</span>}
                       <span className="db-spacer" />
                       {assignee && <span className="ep-ava" title={`Assigned to ${assignee}`}>{initials(assignee)}</span>}
-                      <span className="ep-row-at">{last.at.slice(9)}</span>
+                      <span className="ep-row-at" title={last.at}>{relTime(last.at)}</span>
                     </span>
                     <span className="ep-row-line">
+                      {cust && <span className="ep-custchip" title={`Account: ${cust.companyName || cust.displayName}`}>{cust.displayName || cust.companyName}</span>}
                       <span className="ep-row-subj">{t.subject}</span>
                       {t.snoozedUntil && <span className="ep-snoozed">💤 {t.snoozedUntil}</span>}
                     </span>
