@@ -712,8 +712,10 @@
 .shell.drawer-open .drawer-overlay { display: none; }
 /* the fixed right rail would sit under the drawer — hide it while it's open */
 .shell.drawer-open .siderail:not(.siderail-left) { display: none; }
-/* reserve the drawer's width so the form sits fully to its left */
-.shell.drawer-open .app { padding-right: var(--sp-drawer-w); }
+/* reserve the drawer's width so the form sits fully to its left. In side mode the
+ * email panel is a flex sibling, so shell-main (and the app) already end at the
+ * email's edge — only the drawer width needs reserving (not the email too). */
+.shell.drawer-open .app { padding-right: var(--sp-drawer-w); min-width: 0; }
 /* reflow the form into a single vertical, scrolling column */
 .shell.drawer-open .work { overflow: auto; }
 .shell.drawer-open .main { display: flex; flex-direction: column; gap: 11px; flex: none; min-height: 0; }

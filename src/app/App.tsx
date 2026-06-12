@@ -23,6 +23,11 @@ export function App() {
   const emailFull = panelState === 'full'
   const emailSide = panelState !== 'full'
   const navOpen = useUiStore((s) => s.navOpen)
+  // In SIDE email mode (list/mini), opening a wizard drawer (Service providers /
+  // History) shrinks the booking into a vertical scroller and widens the drawer to
+  // take that room — keeping the booking visible (thinner) alongside the email. In
+  // FULL mode the drawer is reached via JobTabs and takes over the job column instead.
+  const drawerOpen = useUiStore((s) => s.drawer !== null) && emailSide && screen === 'wizard'
 
   const wiz = screen === 'wizard'
   return (
@@ -31,6 +36,7 @@ export function App() {
       + (emailSide ? ' email-side' : '')
       + (panelState === 'list' ? ' email-list' : '')
       + (panelState === 'mini' ? ' email-mini' : '')
+      + (drawerOpen ? ' drawer-open' : '')
       + (emailFull && navOpen ? ' nav-pinned' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (
