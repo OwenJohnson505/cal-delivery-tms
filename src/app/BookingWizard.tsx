@@ -5,7 +5,7 @@
  */
 import { LeftRail, RightRail } from './Rails.tsx'
 import { Header } from './Header.tsx'
-import { JobRailTabs } from './JobRailTabs.tsx'
+import { JobTabs } from './JobTabs.tsx'
 import { Footer } from './Footer.tsx'
 import { JobNotes } from './JobNotes.tsx'
 import { RoutePanel } from '@/features/route/RoutePanel.tsx'
@@ -33,9 +33,9 @@ export function BookingWizard() {
     <>
       <LeftRail />
       <div className="app">
+        {emailOpen && <JobTabs />}
         <div className="work">
           <Header />
-          {emailOpen && <JobRailTabs />}
           {quickQuote ? (
             // Quick Quote: a purpose-built condensed middle (top bar / rails / footer stay)
             <QuickQuotePanel />

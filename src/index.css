@@ -620,27 +620,35 @@
 /* the wizard's fixed right rail would sit under the email client — hide it; its
  * History / Service-providers buttons move under the booking header (JobRailTabs). */
 .shell.panel-open .siderail:not(.siderail-left) { display: none; }
-/* those drawers open OVER the job column only (not the viewport), so the email
- * panel stays visible alongside. No backdrop dim; close via the drawer's ×. */
-.shell.panel-open .drawer {
-  left: 0; right: auto; width: var(--jobcol-w); max-width: none; transform: none;
-  box-shadow: 1px 0 0 var(--line), 6px 0 24px rgba(16, 24, 40, .12);
+/* Job-column tab bar (Job details / Service providers / History) sits at the very
+ * top of the column, above the customer header. */
+.shell.panel-open { --jobtab-h: 40px; }
+.jobtabs {
+  flex: none; height: var(--jobtab-h); display: flex; align-items: stretch; gap: 2px;
+  padding: 0 6px; background: var(--panel); border-bottom: 1px solid var(--line); z-index: 5;
 }
-.shell.panel-open .drawer:not(.open) { display: none; }
-.shell.panel-open .drawer-overlay { display: none; }
-/* the under-header History / Providers buttons (email mode) */
-.jrt { display: flex; gap: 8px; flex-wrap: wrap; padding: 2px 0 0; }
-.jrt-btn {
-  display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
-  border: 1px solid var(--line-strong); background: #fff; border-radius: 8px;
-  font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; position: relative;
+.jobtab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: none;
+  background: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer;
 }
-.jrt-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.jrt-btn.allocated { color: #0b7a55; border-color: #0b7a55; background: #e1f5ee; }
-.jrt-badge {
+.jobtab:hover { color: var(--ink); }
+.jobtab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.jobtab-badge {
   min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: #f5b301; color: #3a2d00;
   font-size: 10px; font-weight: 800; display: inline-grid; place-items: center;
 }
+/* the Providers / History panels render UNDER the tab bar, filling the job column
+ * (email panel stays visible to the right). No backdrop dim; switch via the tabs. */
+.shell.panel-open .drawer {
+  top: var(--jobtab-h); left: 44px; right: auto;
+  width: calc(var(--jobcol-w) - 44px); max-width: none; transform: none;
+  box-shadow: 1px 0 0 var(--line), 6px 0 24px rgba(16, 24, 40, .1);
+}
+.shell.panel-open.nav-pinned .drawer { left: 56px; width: calc(var(--jobcol-w) - 56px); }
+.shell.panel-open .drawer:not(.open) { display: none; }
+.shell.panel-open .drawer .drawer-h { display: none; } /* the tab bar is the header */
+.shell.panel-open .drawer-overlay { display: none; }
 /* footer stacks in the narrow column */
 .shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 10px; }
 .shell.panel-open .foot-actions { margin-left: 0; flex-wrap: wrap; row-gap: 8px; }
