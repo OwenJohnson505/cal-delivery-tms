@@ -20,6 +20,8 @@ interface UiState {
   provSeen: number
   /** Pin the left nav rail open (it collapses by default while the email panel is open). */
   navOpen: boolean
+  /** Whether the left-rail Settings group (secondary nav) is expanded. Collapsed by default. */
+  settingsOpen: boolean
 
   openDrawer(d: DrawerName): void
   closeDrawers(): void
@@ -31,6 +33,7 @@ interface UiState {
   viewPod(stopId: number | null): void
   setProvSeen(n: number): void
   toggleNav(): void
+  toggleSettings(): void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -41,6 +44,7 @@ export const useUiStore = create<UiState>((set) => ({
   customFieldsStopId: null,
   provSeen: 0,
   navOpen: false,
+  settingsOpen: false,
 
   openDrawer: (d) => set({ drawer: d }),
   closeDrawers: () => set({ drawer: null }),
@@ -51,4 +55,5 @@ export const useUiStore = create<UiState>((set) => ({
   viewPod: (stopId) => set({ podStopId: stopId, modal: stopId == null ? null : 'pod' }),
   setProvSeen: (n) => set({ provSeen: n }),
   toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
+  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
 }))

@@ -419,7 +419,7 @@ export function EmailPanel() {
         ) : (
           <button className="btn sm iconbtn" title="Expand — show the reader" onClick={() => setPanelState('full')}>‹</button>
         )}
-        <button className="btn sm iconbtn" title="Minimise email to a rail" onClick={() => setPanelState('mini')}>
+        <button className="btn sm iconbtn" title="Close email" onClick={() => setPanelState('mini')}>
           <Icon name="close" size={15} />
         </button>
       </div>

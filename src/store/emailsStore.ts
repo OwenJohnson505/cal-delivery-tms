@@ -228,7 +228,8 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
 }
 
 /** Email section collapse level: 'full' = inbox list + reader; 'list' = inbox list
- * only (reader collapsed); 'mini' = a thin rail with just the mail icon. */
+ * only (reader collapsed); 'mini' = fully closed (no email chrome — reopened from the
+ * left-rail Emails button). */
 export type EmailPanelState = 'full' | 'list' | 'mini'
 
 interface EmailsState {
@@ -287,7 +288,7 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
     }, ms)
   }
   return {
-    panelState: 'full',
+    panelState: 'mini',
     threads: seedThreads(initialRules),
     selectedId: 'th-0',
     rules: initialRules,
