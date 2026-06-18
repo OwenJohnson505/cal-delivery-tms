@@ -35,6 +35,7 @@ export function App() {
     <div className={'shell' + (wiz ? ' wiz' : '')
       + (emailFull ? ' panel-open' : '')
       + (emailSide ? ' email-side email-list' : '')
+      + ((emailFull || emailSide) ? ' email-left' : '')
       + (drawerOpen ? ' drawer-open' : '')
       + (emailFull && navOpen ? ' nav-pinned' : '')}>
       <div className="shell-main">

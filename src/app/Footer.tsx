@@ -8,6 +8,7 @@ import { RefHistory } from '@/features/customer/RefHistory.tsx'
 import { StatusPill } from '@/app/StatusPill.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useJobsStore, captureSnapshot } from '@/store/jobsStore.ts'
+import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
 import type { JobStatus } from '@/types/index.ts'
 
@@ -32,7 +33,10 @@ export function Footer() {
 
   function save(status: JobStatus) {
     const snapshot = captureSnapshot()
-    saveJob({ id: editingJobId, status, snapshot, createdAt: stamp() })
+    const job = saveJob({ id: editingJobId, status, snapshot, createdAt: stamp() })
+    // If this booking was started from an email, link the whole thread to the new
+    // job ref (and tag it with the ref) so it's searchable by booking reference.
+    useEmailsStore.getState().commitPendingJobLink(job.ref)
     goToList(tabFor(status))
   }
 

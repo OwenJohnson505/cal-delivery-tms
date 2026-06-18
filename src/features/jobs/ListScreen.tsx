@@ -103,8 +103,6 @@ export function ListScreen() {
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
   // Immersive (full) email → compact job cards; collapsed email (list/mini) → the table.
   const emailFull = useEmailsStore((s) => s.panelState === 'full')
-  const emailMini = useEmailsStore((s) => s.panelState === 'mini')
-  const setEmailPanel = useEmailsStore((s) => s.setPanelState)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -618,9 +616,6 @@ export function ListScreen() {
             onToggleExtra={toggleCf}
             extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
           />
-          <button className="btn sm" onClick={() => setEmailPanel(emailMini ? 'full' : 'mini')} title={emailMini ? 'Open email' : 'Minimise email'}>
-            <Icon name="sidebar" size={14} /> Email
-          </button>
         </div>
 
         <div className="list-tablewrap">

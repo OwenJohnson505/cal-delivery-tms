@@ -23,6 +23,13 @@ export type EmailCategory = 'Urgent booking' | 'ETA request' | 'Driver details' 
 export type Lane = 'Open' | 'In progress' | 'Waiting' | 'Done'
 export const LANES: Lane[] = ['Open', 'In progress', 'Waiting', 'Done']
 
+/** Workflow status — one per email at a time (spec §2). The inbox is a task queue:
+ * nothing leaves without a resolution reason. */
+export type EmailStatus = 'New' | 'Assigned' | 'In Progress' | 'Awaiting Customer' | 'Action Ready' | 'Resolved'
+export const EMAIL_STATUSES: EmailStatus[] = ['New', 'Assigned', 'In Progress', 'Awaiting Customer', 'Action Ready', 'Resolved']
+/** Required to leave Resolved or to delete (spec §2). */
+export type ResolutionReason = 'Responded' | 'No Response Needed' | 'Resurfaced by system'
+
 export interface EmailAttachment { id: string; name: string }
 
 export interface EmailMsg {
@@ -68,6 +75,23 @@ export interface EmailThread {
   linkedJobRef: string | null
   /** Presence (dummy): a colleague currently viewing this thread. */
   viewingBy?: string | null
+  // ── workflow (spec §2/§3) ──
+  /** Canonical workflow status. */
+  status: EmailStatus
+  /** Why it was resolved/deleted (required to leave the queue). */
+  resolutionReason: ResolutionReason | null
+  /** When the current owner took it (drives the "Assigned · 3h" clock). */
+  assignedAt: string | null
+  /** Last action of any kind (drives the "Idle 2d" clock). */
+  lastActivityAt: string
+  /** We replied and are waiting on the customer (spec §4.6). */
+  expectingResponse: boolean
+  /** Absolute chase deadline (epoch ms) — amber when past, red well past. */
+  chaseDueAt: number | null
+  /** Internal read receipts: userId → first-open stamp (spec §4.3). */
+  readBy: Record<string, string>
+  /** Resolved/deleted items drop out of the active queue. */
+  archived: boolean
 }
 
 export interface EmailRule {
@@ -168,22 +192,33 @@ function applyRulesTo(t: EmailThread, rules: EmailRule[]): EmailThread {
 }
 
 // ── seed threads ────────────────────────────────────────────────────────────────
-type ThreadSeed = Omit<EmailThread, 'category' | 'priority' | 'assigneeId' | 'comments' | 'snoozedUntil' | 'reminderAt' | 'conversationId' | 'participants' | 'tags' | 'lane' | 'linkedJobRef'> &
-  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy'>>
+type ThreadSeed = Omit<EmailThread, 'category' | 'priority' | 'assigneeId' | 'comments' | 'snoozedUntil' | 'reminderAt' | 'conversationId' | 'participants' | 'tags' | 'lane' | 'linkedJobRef' | 'status' | 'resolutionReason' | 'assignedAt' | 'lastActivityAt' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'archived'> &
+  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'status' | 'expectingResponse' | 'chaseDueAt'>>
 
 function seedThreads(rules: EmailRule[]): EmailThread[] {
-  const base = (t: ThreadSeed): EmailThread =>
-    applyRulesTo(
+  const base = (t: ThreadSeed): EmailThread => {
+    const lastAt = t.msgs[t.msgs.length - 1].at
+    const seeded = applyRulesTo(
       {
         comments: [], category: 'General', priority: 4, assigneeId: null,
         snoozedUntil: null, reminderAt: null,
         conversationId: `AAQk-${t.id}`,
         participants: [...new Set(t.msgs.map((m) => m.from.email))],
         tags: t.tags ?? [], lane: t.lane ?? 'Open', linkedJobRef: t.linkedJobRef ?? null,
+        status: 'New', resolutionReason: null, assignedAt: null, lastActivityAt: lastAt,
+        expectingResponse: false, chaseDueAt: null, readBy: {}, archived: false,
         ...t,
       },
       rules,
     )
+    // derive an initial workflow status from the seed lane + assignment
+    const status: EmailStatus = t.status
+      ?? (seeded.lane === 'Done' ? 'Resolved'
+        : seeded.lane === 'Waiting' ? 'Awaiting Customer'
+          : seeded.lane === 'In progress' ? 'In Progress'
+            : seeded.assigneeId ? 'Assigned' : 'New')
+    return { ...seeded, status, assignedAt: seeded.assigneeId ? minsAgo(180) : null }
+  }
   return [
     base({
       id: 'th-0', read: false, mailbox: 'bookings@cal.delivery', subject: 'URGENT — same-day Luton needed',
@@ -208,6 +243,7 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
     }),
     base({
       id: 'th-4', read: true, mailbox: 'sarah@cal.delivery', subject: 'Re: QU-100501', lane: 'Waiting',
+      expectingResponse: true, chaseDueAt: SEED_NOW - 5 * 60 * 60_000, // chased a quote, 5h overdue (amber)
       msgs: [
         { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(320),
           body: 'Hi Sarah,\n\nCould you quote a 7.5t Leeds to Warrington for next week? Roughly 8 pallets.\n\nPriya' },
@@ -239,9 +275,32 @@ interface EmailsState {
   rules: EmailRule[]
   templates: EmailTemplate[]
   savedViews: SavedEmailView[]
+  /** Thread that kicked off a "create job from email" — linked to the job on save. */
+  pendingJobThread: string | null
 
   setPanelState(s: EmailPanelState): void
+  /** Remember the thread a new booking is being created from (consumed on save). */
+  setPendingJobThread(id: string | null): void
+  /** On job save: link the pending thread to the new ref + tag it with the ref. */
+  commitPendingJobLink(ref: string): void
   selectThread(id: string): void
+  // ── workflow (spec §2/§4) ──
+  /** Set the workflow status (records lastActivity). */
+  setStatus(threadId: string, status: EmailStatus): void
+  /** Resolve with a reason (drops out of the active queue). */
+  resolve(threadId: string, reason: ResolutionReason): void
+  /** Re-open a resolved item back into the queue. */
+  reopen(threadId: string): void
+  /** "Delete" = resolve + archive (kept in the record, hidden from the queue). */
+  archiveThread(threadId: string, reason: ResolutionReason): void
+  /** Append an outbound message without simulating a customer reply. */
+  postOutbound(threadId: string, body: string): void
+  /** Mark "expecting a response" with an absolute chase deadline (epoch ms). */
+  setExpecting(threadId: string, dueAtMs: number): void
+  /** Record that the current user has opened this thread (read receipt). */
+  markRead(threadId: string): void
+  /** Demo: simulate the customer replying — re-surfaces Awaiting Customer as Action Ready. */
+  simulateInbound(threadId: string): void
   reply(threadId: string, body: string): void
   addComment(threadId: string, text: string): void
   assign(threadId: string, userId: string | null): void
@@ -281,6 +340,7 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
     const us = useUsersStore.getState()
     return us.users.find((u) => u.id === us.currentUserId)?.name ?? 'Cal Delivery'
   }
+  const meId = () => useUsersStore.getState().currentUserId
   const doSnooze = (threadId: string, ms: number, label: string) => {
     set((s) => ({ threads: patchThread(s.threads, threadId, { snoozedUntil: label }), selectedId: s.selectedId === threadId ? null : s.selectedId }))
     window.setTimeout(() => {
@@ -294,11 +354,29 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
     rules: initialRules,
     templates: seedTemplates(),
     savedViews: [],
+    pendingJobThread: null,
 
     setPanelState: (panelState) => set({ panelState }),
 
+    setPendingJobThread: (id) => set({ pendingJobThread: id }),
+    commitPendingJobLink: (ref) => {
+      const id = get().pendingJobThread
+      if (!id) return
+      set((s) => ({
+        threads: s.threads.map((t) =>
+          t.id === id ? { ...t, linkedJobRef: ref, tags: [...new Set([...t.tags, ref])] } : t,
+        ),
+        pendingJobThread: null,
+      }))
+    },
+
     selectThread: (id) =>
-      set((s) => ({ selectedId: id, threads: patchThread(s.threads, id, { read: true }) })),
+      set((s) => ({
+        selectedId: id,
+        threads: s.threads.map((t) =>
+          t.id === id ? { ...t, read: true, readBy: t.readBy[meId()] ? t.readBy : { ...t.readBy, [meId()]: stampNow() } } : t,
+        ),
+      })),
 
     reply: (threadId, body) => {
       set((s) => ({
@@ -329,7 +407,67 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
       })),
 
     assign: (threadId, userId) =>
-      set((s) => ({ threads: patchThread(s.threads, threadId, { assigneeId: userId, manuallyAssigned: true }) })),
+      set((s) => ({
+        threads: s.threads.map((t) => {
+          if (t.id !== threadId) return t
+          // taking ownership advances New → Assigned; releasing drops Assigned → New
+          const status: EmailStatus = userId
+            ? (t.status === 'New' ? 'Assigned' : t.status)
+            : (t.status === 'Assigned' ? 'New' : t.status)
+          return { ...t, assigneeId: userId, manuallyAssigned: true, status, assignedAt: userId ? stampNow() : null, lastActivityAt: stampNow() }
+        }),
+      })),
+
+    setStatus: (threadId, status) =>
+      set((s) => ({ threads: patchThread(s.threads, threadId, { status, lastActivityAt: stampNow() }) })),
+
+    resolve: (threadId, reason) =>
+      set((s) => ({ threads: patchThread(s.threads, threadId, { status: 'Resolved', resolutionReason: reason, expectingResponse: false, chaseDueAt: null, lastActivityAt: stampNow() }) })),
+
+    reopen: (threadId) =>
+      set((s) => ({
+        threads: s.threads.map((t) =>
+          t.id === threadId ? { ...t, status: t.assigneeId ? 'Assigned' : 'New', resolutionReason: null, archived: false, lastActivityAt: stampNow() } : t,
+        ),
+      })),
+
+    archiveThread: (threadId, reason) =>
+      set((s) => ({ threads: patchThread(s.threads, threadId, { status: 'Resolved', resolutionReason: reason, archived: true, expectingResponse: false, chaseDueAt: null, lastActivityAt: stampNow() }) })),
+
+    postOutbound: (threadId, body) =>
+      set((s) => ({
+        threads: s.threads.map((t) =>
+          t.id === threadId
+            ? { ...t, lastActivityAt: stampNow(), msgs: [...t.msgs, { id: uid(), from: { name: me(), email: 'bookings@cal.delivery' }, body, at: stampNow(), outbound: true }] }
+            : t,
+        ),
+      })),
+
+    setExpecting: (threadId, dueAtMs) =>
+      set((s) => ({ threads: patchThread(s.threads, threadId, { expectingResponse: true, chaseDueAt: dueAtMs, status: 'Awaiting Customer', lastActivityAt: stampNow() }) })),
+
+    markRead: (threadId) =>
+      set((s) => ({ threads: s.threads.map((t) => (t.id === threadId && !t.readBy[meId()] ? { ...t, readBy: { ...t.readBy, [meId()]: stampNow() } } : t)) })),
+
+    // Demo: a customer reply lands → an Awaiting Customer item auto-flips to Action
+    // Ready and the chase clock clears (spec §4.1). Real impl: Graph delta sync.
+    simulateInbound: (threadId) =>
+      set((s) => ({
+        threads: s.threads.map((t) => {
+          if (t.id !== threadId) return t
+          const sender = t.msgs.find((m) => !m.outbound)?.from ?? { name: 'Customer', email: 'customer@example.com' }
+          const canned = CANNED_REPLIES[(t.msgs.length + threadId.length) % CANNED_REPLIES.length]
+          const flip = t.status === 'Awaiting Customer'
+          return {
+            ...t, read: false, lastActivityAt: stampNow(),
+            status: flip ? 'Action Ready' : t.status,
+            expectingResponse: flip ? false : t.expectingResponse,
+            chaseDueAt: flip ? null : t.chaseDueAt,
+            comments: flip ? [...t.comments, { id: uid(), by: 'system', at: stampNow(), text: 'Customer replied — re-surfaced as Action Ready.' }] : t.comments,
+            msgs: [...t.msgs, { id: uid(), from: sender, body: canned, at: stampNow() }],
+          }
+        }),
+      })),
 
     setLane: (threadId, lane) => set((s) => ({ threads: patchThread(s.threads, threadId, { lane }) })),
 

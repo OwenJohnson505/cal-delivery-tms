@@ -43,7 +43,7 @@ export function LeftRail() {
   // Primary nav: the three everyday destinations, always visible.
   const primary: NavItem[] = [
     { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' || screen === 'wizard' },
-    { icon: 'mail', label: 'Emails', onClick: () => setPanelState(emailOpen ? 'mini' : 'full'), active: emailOpen },
+    { icon: 'mail', label: 'Emails', onClick: () => setPanelState(emailOpen ? 'mini' : 'list'), active: emailOpen },
     { icon: 'user', label: 'Customers', onClick: () => goToCustomers(), active: screen === 'customers' },
   ]
   // Secondary nav: tucked inside the Settings group at the bottom, collapsed by default.
