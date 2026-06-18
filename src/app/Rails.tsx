@@ -48,6 +48,7 @@ export function LeftRail() {
   ]
   // Secondary nav: tucked inside the Settings group at the bottom, collapsed by default.
   const secondary: NavItem[] = [
+    { icon: 'grid', label: 'Form Builder', onClick: () => go('forms'), active: screen === 'forms' },
     { icon: 'pin', label: 'Addresses', onClick: () => go('addresses'), active: screen === 'addresses' },
     { icon: 'tag', label: 'Tariffs', onClick: () => go('tariffs'), active: screen === 'tariffs' },
     { icon: 'users', label: 'Users', onClick: () => go('users'), active: screen === 'users' },

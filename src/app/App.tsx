@@ -3,13 +3,14 @@
  * or the booking wizard when adding/opening a job. The left nav rail is shared chrome.
  */
 import { LeftRail } from './Rails.tsx'
-import { BookingWizard } from './BookingWizard.tsx'
 import { ListScreen } from '@/features/jobs/ListScreen.tsx'
 import { CustomersScreen } from '@/features/customers/CustomersScreen.tsx'
 import { UsersScreen } from '@/features/users/UsersScreen.tsx'
 import { TeamsScreen } from '@/features/teams/TeamsScreen.tsx'
 import { TariffsScreen } from '@/features/tariffs/TariffsScreen.tsx'
 import { AddressesScreen } from '@/features/addresses/AddressesScreen.tsx'
+import { FormsScreen } from '@/features/forms/FormsScreen.tsx'
+import { WizardHost } from '@/features/forms/LiveBookingScreen.tsx'
 import { EmailPanel } from '@/features/email/EmailPanel.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
@@ -40,7 +41,7 @@ export function App() {
       + (emailFull && navOpen ? ' nav-pinned' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (
-          <BookingWizard />
+          <WizardHost />
         ) : (
           <>
             <LeftRail />
@@ -49,6 +50,7 @@ export function App() {
             {screen === 'teams' && <TeamsScreen />}
             {screen === 'tariffs' && <TariffsScreen />}
             {screen === 'addresses' && <AddressesScreen />}
+            {screen === 'forms' && <FormsScreen />}
             {screen === 'list' && <ListScreen />}
           </>
         )}
