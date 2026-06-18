@@ -12,6 +12,7 @@ import { AddressesScreen } from '@/features/addresses/AddressesScreen.tsx'
 import { FormsScreen } from '@/features/forms/FormsScreen.tsx'
 import { WizardHost } from '@/features/forms/LiveBookingScreen.tsx'
 import { EmailPanel } from '@/features/email/EmailPanel.tsx'
+import { EmailRulesScreen } from '@/features/email/EmailRulesScreen.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
@@ -22,8 +23,12 @@ export function App() {
   // 'full' = immersive (narrow job column + cards/vertical-wizard + big email);
   // 'list' = side mode (normal table / normal wizard + email panel alongside);
   // 'mini' = fully closed — no email chrome at all; reopened from the left-rail Emails button.
-  const emailFull = panelState === 'full'
-  const emailSide = panelState === 'list'
+  // Email only pairs with the booking page (list + wizard) — not customers, settings,
+  // service-providers screens, etc.
+  const onBookingPage = screen === 'list' || screen === 'wizard'
+  const emailVisible = panelState !== 'mini' && onBookingPage
+  const emailFull = panelState === 'full' && onBookingPage
+  const emailSide = panelState === 'list' && onBookingPage
   const navOpen = useUiStore((s) => s.navOpen)
   // In SIDE email mode (list), opening a wizard drawer (Service providers / History)
   // shrinks the booking into a vertical scroller and widens the drawer to take that
@@ -51,11 +56,12 @@ export function App() {
             {screen === 'tariffs' && <TariffsScreen />}
             {screen === 'addresses' && <AddressesScreen />}
             {screen === 'forms' && <FormsScreen />}
+            {screen === 'emailrules' && <EmailRulesScreen />}
             {screen === 'list' && <ListScreen />}
           </>
         )}
       </div>
-      {panelState !== 'mini' && <EmailPanel />}
+      {emailVisible && <EmailPanel />}
     </div>
   )
 }

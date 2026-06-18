@@ -46,6 +46,8 @@ export interface EmailComment {
   by: string
   at: string
   text: string
+  /** The message this comment was left after — clicking the comment jumps to it. */
+  afterMsgId?: string
 }
 
 export interface EmailThread {
@@ -75,6 +77,10 @@ export interface EmailThread {
   linkedJobRef: string | null
   /** Presence (dummy): a colleague currently viewing this thread. */
   viewingBy?: string | null
+  /** Live collaboration (dummy): a colleague is drafting a reply right now. Shows a
+   * typing indicator; teammates can open it, edit the in-progress draft and send.
+   * Real impl: a DraftPresence heartbeat (brief §4.3) carrying the live draft body. */
+  draftPresence?: { by: string; body: string } | null
   // ── workflow (spec §2/§3) ──
   /** Canonical workflow status. */
   status: EmailStatus
@@ -193,7 +199,7 @@ function applyRulesTo(t: EmailThread, rules: EmailRule[]): EmailThread {
 
 // ── seed threads ────────────────────────────────────────────────────────────────
 type ThreadSeed = Omit<EmailThread, 'category' | 'priority' | 'assigneeId' | 'comments' | 'snoozedUntil' | 'reminderAt' | 'conversationId' | 'participants' | 'tags' | 'lane' | 'linkedJobRef' | 'status' | 'resolutionReason' | 'assignedAt' | 'lastActivityAt' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'archived'> &
-  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'status' | 'expectingResponse' | 'chaseDueAt'>>
+  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'draftPresence' | 'status' | 'expectingResponse' | 'chaseDueAt'>>
 
 function seedThreads(rules: EmailRule[]): EmailThread[] {
   const base = (t: ThreadSeed): EmailThread => {
@@ -206,7 +212,7 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
         participants: [...new Set(t.msgs.map((m) => m.from.email))],
         tags: t.tags ?? [], lane: t.lane ?? 'Open', linkedJobRef: t.linkedJobRef ?? null,
         status: 'New', resolutionReason: null, assignedAt: null, lastActivityAt: lastAt,
-        expectingResponse: false, chaseDueAt: null, readBy: {}, archived: false,
+        expectingResponse: false, chaseDueAt: null, readBy: {}, archived: false, draftPresence: null,
         ...t,
       },
       rules,
@@ -226,7 +232,8 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
         body: 'Hi — urgent one, sorry. We need a Luton TODAY, collection M15 4FN before 13:00, delivery L7 9PG. Can you help?\n\nSarah (Meridian)' }],
     }),
     base({
-      id: 'th-1', read: false, mailbox: 'bookings@cal.delivery', subject: 'Re: BK-100482 — delivery today', linkedJobRef: 'BK-100482', viewingBy: 'James Hill',
+      id: 'th-1', read: false, mailbox: 'bookings@cal.delivery', subject: 'Re: BK-100482 — delivery today', linkedJobRef: 'BK-100482',
+      draftPresence: { by: 'James Hill', body: 'Hi Sarah,\n\nYes — BK-100482 (PO-7781) is on track for 14:15 into WA2. The driver is currently' },
       msgs: [{ id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: minsAgo(35),
         body: 'Morning,\n\nQuick check on BK-100482 (our ref PO-7781) — is the 14:15 delivery into WA2 still on track? Site closes at 16:00 today.\n\nThanks,\nSarah' }],
     }),
@@ -299,10 +306,14 @@ interface EmailsState {
   setExpecting(threadId: string, dueAtMs: number): void
   /** Record that the current user has opened this thread (read receipt). */
   markRead(threadId: string): void
+  /** Take over a colleague's in-progress draft (clears the typing indicator). */
+  clearDraftPresence(threadId: string): void
   /** Demo: simulate the customer replying — re-surfaces Awaiting Customer as Action Ready. */
   simulateInbound(threadId: string): void
   reply(threadId: string, body: string): void
   addComment(threadId: string, text: string): void
+  /** Compose & send a brand-new outbound email → creates and opens a new thread. */
+  composeEmail(to: string, subject: string, body: string): void
   assign(threadId: string, userId: string | null): void
   setLane(threadId: string, lane: Lane): void
   toggleFlag(threadId: string, flag: 'pinned' | 'muted' | 'following'): void
@@ -402,9 +413,29 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
     addComment: (threadId, text) =>
       set((s) => ({
         threads: s.threads.map((t) =>
-          t.id === threadId ? { ...t, comments: [...t.comments, { id: uid(), by: me(), at: stampNow(), text }] } : t,
+          t.id === threadId ? { ...t, comments: [...t.comments, { id: uid(), by: me(), at: stampNow(), text, afterMsgId: t.msgs[t.msgs.length - 1]?.id }] } : t,
         ),
       })),
+
+    // Real impl: Graph sendMail to a new conversation; here we mint a local thread.
+    composeEmail: (to, subject, body) => {
+      const id = `th-${uid()}`
+      const thread = applyRulesTo(
+        {
+          id, conversationId: `AAQk-${uid()}`, mailbox: MAILBOXES[0],
+          participants: [to], subject: subject.trim() || '(no subject)',
+          msgs: [{ id: uid(), from: { name: me(), email: 'bookings@cal.delivery' }, body, at: stampNow(), outbound: true }],
+          comments: [], read: true, category: 'General', priority: 4,
+          lane: 'Open', tags: [], assigneeId: meId(), manuallyAssigned: true,
+          pinned: false, muted: false, following: false,
+          snoozedUntil: null, reminderAt: null, linkedJobRef: null,
+          status: 'Assigned', resolutionReason: null, assignedAt: stampNow(), lastActivityAt: stampNow(),
+          expectingResponse: false, chaseDueAt: null, readBy: {}, archived: false, draftPresence: null,
+        },
+        get().rules,
+      )
+      set((s) => ({ threads: [thread, ...s.threads], selectedId: id, panelState: 'full' }))
+    },
 
     assign: (threadId, userId) =>
       set((s) => ({
@@ -448,6 +479,9 @@ export const useEmailsStore = create<EmailsState>((set, get) => {
 
     markRead: (threadId) =>
       set((s) => ({ threads: s.threads.map((t) => (t.id === threadId && !t.readBy[meId()] ? { ...t, readBy: { ...t.readBy, [meId()]: stampNow() } } : t)) })),
+
+    clearDraftPresence: (threadId) =>
+      set((s) => ({ threads: patchThread(s.threads, threadId, { draftPresence: null }) })),
 
     // Demo: a customer reply lands → an Awaiting Customer item auto-flips to Action
     // Ready and the chase clock clears (spec §4.1). Real impl: Graph delta sync.

@@ -1754,3 +1754,206 @@
 /* live custom form in the booking slot */
 .fb-livewrap { overflow: auto; padding: 0 0 24px; }
 .fb-live-banner { font-size: 11px; color: var(--accent); background: var(--accent-soft); padding: 7px 14px; }
+
+/* ── Email list rows: Front-style (sender › assignee · subject), reduced blue ──────── */
+/* dot hangs to the LEFT of line 1; both lines start at the same x; time pinned top-right */
+.ep-row { display: block; position: relative; padding: 11px 14px 12px 30px; border-bottom: 1px solid #e2e8f0; }
+.ep-row.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.ep-row .ep-check { position: absolute; left: 11px; top: 13px; }
+.ep-row-when { position: absolute; top: 12px; right: 14px; display: flex; align-items: center; gap: 6px; }
+.ep-rbody { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ep-row-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ep-line-top { position: relative; padding-right: 74px; }   /* clear the pinned time / chase badge */
+/* the unread dot, vertically centred on line 1, hanging in the left margin */
+.ep-unread-dot { position: absolute; left: -17px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.ep-row:hover .ep-unread-dot { opacity: 0; }   /* checkbox takes its place on hover */
+/* line 1: sender (bold when unread) › assignee (the Front-style owner link) */
+.ep-row-from { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.ep-row.unread .ep-row-from { font-weight: 800; }
+.ep-sep { color: var(--muted); font-size: 13px; flex: none; }
+.ep-assignee { font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 40px; }
+.ep-unassigned { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: #b45309; background: #fdeccb; padding: 1px 7px; border-radius: 999px; flex: none; }
+.ep-row-at { font-size: 10.5px; color: var(--muted); white-space: nowrap; flex: none; }
+/* line 2: subject · status/attachments/snooze (no body preview) */
+.ep-row-subj { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.ep-attn { font-size: 10px; color: var(--muted); white-space: nowrap; flex: none; }
+/* typing / collaborative draft indicator (replaces the viewing eye) */
+.ep-typing { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: #0b7a55; cursor: pointer; padding: 1px 0 0 0; }
+.ep-typing:hover { text-decoration: underline; }
+.ep-typing-dots { display: inline-flex; gap: 2px; flex: none; }
+.ep-typing-dots i { width: 4px; height: 4px; border-radius: 50%; background: #16a36f; display: inline-block; animation: ep-typing-b 1s infinite ease-in-out; }
+.ep-typing-dots i:nth-child(2) { animation-delay: .15s; }
+.ep-typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes ep-typing-b { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+.ep-draftbanner { display: flex; align-items: center; gap: 8px; background: #e6f6ef; color: #0b6a4b; }
+/* neutralise avatars (suggestions etc.) — were blue */
+.ep-ava { background: #eceff3; color: #5b6470; }
+
+/* ── Email reader: Front-style grey message canvas + white message cards ─────────── */
+.ep-msgs { background: #f4f6f9; gap: 12px; padding: 14px; }
+.ep-msg { max-width: none; align-self: stretch; border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 0; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+.ep-msg.out { align-self: stretch; background: #fff; border-color: var(--line); }
+.ep-msg.out .ep-msg-ava { background: var(--accent-soft); color: var(--accent); }
+.ep-msg-head { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-bottom: 1px solid var(--field); }
+.ep-msg-ava { width: 28px; height: 28px; border-radius: 50%; background: #eceff3; color: #5b6470; font-size: 10px; font-weight: 800; display: grid; place-items: center; flex: none; }
+.ep-msg-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.ep-msg-name { font-size: 12.5px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+.ep-msg-tag { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--accent); background: var(--accent-soft); padding: 0 5px; border-radius: 999px; }
+.ep-msg-addr { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-msg-time { font-size: 10.5px; color: var(--muted); white-space: nowrap; flex: none; }
+.ep-msg-body { padding: 11px 13px 12px; font-size: 12.5px; line-height: 1.55; }
+.ep-msg .ep-att { display: inline-flex; margin: 0 13px 11px; }
+.ep-split { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 4px; flex: none; }
+.ep-split:hover { color: var(--accent); }
+
+/* internal comments: warm "note" tint + a clean Front-style composer */
+.ep-msg.note { background: #fffaf0; border-color: #f1e3c6; }
+.ep-cdrawer-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.ep-cdrawer-hint { font-size: 10.5px; color: #8a6d3b; }
+
+/* email-rules settings screen (moved out of the inbox UI) */
+.emailrules-wrap { max-width: 760px; }
+.emailrules-wrap .ep-settings { padding: 0; overflow: visible; }
+
+/* ── Consolidated filter menu (mailbox · smart folder · snoozed · saved views) ───── */
+.ep-filterwrap { position: relative; flex: none; }
+.ep-filter-btn { width: 30px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.ep-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.ep-filter-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ep-filtermenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 490; width: 244px; background: #fff; border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 10px 28px rgba(16, 24, 40, .16); padding: 11px 13px; display: flex; flex-direction: column; gap: 9px; }
+.ep-fm-row { display: flex; align-items: center; gap: 8px; }
+.ep-fm-lbl { width: 56px; flex: none; font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.ep-fm-row select { flex: 1; min-width: 0; height: 28px; }
+.ep-fm-chk { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--head); }
+.ep-fm-chk input { width: auto; height: auto; margin: 0; }
+.ep-fm-sec { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 2px; border-top: 1px solid var(--line); padding-top: 9px; }
+.ep-fm-empty { font-size: 11px; color: var(--muted); }
+.ep-fm-view { text-align: left; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 5px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+.ep-fm-view:hover { border-color: var(--accent); color: var(--accent); }
+.ep-fm-save { align-self: flex-start; }
+
+/* primary status tabs (clean underline tabs, not a wall of pills) */
+.ep-topfilter { gap: 2px; padding: 5px 10px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.ep-topfilter .ep-tf { border: none; background: none; border-radius: 0; height: 30px; padding: 0 9px; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.ep-topfilter .ep-tf:hover { color: var(--ink); background: none; }
+.ep-topfilter .ep-tf.on { color: var(--accent); border-bottom-color: var(--accent); background: none; }
+
+/* ── Inline shared draft (Front-style live draft in the thread) ──────────────────── */
+.ep-shared { border: 1px dashed #c9b6e8; border-radius: 12px; background: #faf7ff; overflow: hidden; }
+.ep-shared-h { display: flex; align-items: center; gap: 6px; padding: 6px 11px; font-size: 11px; color: #6d4ea8; background: #f1ebfb; border-bottom: 1px solid #e7ddf6; }
+.ep-shared-h b { color: #5b3f93; }
+.ep-shared-sub { color: #9a86c0; }
+.ep-shared-editing { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: #6d4ea8; }
+.ep-shared .ep-typing-dots i { background: #8a6fc7; }
+.ep-shared-msg { border: none; border-radius: 0; box-shadow: none; background: transparent; }
+.ep-shared-msg .ep-msg-head { border-bottom-color: #ece3fa; }
+.ep-shared-msg .ep-msg-ava { background: #ece3fa; color: #6d4ea8; }
+.ep-draft-caret { display: inline-block; width: 2px; height: 14px; background: #6d4ea8; margin-left: 1px; vertical-align: text-bottom; animation: ep-caret 1s steps(1) infinite; }
+@keyframes ep-caret { 50% { opacity: 0; } }
+
+/* message card header: name <email> on one line (email grey), "To: …" beneath — the
+   sender/recipient addresses live here only, not duplicated under the subject */
+.ep-msg-name { min-width: 0; flex-wrap: wrap; }
+.ep-msg-email { font-weight: 400; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* clickable sender name → contact popover (copy / call / write) */
+.ep-namewrap { position: relative; display: inline-block; }
+.ep-name-btn { border: none; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; }
+.ep-name-btn:hover { color: var(--accent); text-decoration: underline; }
+.cc-contact-pop button.ccp-row { border: none; background: none; width: 100%; text-align: left; font: inherit; font-size: 12.5px; cursor: pointer; }
+.ccp-sub { font-weight: 500; color: var(--muted); margin-left: 6px; }
+.ccp-copy { margin-left: auto; font-style: normal; color: var(--muted); cursor: pointer; padding: 0 4px; }
+.ccp-copy:hover { color: var(--accent); }
+.ccp-note { font-size: 10.5px; color: var(--muted); padding: 4px 8px 2px; }
+
+/* internal comments collected at the foot of the thread — grey, rounded, clickable to
+   jump to the email they were left on (Front-style, not yellow) */
+/* WhatsApp-style: each bubble is only as wide/tall as its content, left-aligned */
+.ep-comments { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-top: 6px; padding-top: 9px; border-top: 1px dashed var(--line-strong); }
+.ep-cnote { display: inline-block; width: auto; max-width: 85%; text-align: left; border: 1px solid #d3d9e2; background: #e7ebf1; border-radius: 12px; padding: 5px 11px 6px; cursor: pointer; font: inherit; }
+.ep-cnote:hover { background: #dfe4ec; border-color: #c6cdda; }
+.ep-cnote-head { display: flex; align-items: baseline; gap: 7px; font-size: 10.5px; }
+.ep-cnote-head b { color: var(--ink); }
+.ep-cnote-time { font-size: 9.5px; color: var(--muted); }
+.ep-cnote-body { display: block; font-size: 12.5px; line-height: 1.35; color: var(--ink); margin-top: 1px; white-space: pre-wrap; }
+
+/* brief highlight when a comment jumps you to its email */
+.ep-msg.flash { box-shadow: 0 0 0 2px var(--accent); }
+
+/* two-level filter: scope (Assigned to me / All) segmented control */
+.ep-scope { display: flex; padding: 7px 12px 0; }
+.ep-scope-btn { flex: 1; height: 28px; border: 1px solid var(--line-strong); background: #fff; font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.ep-scope-btn:first-child { border-radius: 8px 0 0 8px; }
+.ep-scope-btn:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+.ep-scope-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* expect-a-response picker (lives in the composer footer now) */
+.ep-composer-f { flex-wrap: wrap; row-gap: 8px; }
+.ep-expect { padding: 0; }
+.ep-expect-opts { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.ep-expect-preset { height: 24px; padding: 0 9px; min-width: 32px; }
+.ep-expect-num { width: 50px; height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: inherit; font-size: 11.5px; text-align: center; }
+.ep-unit-toggle { height: 24px; min-width: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); font: inherit; font-size: 11px; font-weight: 700; color: var(--head); cursor: pointer; }
+.ep-unit-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.ep-expect-or { font-size: 10px; color: var(--muted); }
+.ep-setdt { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 11px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.ep-setdt.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.ep-setdt input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+/* always-on internal-comment composer (chat-style: type + Enter) */
+.ep-cbar { flex: none; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-top: 1px solid var(--line); background: var(--panel); }
+.ep-cbar-lock { font-size: 13px; flex: none; }
+.ep-cbar-input { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 14px; font: inherit; font-size: 12.5px; background: var(--field); }
+.ep-cbar-input:focus { background: #fff; outline: none; border-color: var(--accent); }
+.ep-cbar-send { flex: none; width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer; display: grid; place-items: center; }
+.ep-cbar-send:disabled { opacity: .4; cursor: default; }
+
+/* compose a new email */
+.ep-newmail { background: #fff; }
+.ep-newmail-fields { flex: none; padding: 4px 14px 0; }
+.ep-nm-row { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+.ep-nm-row span { width: 56px; flex: none; font-size: 11px; font-weight: 700; color: var(--muted); }
+.ep-nm-row input { flex: 1; min-width: 0; border: none; height: 38px; background: none; font: inherit; font-size: 13px; }
+.ep-nm-row input:focus { outline: none; }
+.ep-newmail-body { flex: 1; min-height: 120px; margin: 12px 14px; border: 1px solid var(--line); border-radius: 10px; padding: 11px; font: inherit; font-size: 13px; resize: none; }
+.ep-newmail-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid var(--line); }
+
+/* ── Email automation studio (rules / macros / templates / AI builder) ──────────── */
+.ar-screen { padding: 16px 22px; max-width: 940px; }
+.ar-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.ar-ai { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid #d9caf0; background: #faf7ff; border-radius: 12px; margin-bottom: 10px; }
+.ar-ai-spark { font-size: 16px; flex: none; }
+.ar-ai-input { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; font: inherit; font-size: 12.5px; background: #fff; }
+.ar-ai-note { font-size: 12px; color: #5b3f93; background: #f1ebfb; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+.ar-ran { font-size: 12px; color: #0b6a4b; background: #e6f6ef; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+.ar-newrow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ar-card { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--panel); margin-bottom: 8px; }
+.ar-card.off { opacity: .55; }
+.ar-toggle input { width: auto; height: auto; margin: 0; }
+.ar-macro-ico { font-size: 18px; flex: none; }
+.ar-card-main { flex: 1; min-width: 0; }
+.ar-card-name { font-size: 13px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+.ar-card-sum { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.ar-badge { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); background: var(--field); padding: 1px 6px; border-radius: 999px; }
+.ar-badge.ai { color: #6d4ea8; background: #f1ebfb; }
+
+.ar-editor { border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; overflow: hidden; }
+.ar-ed-h { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.ar-name { flex: 1; max-width: 360px; height: 30px; font-weight: 700; }
+.ar-ed-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.ar-block { border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+.ar-block-h { display: flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--accent); margin-bottom: 8px; }
+.ar-trigger { height: 30px; }
+.ar-match { width: auto; height: 26px; margin-left: auto; font-size: 11px; }
+.ar-mock { font-size: 10px; color: var(--muted); margin-left: 8px; }
+.ar-rows { display: flex; flex-direction: column; gap: 6px; }
+.ar-row { display: flex; align-items: center; gap: 6px; }
+.ar-field { flex: 1.4 1 0; min-width: 0; height: 30px; }
+.ar-op { flex: 0 0 auto; width: auto; height: 30px; }
+.ar-val { flex: 1 1 0; min-width: 60px; width: auto; height: 30px; }
+.ar-val-none { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; }
+.ar-branch { border-left: 3px solid var(--accent-soft); padding: 6px 0 8px 12px; margin-bottom: 10px; }
+.ar-branch-name { height: 28px; font-weight: 600; max-width: 240px; }
+.ar-sub { font-size: 9.5px; font-weight: 800; color: var(--muted); margin: 8px 0 4px; }
+.ar-macro-editor { margin-top: 10px; }
+.ar-tpl-new { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-width: 540px; }

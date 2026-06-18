@@ -19,8 +19,18 @@ import { useViewStore } from '@/store/viewStore.ts'
 import { useCustomersStore } from '@/store/customersStore.ts'
 import { useTariffsStore } from '@/store/tariffsStore.ts'
 import { useUsersStore } from '@/store/usersStore.ts'
+import { useAutomationStore } from '@/store/automationStore.ts'
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Clicking outside the email panel only collapses the reader when it's genuine dead
+ * space — NOT when it's one of these interactive things (which should act normally). */
+const DEADSPACE_EXCEPT = [
+  'a', 'button', 'input', 'select', 'textarea', 'label', '[role="button"]',
+  '.ep-row', '.siderail', '.drawer', '.drawer-overlay', '.cell-link', '.list-tab',
+  '.jcard', '.jobcard', '.job-card', '.bk-card', '.stop-card', '.stop-head', '.panelbox',
+  '.cc-contact-pop', '.cell-pop', '.ep-filtermenu', '.list-table', 'table',
+].join(',')
 
 const CAT_CLASS: Record<EmailCategory, string> = {
   'Urgent booking': 'cat-urgent',
@@ -71,18 +81,20 @@ const STATUS_META: Record<EmailStatus, { cls: string; label: string }> = {
   'Action Ready': { cls: 'st-action', label: 'Action Ready' },
   'Resolved': { cls: 'st-resolved', label: 'Resolved' },
 }
+const STATUS_HELP: Record<EmailStatus, string> = {
+  'New': 'Just arrived — no owner yet',
+  'Assigned': 'Owned by someone, not started',
+  'In Progress': 'Being worked right now — a reply is open / being drafted',
+  'Awaiting Customer': 'We replied; waiting on the customer (chase clock running)',
+  'Action Ready': 'The system re-surfaced it — needs a human now',
+  'Resolved': 'Done, with a resolution reason',
+}
 function StatusChip({ status }: { status: EmailStatus }) {
-  return <span className={'ep-status ' + STATUS_META[status].cls}>{STATUS_META[status].label}</span>
+  return <span className={'ep-status ' + STATUS_META[status].cls} title={`${status} — ${STATUS_HELP[status]}`}>{STATUS_META[status].label}</span>
 }
-/** Compact "time since" for the assigned/idle clocks: 4m · 3h · 2d. */
-const agoShort = (at: string): string => {
-  const d = atDate(at)
-  if (!d) return ''
-  const mins = Math.floor(Math.max(0, Date.now() - d.getTime()) / 60_000)
-  if (mins < 60) return `${mins}m`
-  const h = Math.floor(mins / 60)
-  return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`
-}
+/** Statuses worth a pill in the list. 'New'/'Assigned' are implied by the
+ * (un)assigned name already shown, so we don't repeat them (avoid duplication). */
+const SHOW_STATUS = new Set<EmailStatus>(['In Progress', 'Awaiting Customer', 'Action Ready', 'Resolved'])
 /** Chase deadline escalation: ok (in future) · amber (overdue) · red (>1 day overdue). */
 const chaseInfo = (dueMs: number): { level: 'ok' | 'amber' | 'red'; label: string } => {
   const diff = dueMs - Date.now()
@@ -147,6 +159,47 @@ function createJobFromEmail(thread: EmailThread) {
   useViewStore.getState().openWizard(null)
 }
 
+/** Contact popover for a name in the email body — shows the address (always known) and,
+ * if the address maps to a saved contact, their full details. Every field copies on
+ * click; phone dials; the email starts a new outbound message (compose). */
+function ContactPop({ name, email, onClose, onCompose }: {
+  name: string; email: string; onClose: () => void; onCompose: (to: string) => void
+}) {
+  const customers = useCustomersStore((s) => s.customers)
+  const e = email.toLowerCase()
+  let contact: { name: string; email: string; phone?: string } | null = null
+  let company = ''
+  for (const c of customers) {
+    const ct = c.contacts.find((x) => x.email.toLowerCase() === e)
+    if (ct) { contact = ct; company = c.displayName || c.companyName; break }
+  }
+  const copy = (v: string) => { try { void navigator.clipboard?.writeText(v) } catch { /* ignore */ } }
+  return (
+    <>
+      <div className="cc-pop-scrim" onClick={onClose} />
+      <div className="cc-contact-pop ep-contactpop" onClick={(ev) => ev.stopPropagation()}>
+        <div className="ccp-h">{contact?.name ?? name}{company && <span className="ccp-sub">{company}</span>}</div>
+        <button className="ccp-row" onClick={() => { onCompose(email); onClose() }} title="New email to this address">
+          <Icon name="mail" size={14} /> <span>{email}</span>
+          <i className="ccp-copy" onClick={(ev) => { ev.stopPropagation(); copy(email) }} title="Copy">⧉</i>
+        </button>
+        {contact?.phone && (
+          <a className="ccp-row" href={`tel:${contact.phone}`} title="Call">
+            <Icon name="phone" size={14} /> <span>{contact.phone}</span>
+            <i className="ccp-copy" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); copy(contact!.phone!) }} title="Copy">⧉</i>
+          </a>
+        )}
+        {company && (
+          <button className="ccp-row" onClick={() => copy(company)} title="Copy">
+            <Icon name="building" size={14} /> <span>{company}</span>
+          </button>
+        )}
+        {!contact && <div className="ccp-note">Not a saved contact — address only. Click the email to copy or write to them.</div>}
+      </div>
+    </>
+  )
+}
+
 /** One-line job strip (linked or detected job) that expands into the full card. */
 function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (text: string) => void }) {
   const jobs = useJobsStore((s) => s.jobs)
@@ -188,8 +241,9 @@ function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (
       </div>
       {open && detected && (
         <div className="ep-job">
+          {/* the strip already shows ref · status · ETA — the expanded card adds only
+              NEW detail (route/vehicle/supplier, scheduled times) + actions */}
           <div className="ep-job-h">
-            <b>{detected.ref}</b>
             <span className="cf-hint">{detected.route} · {detected.vehicle || '—'} · {detected.supplierName || 'Unassigned'}</span>
             <span className="db-spacer" />
             {persisted
@@ -197,8 +251,8 @@ function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (
               : <button className="cm-link" onClick={() => linkJob(thread.id, detected.ref)}>Link</button>}
           </div>
           <div className="ep-job-grid">
-            <span>Coll</span><b>{detected.collectAt || '—'}{detected.collectEta ? ` · ETA ${detected.collectEta}` : ''}</b>
-            <span>Del</span><b>{detected.deliverAt || '—'}{detected.deliverEta ? ` · ETA ${detected.deliverEta}` : ''}</b>
+            <span>Coll booked</span><b>{detected.collectAt || '—'}</b>
+            <span>Del booked</span><b>{detected.deliverAt || '—'}</b>
           </div>
           <div className="ep-job-actions">
             <select className="ep-assign" value={detected.progress || ''} onChange={(e) => setProgress(detected.id, e.target.value)} title="Update job status">
@@ -231,8 +285,8 @@ function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (
   )
 }
 
-// ── settings view (rules + templates) ──────────────────────────────────────────
-function SettingsView({ onBack }: { onBack: () => void }) {
+// ── settings view (rules + templates) — now lives on a Settings screen, not in-panel ──
+export function SettingsView({ onBack }: { onBack?: () => void }) {
   const rules = useEmailsStore((s) => s.rules)
   const addRule = useEmailsStore((s) => s.addRule)
   const updateRule = useEmailsStore((s) => s.updateRule)
@@ -254,7 +308,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="ep-settings">
-      <div className="ep-set-h"><button className="cm-link" onClick={onBack}>‹ Back to inbox</button></div>
+      {onBack && <div className="ep-set-h"><button className="cm-link" onClick={onBack}>‹ Back</button></div>}
       <div className="ep-set-sec">
         <div className="ep-set-title">Rules <span className="cf-hint">keywords → category · auto-assign · auto-tags (re-run on change)</span></div>
         {rules.map((r) => (
@@ -360,19 +414,12 @@ export function EmailPanel() {
   const postOutbound = useEmailsStore((s) => s.postOutbound)
   const setExpectingStore = useEmailsStore((s) => s.setExpecting)
   const simulateInbound = useEmailsStore((s) => s.simulateInbound)
+  const clearDraftPresence = useEmailsStore((s) => s.clearDraftPresence)
+  const composeEmail = useEmailsStore((s) => s.composeEmail)
   const users = useUsersStore((s) => s.users)
   const currentUserId = useUsersStore((s) => s.currentUserId)
   const customers = useCustomersStore((s) => s.customers)
 
-  // Match an inbound sender to a known customer account (by contact email), so we can
-  // show "who emailed us" at a glance.
-  const customerFor = (t: EmailThread) => {
-    const sender = (t.msgs.find((m) => !m.outbound)?.from.email ?? '').toLowerCase()
-    if (!sender) return null
-    return customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender)) ?? null
-  }
-
-  const [settings, setSettings] = useState(false)
   const [text, setText] = useState('')
   const [mailbox, setMailbox] = useState<'all' | string>('all')
   const [lane, setLaneFilter] = useState<'all' | Lane>('all')
@@ -381,8 +428,15 @@ export function EmailPanel() {
   const [smart, setSmart] = useState('')
   const [draft, setDraft] = useState('')
   const [more, setMore] = useState(false)
-  const [comments, setComments] = useState(false)
   const [commentDraft, setCommentDraft] = useState('')
+  const [openContact, setOpenContact] = useState<string | null>(null) // message id whose contact popover is open
+  const [macroOpen, setMacroOpen] = useState(false)
+  const macros = useAutomationStore((s) => s.macros)
+  const runMacro = useAutomationStore((s) => s.runMacro)
+  const [flashMsg, setFlashMsg] = useState<string | null>(null) // message briefly highlighted after a comment jump
+  // Compose a brand-new outbound email (not a reply) — null when closed.
+  const [composeNew, setComposeNew] = useState<{ to: string; subject: string; body: string } | null>(null)
+  const openCompose = (to = '') => { setComposeNew({ to, subject: '', body: '' }); setPanelState('full') }
   const [checked, setChecked] = useState<string[]>([])
   const [savingView, setSavingView] = useState(false)
   const [viewName, setViewName] = useState('')
@@ -396,14 +450,18 @@ export function EmailPanel() {
   const panelRef = useRef<HTMLElement>(null)
 
   // ── workflow controls (status filter + expecting-a-response) ──
-  const [topFilter, setTopFilter] = useState<'all' | 'mine' | 'awaiting' | 'action' | 'unassigned'>('all')
+  // Two-level filter: scope (assigned-to-me vs all) × sub-status (open/awaiting/resolved)
+  const [scope, setScope] = useState<'mine' | 'all'>('all')
+  const [sub, setSub] = useState<'open' | 'awaiting' | 'resolved' | 'unassigned'>('open')
   const [expecting, setExpect] = useState(false)
-  const [expectWhen, setExpectWhen] = useState<'1h' | '3h' | '1d' | 'custom'>('3h')
-  const [expectCustom, setExpectCustom] = useState('')
+  const [expectAmount, setExpectAmount] = useState(10) // chase in N minutes/hours
+  const [expectUnit, setExpectUnit] = useState<'min' | 'hr'>('min')
+  const [expectAt, setExpectAt] = useState('') // explicit date/time override (datetime-local)
 
   // ── search: predictive suggestions + advanced query ──
   const [searchFocused, setSearchFocused] = useState(false)
   const [adv, setAdv] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
   const [advContact, setAdvContact] = useState(''); const [advContactOp, setAdvContactOp] = useState<SearchOp>('contains')
   const [advSubject, setAdvSubject] = useState(''); const [advSubjectOp, setAdvSubjectOp] = useState<SearchOp>('contains')
   const [advBody, setAdvBody] = useState(''); const [advBodyOp, setAdvBodyOp] = useState<SearchOp>('contains')
@@ -431,12 +489,13 @@ export function EmailPanel() {
 
   const visible = useMemo(() => {
     let list = threads.filter((t) => !t.archived && (snoozedOnly ? !!t.snoozedUntil : !t.snoozedUntil))
-    // top-bar status filter (spec §8). 'all' shows the active queue (hides Resolved).
-    if (topFilter === 'mine') list = list.filter((t) => t.assigneeId === currentUserId && t.status !== 'Resolved')
-    else if (topFilter === 'awaiting') list = list.filter((t) => t.status === 'Awaiting Customer')
-    else if (topFilter === 'action') list = list.filter((t) => t.status === 'Action Ready')
-    else if (topFilter === 'unassigned') list = list.filter((t) => !t.assigneeId && t.status !== 'Resolved')
-    else list = list.filter((t) => t.status !== 'Resolved')
+    // scope: assigned-to-me vs everyone
+    if (scope === 'mine') list = list.filter((t) => t.assigneeId === currentUserId)
+    // sub-status: Open (active work) · Awaiting reply · Resolved · Unassigned (All scope)
+    if (sub === 'awaiting') list = list.filter((t) => t.status === 'Awaiting Customer')
+    else if (sub === 'resolved') list = list.filter((t) => t.status === 'Resolved')
+    else if (sub === 'unassigned') list = list.filter((t) => !t.assigneeId && t.status !== 'Resolved')
+    else list = list.filter((t) => t.status !== 'Resolved' && t.status !== 'Awaiting Customer')
     if (mailbox !== 'all') list = list.filter((t) => t.mailbox === mailbox)
     if (lane !== 'all') list = list.filter((t) => t.lane === lane)
     if (mine) list = list.filter((t) => t.assigneeId === currentUserId)
@@ -465,7 +524,7 @@ export function EmailPanel() {
       a.priority - b.priority ||
       atKey(lastAtOf(b)).localeCompare(atKey(lastAtOf(a))),
     )
-  }, [threads, snoozedOnly, mailbox, lane, mine, smart, text, currentUserId, topFilter,
+  }, [threads, snoozedOnly, mailbox, lane, mine, smart, text, currentUserId, scope, sub,
     advActive, advContact, advContactOp, advSubject, advSubjectOp, advBody, advBodyOp, advFrom, advTo])
 
   // ── predictive suggestions (as you type in the free-text box) ──
@@ -505,15 +564,37 @@ export function EmailPanel() {
   const thread = threads.find((t) => t.id === selectedId) ?? null
   const unread = threads.filter((t) => !t.read && !t.snoozedUntil && !t.muted).length
   const snoozedCount = threads.filter((t) => !!t.snoozedUntil).length
-  const active = threads.filter((t) => !t.archived)
-  const tfCount = {
-    mine: active.filter((t) => t.assigneeId === currentUserId && t.status !== 'Resolved').length,
-    awaiting: active.filter((t) => t.status === 'Awaiting Customer').length,
-    action: active.filter((t) => t.status === 'Action Ready').length,
-    unassigned: active.filter((t) => !t.assigneeId && t.status !== 'Resolved').length,
+  // counts for the sub-tabs, within the current scope (me / all)
+  const scoped = threads.filter((t) => !t.archived && (scope === 'mine' ? t.assigneeId === currentUserId : true))
+  const subCount = {
+    open: scoped.filter((t) => t.status !== 'Resolved' && t.status !== 'Awaiting Customer').length,
+    awaiting: scoped.filter((t) => t.status === 'Awaiting Customer').length,
+    resolved: scoped.filter((t) => t.status === 'Resolved').length,
+    unassigned: scoped.filter((t) => !t.assigneeId && t.status !== 'Resolved').length,
   }
   const lastInbound = thread?.msgs.filter((m) => !m.outbound).slice(-1)[0]
-  const lastAt = thread?.msgs[thread.msgs.length - 1]?.at
+
+  // Friendly recipient labels for a message — our side shows as the inbox short
+  // ("Bookings@"), external people resolve to their contact name. No duplication of the
+  // sender's own address (which already sits next to their name in the card header).
+  const nameForEmail = (email: string): string => {
+    const e = email.toLowerCase()
+    if (e.endsWith('@cal.delivery')) return email.split('@')[0] + '@'
+    for (const c of customers) {
+      const ct = c.contacts.find((x) => x.email.toLowerCase() === e)
+      if (ct?.name) return ct.name
+    }
+    return email.split('@')[0]
+  }
+  const recipientsFor = (m: { from: { email: string }; outbound?: boolean }): string => {
+    if (!thread) return ''
+    const out: string[] = []
+    if (!m.outbound) out.push(thread.mailbox.split('@')[0] + '@')
+    thread.participants
+      .filter((p) => p.toLowerCase() !== m.from.email.toLowerCase() && !p.endsWith('@cal.delivery'))
+      .forEach((p) => out.push(nameForEmail(p)))
+    return [...new Set(out)].join(', ') || '—'
+  }
 
   const startCompose = (kind: 'reply' | 'replyall' | 'forward') => {
     if (!thread) return
@@ -536,8 +617,9 @@ export function EmailPanel() {
 
   /** Compute the chase deadline (epoch ms) from the expecting-a-response picker. */
   const chaseDeadlineMs = (): number => {
-    if (expectWhen === 'custom') return expectCustom ? new Date(expectCustom).getTime() : Date.now() + 3600_000
-    return Date.now() + (expectWhen === '1h' ? 3600_000 : expectWhen === '3h' ? 3 * 3600_000 : 24 * 3600_000)
+    if (expectAt) return new Date(expectAt).getTime()
+    const amt = Math.max(1, expectAmount || 1)
+    return Date.now() + amt * (expectUnit === 'hr' ? 3600_000 : 60_000)
   }
 
   /** Send the reply, then apply the workflow outcome:
@@ -567,31 +649,28 @@ export function EmailPanel() {
     archiveThread(thread.id, hasOutbound ? 'Responded' : 'No Response Needed')
     setPanelState('list')
   }
+  /** Scroll to (and briefly flash) the email a comment was left on. */
+  const goToComment = (c: { afterMsgId?: string }) => {
+    const mid = c.afterMsgId ?? thread?.msgs[thread.msgs.length - 1]?.id
+    if (!mid) return
+    setShowAllMsgs(true) // ensure the target isn't hidden behind the message collapse
+    window.setTimeout(() => {
+      document.getElementById('ep-msg-' + mid)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlashMsg(mid)
+      window.setTimeout(() => setFlashMsg(null), 1200)
+    }, 30)
+  }
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName
-      if (settings || ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || e.ctrlKey || e.metaKey || e.altKey) return
-      const ix = visible.findIndex((t) => t.id === selectedId)
-      if (e.key === 'j' && visible.length) selectThread(visible[Math.min(ix + 1, visible.length - 1)]?.id ?? visible[0].id)
-      else if (e.key === 'k' && visible.length) selectThread(visible[Math.max(ix - 1, 0)]?.id ?? visible[0].id)
-      else if (e.key === 'r' && thread) { e.preventDefault(); startCompose('reply') }
-      else if (e.key === 's' && thread) snooze(thread.id, 3_600_000, '1 hour')
-      else if (e.key === 'a' && thread) assignThread(thread.id, currentUserId)
-      else if (e.key === 'u' && thread) markUnread(thread.id)
-      else if (e.key === 'p' && thread) toggleFlag(thread.id, 'pinned')
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [visible, selectedId, thread, settings]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // With the body open, a click anywhere outside the email panel collapses the reader
-  // back to the list (the draft guard in closeBody handles an in-progress reply).
+  // With the body open, a click on genuine DEAD SPACE collapses the reader back to the
+  // list. Clicking something interactive (a booking card, a sidebar action, a button,
+  // a form field…) lets it do its thing and keeps the email open.
   useEffect(() => {
     if (panelState !== 'full') return
     const onDown = (e: MouseEvent) => {
       const el = panelRef.current
-      if (!el || el.contains(e.target as Node)) return
+      const target = e.target as HTMLElement | null
+      if (!el || !target || el.contains(target)) return // inside the email panel
+      if (target.closest(DEADSPACE_EXCEPT)) return // interactive → act normally, keep email open
       closeBody()
     }
     document.addEventListener('mousedown', onDown)
@@ -612,19 +691,12 @@ export function EmailPanel() {
         <Icon name="mail" size={16} /> <b>Email</b>
         {unread > 0 && <span className="ep-unread">{unread}</span>}
         <span className="db-spacer" />
-        <span className="ep-kbd" title={'Keyboard: j/k next/prev · r reply · s snooze 1h · a assign me · u unread · p pin'}>⌨</span>
-        <button className={'btn sm iconbtn' + (settings ? ' on' : '')} title="Email settings — rules & templates" onClick={() => setSettings((o) => !o)}>
-          <Icon name="wheel" size={15} />
-        </button>
-        <button className="btn sm iconbtn" title="Close email" onClick={() => setPanelState('mini')}>
-          <Icon name="close" size={15} />
+        <button className="btn primary sm ep-compose-btn" title="Compose a new email" onClick={() => openCompose()}>
+          <Icon name="edit" size={13} /> New
         </button>
       </div>
 
-      {settings ? (
-        <SettingsView onBack={() => setSettings(false)} />
-      ) : (
-        <div className="ep-body">
+      <div className="ep-body">
           {/* ── left column: filters + lanes + inbox list ── */}
           <div className="ep-listcol">
             <div className="ep-filters">
@@ -693,67 +765,58 @@ export function EmailPanel() {
                   </div>
                 )}
               </div>
-              <select className="ep-assign" value={mailbox} onChange={(e) => setMailbox(e.target.value)} title="Mailbox">
-                <option value="all">All mailboxes</option>
-                {MAILBOXES.map((m) => <option key={m}>{m.split('@')[0]}@</option>)}
-              </select>
-            </div>
-            <div className="ep-filters">
-              <select
-                className="ep-assign"
-                value={smart}
-                title="Smart folders & saved views"
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v.startsWith('sv:')) {
-                    const sv = savedViews.find((x) => x.id === v.slice(3))
-                    if (sv) { setMailbox(sv.q.mailbox ?? 'all'); setLaneFilter(sv.q.lane ?? 'all'); setMine(!!sv.q.mine); setText(sv.q.text ?? ''); setSmart('') }
-                  } else setSmart(v)
-                }}
-              >
-                <option value="">All conversations</option>
-                <option value="needsreply">Needs reply</option>
-                <option value="unassigned">Unassigned</option>
-                {savedViews.map((v) => <option key={v.id} value={'sv:' + v.id}>{v.name}</option>)}
-              </select>
-              {!savingView ? (
-                <button className="cm-link" onClick={() => setSavingView(true)}>Save</button>
-              ) : (
-                <input className="ep-search" autoFocus placeholder="View name…" value={viewName} onChange={(e) => setViewName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
-              )}
-              <span className="db-spacer" />
-              <button className={'ep-view' + (mine ? ' on' : '')} onClick={() => setMine((o) => !o)}>Mine</button>
-              <button className={'ep-view' + (snoozedOnly ? ' on' : '')} onClick={() => setSnoozedOnly((o) => !o)} title="Snoozed">
-                💤{snoozedCount ? ` ${snoozedCount}` : ''}
-              </button>
+              {/* one filter menu replaces the old mailbox / smart-folder / Mine / Snoozed / Save clutter */}
+              <div className="ep-filterwrap">
+                <button className={'ep-filter-btn' + ((mailbox !== 'all' || smart || snoozedOnly) ? ' on' : '')} title="Filter & saved views" onClick={() => setFilterOpen((o) => !o)}>
+                  <Icon name="sliders" size={14} />
+                </button>
+                {filterOpen && (
+                  <>
+                    <div className="cc-pop-scrim" onClick={() => setFilterOpen(false)} />
+                    <div className="ep-filtermenu">
+                      <label className="ep-fm-row"><span className="ep-fm-lbl">Mailbox</span>
+                        <select value={mailbox} onChange={(e) => setMailbox(e.target.value)}>
+                          <option value="all">All mailboxes</option>
+                          {MAILBOXES.map((m) => <option key={m} value={m}>{m.split('@')[0]}@</option>)}
+                        </select>
+                      </label>
+                      <label className="ep-fm-row"><span className="ep-fm-lbl">Show</span>
+                        <select value={smart} onChange={(e) => setSmart(e.target.value)}>
+                          <option value="">All conversations</option>
+                          <option value="needsreply">Needs reply</option>
+                        </select>
+                      </label>
+                      <label className="ep-fm-chk"><input type="checkbox" checked={snoozedOnly} onChange={(e) => setSnoozedOnly(e.target.checked)} /> Snoozed only{snoozedCount ? ` (${snoozedCount})` : ''}</label>
+                      <div className="ep-fm-sec">Saved views</div>
+                      {savedViews.length === 0 && <div className="ep-fm-empty">None saved yet.</div>}
+                      {savedViews.map((v) => (
+                        <button key={v.id} className="ep-fm-view" onClick={() => { setMailbox(v.q.mailbox ?? 'all'); setLaneFilter(v.q.lane ?? 'all'); setMine(!!v.q.mine); setText(v.q.text ?? ''); setSmart(''); setFilterOpen(false) }}>{v.name}</button>
+                      ))}
+                      {!savingView ? (
+                        <button className="cm-link ep-fm-save" onClick={() => setSavingView(true)}>+ Save current as view</button>
+                      ) : (
+                        <input className="ep-search" autoFocus placeholder="View name + Enter" value={viewName} onChange={(e) => setViewName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* top-bar status filters (spec §8). Drag a row onto a chip to set that
-                state (Awaiting / Action Ready) or claim/unassign it. */}
+            {/* two-level filter: scope (me / all) then sub-status */}
+            <div className="ep-scope">
+              {([['mine', 'Assigned to me'], ['all', 'All']] as const).map(([k, label]) => (
+                <button key={k} className={'ep-scope-btn' + (scope === k ? ' on' : '')} onClick={() => { setScope(k); if (k === 'mine' && sub === 'unassigned') setSub('open') }}>{label}</button>
+              ))}
+            </div>
             <div className="ep-lanes ep-topfilter">
-              {([['all', 'All'], ['mine', 'My Items'], ['awaiting', 'Awaiting'], ['action', 'Action Ready'], ['unassigned', 'Unassigned']] as const).map(([key, label]) => {
-                const n = key === 'all' ? 0 : tfCount[key]
-                return (
-                  <button
-                    key={key}
-                    className={'ep-view ep-tf' + (topFilter === key ? ' on' : '')}
-                    onClick={() => setTopFilter(key)}
-                    onDragOver={key === 'all' ? undefined : (e) => { e.preventDefault(); e.currentTarget.classList.add('drop-hot') }}
-                    onDragLeave={(e) => e.currentTarget.classList.remove('drop-hot')}
-                    onDrop={key === 'all' ? undefined : (e) => {
-                      e.preventDefault(); e.currentTarget.classList.remove('drop-hot')
-                      const id = e.dataTransfer.getData('text/thread'); if (!id) return
-                      if (key === 'awaiting') setStatus(id, 'Awaiting Customer')
-                      else if (key === 'action') setStatus(id, 'Action Ready')
-                      else if (key === 'mine') assignThread(id, currentUserId)
-                      else if (key === 'unassigned') assignThread(id, null)
-                    }}
-                  >
-                    {label}{n ? <i>{n}</i> : null}
-                  </button>
-                )
-              })}
+              {([['open', 'Open'], ['awaiting', 'Awaiting reply'], ['resolved', 'Resolved'],
+                ...(scope === 'all' ? [['unassigned', 'Unassigned'] as const] : [])] as const).map(([key, label]) => (
+                <button key={key} className={'ep-view ep-tf' + (sub === key ? ' on' : '')} onClick={() => setSub(key)}>
+                  {label}{subCount[key] ? <i>{subCount[key]}</i> : null}
+                </button>
+              ))}
             </div>
 
             {checked.length > 0 && (
@@ -776,44 +839,48 @@ export function EmailPanel() {
               {(advActive ? visible.slice(0, advShown) : visible).map((t) => {
                 const last = t.msgs[t.msgs.length - 1]
                 const assignee = userName(t.assigneeId)
-                const cust = customerFor(t)
+                const sender = t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name
+                const attachN = t.msgs.reduce((n, m) => n + (m.attachments?.length ?? 0), 0)
                 return (
                   <div
                     key={t.id}
                     className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData('text/thread', t.id)}
-                    onClick={() => { selectThread(t.id); setShowAllMsgs(false); setComments(false); setCompose(null); setDraft(''); setPanelState('full') }}
+                    onClick={() => { selectThread(t.id); setShowAllMsgs(false); setCompose(null); setDraft(''); setComposeNew(null); setPanelState('full') }}
                   >
-                    <span className="ep-row-line">
-                      <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
-                      {t.pinned && <span className="ep-mini" title="Pinned">📌</span>}
-                      <span className="ep-row-from">{t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name}</span>
-                      {t.viewingBy && <span className="ep-mini" title={`${t.viewingBy} is viewing`}>👁</span>}
-                      {t.reminderDue && <span className="ep-mini" title="Reminder due">⏰</span>}
-                      <span className="db-spacer" />
-                      {assignee && <span className="ep-ava" title={`Assigned to ${assignee}`}>{initials(assignee)}</span>}
-                      <span className="ep-row-at" title={last.at}>{relTime(last.at)}</span>
+                    <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
+                    <span className="ep-row-when">
+                      {t.status === 'Awaiting Customer' && t.chaseDueAt != null
+                        ? (() => { const c = chaseInfo(t.chaseDueAt!); return <span className={'ep-chase ' + c.level} title="Chase deadline">⏳ {c.label}</span> })()
+                        : <span className="ep-row-at" title={last.at}>{relTime(last.at)}</span>}
                     </span>
-                    <span className="ep-row-line">
-                      {cust && <span className="ep-custchip" title={`Account: ${cust.companyName || cust.displayName}`}>{cust.displayName || cust.companyName}</span>}
-                      <span className="ep-row-subj">{t.subject}</span>
-                      {t.snoozedUntil && <span className="ep-snoozed">💤 {t.snoozedUntil}</span>}
-                    </span>
-                    <span className="ep-row-line ep-row-wf">
-                      <StatusChip status={t.status} />
-                      {t.assigneeId
-                        ? <span className="ep-clk" title={`Assigned to ${assignee}`}>{assignee.split(' ')[0]} · {agoShort(t.assignedAt ?? t.lastActivityAt)}</span>
-                        : <span className="ep-clk">idle {agoShort(t.lastActivityAt)}</span>}
-                      {t.status === 'Awaiting Customer' && t.chaseDueAt != null && (() => {
-                        const c = chaseInfo(t.chaseDueAt)
-                        return <span className={'ep-chase ' + c.level} title="Chase deadline">⏳ {c.label}</span>
-                      })()}
-                      <span className="db-spacer" />
-                      {Object.keys(t.readBy).length > 0 && (
-                        <span className="ep-readby" title={`Read by ${Object.keys(t.readBy).map(userName).filter(Boolean).join(', ')}`}>👁 {Object.keys(t.readBy).length}</span>
+                    <div className="ep-rbody">
+                      <span className="ep-row-line ep-line-top">
+                        {!t.read && !t.muted && <span className="ep-unread-dot" title="Unseen" />}
+                        {t.pinned && <span className="ep-mini" title="Pinned">📌</span>}
+                        <span className="ep-row-from">{sender}</span>
+                        <span className="ep-sep">›</span>
+                        {t.assigneeId
+                          ? <span className="ep-assignee">{assignee}</span>
+                          : <span className="ep-unassigned">Unassigned</span>}
+                        {t.reminderDue && <span className="ep-mini" title="Reminder due">⏰</span>}
+                      </span>
+                      <span className="ep-row-line ep-line-subj">
+                        <span className="ep-row-subj">{t.subject}</span>
+                        <span className="db-spacer" />
+                        {SHOW_STATUS.has(t.status) && t.status !== 'Awaiting Customer' && <StatusChip status={t.status} />}
+                        {attachN > 0 && <span className="ep-attn" title={`${attachN} attachment${attachN === 1 ? '' : 's'}`}>{attachN} 📎</span>}
+                        {t.snoozedUntil && <span className="ep-snoozed">💤 {t.snoozedUntil}</span>}
+                      </span>
+                      {t.draftPresence && (
+                        <span className="ep-typing" title="A colleague is drafting — click to view & edit their draft"
+                          onClick={(e) => { e.stopPropagation(); selectThread(t.id); setShowAllMsgs(false); setPanelState('full') }}>
+                          <span className="ep-typing-dots"><i /><i /><i /></span>
+                          {t.draftPresence.by.split(' ')[0]} is replying…
+                        </span>
                       )}
-                    </span>
+                    </div>
                   </div>
                 )
               })}
@@ -829,7 +896,33 @@ export function EmailPanel() {
           {/* ── right column: reader (hidden in list-only/partial-collapse state) ── */}
           {panelState === 'full' && (
           <div className="ep-readcol">
-            {thread ? (
+            {composeNew ? (
+              <div className="ep-reader ep-newmail">
+                <div className="ep-rhead">
+                  <div className="ep-rtitle">
+                    <Icon name="edit" size={14} /> <b>New email</b>
+                    <span className="db-spacer" />
+                    <button className="btn sm iconbtn ep-closebody" title="Discard" onClick={() => setComposeNew(null)}><Icon name="close" size={14} /></button>
+                  </div>
+                </div>
+                <div className="ep-newmail-fields">
+                  <label className="ep-nm-row"><span>To</span><input autoFocus placeholder="name@company.com" value={composeNew.to} onChange={(e) => setComposeNew({ ...composeNew, to: e.target.value })} /></label>
+                  <label className="ep-nm-row"><span>Subject</span><input placeholder="Subject" value={composeNew.subject} onChange={(e) => setComposeNew({ ...composeNew, subject: e.target.value })} /></label>
+                </div>
+                <textarea className="ep-newmail-body" placeholder="Write your message…" value={composeNew.body} onChange={(e) => setComposeNew({ ...composeNew, body: e.target.value })} />
+                <div className="ep-newmail-foot">
+                  {templates.length > 0 && (
+                    <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setComposeNew((p) => p && ({ ...p, body: p.body ? p.body + '\n' + t.body : t.body })) }}>
+                      <option value="">Template…</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  )}
+                  <span className="db-spacer" />
+                  <button className="btn" onClick={() => setComposeNew(null)}>Discard</button>
+                  <button className="btn primary" disabled={!composeNew.to.trim() || !composeNew.body.trim()} onClick={() => { composeEmail(composeNew.to.trim(), composeNew.subject, composeNew.body); setComposeNew(null) }}>Send</button>
+                </div>
+              </div>
+            ) : thread ? (
               <div className="ep-reader">
                 {thread.reminderDue && (
                   <div className="ep-banner">⏰ Reminder due.<button className="cm-link" onClick={() => clearReminder(thread.id)}>Dismiss</button></div>
@@ -848,17 +941,10 @@ export function EmailPanel() {
                     <StatusChip status={thread.status} />
                     <b>{thread.subject}</b>
                     <span className={'cat-chip ' + CAT_CLASS[thread.category]}>{thread.category}</span>
-                    {thread.viewingBy && <span className="ep-mini" title={`${thread.viewingBy} is viewing now`}>👁 {thread.viewingBy}</span>}
                     <span className="db-spacer" />
-                    {thread.status === 'Resolved'
-                      ? <button className="btn sm" title={`Resolved · ${thread.resolutionReason ?? ''}`} onClick={() => reopenThread(thread.id)}>Re-open</button>
-                      : <button className="btn sm" title="Resolve this email" onClick={tryResolve}><Icon name="check" size={13} /> Resolve</button>}
                     <button className="btn sm iconbtn ep-closebody" title="Close email — back to the list" onClick={closeBody}>
                       <Icon name="close" size={14} />
                     </button>
-                  </div>
-                  <div className="ep-rmeta">
-                    {lastInbound ? `${lastInbound.from.name} <${lastInbound.from.email}>` : '—'} · {thread.mailbox} · {lastAt}
                   </div>
                   <div className="ep-rtools">
                     <select className="ep-assign" value={thread.assigneeId ?? ''} onChange={(e) => assignThread(thread.id, e.target.value || null)} title="Assigned to">
@@ -871,9 +957,21 @@ export function EmailPanel() {
                         onKeyDown={(e) => { if (e.key === 'Enter' && tagDraft.trim()) { addTag(thread.id, tagDraft.trim()); setTagDraft('') } }} />
                     </span>
                     <span className="db-spacer" />
-                    <button className={'btn sm' + (comments ? ' primary' : '')} onClick={() => setComments((o) => !o)} title="Internal comments">
-                      💬 {thread.comments.length || ''}
-                    </button>
+                    <span className="ep-menu-wrap">
+                      <button className="btn sm" onClick={() => setMacroOpen((o) => !o)} title="Run a macro">⚡ Macro</button>
+                      {macroOpen && (
+                        <>
+                          <div className="cc-pop-scrim" onClick={() => setMacroOpen(false)} />
+                          <span className="ep-menu ep-menu-right">
+                            <span className="ep-menu-sec">Run macro</span>
+                            {macros.map((m) => (
+                              <button key={m.id} onClick={() => { runMacro(m.id, thread.id); setMacroOpen(false) }}>{m.icon ?? '⚡'} {m.name}</button>
+                            ))}
+                            {!macros.length && <span className="ep-menu-sec">None — add some in Email Rules</span>}
+                          </span>
+                        </>
+                      )}
+                    </span>
                     <button className="btn sm" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={13} /> Job</button>
                     <span className="ep-menu-wrap">
                       <button className="btn sm" onClick={() => setMore((o) => !o)}>⋯</button>
@@ -909,18 +1007,70 @@ export function EmailPanel() {
                   {collapsed && (
                     <button className="ep-collapse" onClick={() => setShowAllMsgs(true)}>Show {hiddenCount} earlier message{hiddenCount === 1 ? '' : 's'}</button>
                   )}
-                  {shownMsgs.map((m, ix) => (
-                    <div key={m.id} className={'ep-msg' + (m.outbound ? ' out' : '')}>
-                      <div className="ep-msg-meta">
-                        {m.from.name} · {m.at}
-                        {(collapsed ? ix + hiddenCount : ix) > 0 && (
-                          <button className="ep-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋ split</button>
+                  {shownMsgs.map((m) => (
+                    <div key={m.id} id={'ep-msg-' + m.id} className={'ep-msg' + (m.outbound ? ' out' : '') + (flashMsg === m.id ? ' flash' : '')}>
+                      <div className="ep-msg-head">
+                        <span className="ep-msg-ava">{initials(m.from.name)}</span>
+                        <span className="ep-msg-who">
+                          <span className="ep-msg-name">
+                            <span className="ep-namewrap">
+                              <button className="ep-name-btn" onClick={(e) => { e.stopPropagation(); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
+                              {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
+                            </span>
+                            <span className="ep-msg-email">&lt;{m.from.email}&gt;</span>
+                            {m.outbound && <span className="ep-msg-tag">You</span>}
+                          </span>
+                          <span className="ep-msg-addr">To: {recipientsFor(m)}</span>
+                        </span>
+                        <span className="db-spacer" />
+                        <span className="ep-msg-time">{m.at}</span>
+                        {thread.msgs[0]?.id !== m.id && (
+                          <button className="ep-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋</button>
                         )}
                       </div>
                       <div className="ep-msg-body"><RefText text={m.body} /></div>
                       {m.attachments?.map((a) => <span key={a.id} className="ep-att">📎 {a.name}</span>)}
                     </div>
                   ))}
+
+                  {/* live shared draft, inline in the thread (Front-style): see a colleague
+                      compose in real time and take it over to edit & send */}
+                  {thread.draftPresence && !compose && (
+                    <div className="ep-shared">
+                      <div className="ep-shared-h">
+                        <Icon name="users" size={12} /> <b>Shared draft</b>
+                        <span className="ep-shared-sub">· editable by teammates</span>
+                        <span className="db-spacer" />
+                        <span className="ep-shared-editing"><span className="ep-typing-dots"><i /><i /><i /></span>{thread.draftPresence.by} is editing</span>
+                        <button className="cm-link" onClick={() => { const d = thread.draftPresence!; startCompose('reply'); setDraft(d.body); clearDraftPresence(thread.id) }}>Take over</button>
+                      </div>
+                      <div className="ep-msg ep-shared-msg">
+                        <div className="ep-msg-head">
+                          <span className="ep-msg-ava">{initials(thread.draftPresence.by)}</span>
+                          <span className="ep-msg-who">
+                            <span className="ep-msg-name">{thread.draftPresence.by}<span className="ep-msg-tag">draft</span></span>
+                            <span className="ep-msg-addr">drafting now…</span>
+                          </span>
+                        </div>
+                        <div className="ep-msg-body">{thread.draftPresence.body}<span className="ep-draft-caret" /></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* all internal comments collected at the foot of the thread — click one
+                      to jump to the email it was left on */}
+                  {thread.comments.length > 0 && (
+                    <div className="ep-comments">
+                      {[...thread.comments]
+                        .sort((a, b) => atKey(a.at).localeCompare(atKey(b.at)))
+                        .map((c) => (
+                          <button key={c.id} className="ep-cnote" onClick={() => goToComment(c)} title="Click to jump to the email this was left on">
+                            <span className="ep-cnote-head"><b>{c.by}</b><span className="ep-cnote-time">{c.at}</span></span>
+                            <span className="ep-cnote-body">{c.text}</span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
                 </div>
 
                 {!compose ? (
@@ -928,6 +1078,10 @@ export function EmailPanel() {
                     <button className="btn sm" onClick={() => startCompose('reply')}>↩ Reply</button>
                     <button className="btn sm" onClick={() => startCompose('replyall')}>↩↩ Reply all</button>
                     <button className="btn sm" onClick={() => startCompose('forward')}>↪ Forward</button>
+                    <span className="db-spacer" />
+                    {thread.status === 'Resolved'
+                      ? <button className="btn sm" title={`Resolved · ${thread.resolutionReason ?? ''}`} onClick={() => reopenThread(thread.id)}>Re-open</button>
+                      : <button className="btn primary sm" title="Resolve this email" onClick={tryResolve}><Icon name="check" size={13} /> Resolve</button>}
                   </div>
                 ) : (
                   <div className="ep-composer">
@@ -948,28 +1102,32 @@ export function EmailPanel() {
                       placeholder="Write your message…"
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send('keep') }}
                     />
-                    {/* Expecting a response → pick when to chase (spec §4.6 + your custom deadline) */}
-                    <div className="ep-expect">
-                      <label className="ep-expect-tog">
-                        <input type="checkbox" checked={expecting} onChange={(e) => setExpect(e.target.checked)} />
-                        Expecting a response
-                      </label>
-                      {expecting && (
-                        <>
-                          <span className="ep-expect-lbl">chase me in</span>
-                          {([['1h', '1 hour'], ['3h', '3 hours'], ['1d', '1 day'], ['custom', 'Custom']] as const).map(([k, lbl]) => (
-                            <button key={k} className={'ep-view' + (expectWhen === k ? ' on' : '')} onClick={() => setExpectWhen(k)}>{lbl}</button>
-                          ))}
-                          {expectWhen === 'custom' && (
-                            <input type="datetime-local" className="ep-expect-when" value={expectCustom} onChange={(e) => setExpectCustom(e.target.value)} title="Chase me at…" />
-                          )}
-                        </>
-                      )}
-                    </div>
                     <div className="ep-composer-f">
-                      <span className="ep-hint">Ctrl/⌘ + Enter = Send &amp; Keep</span>
+                      {/* Expecting a response → chase deadline (defaults to minutes) */}
+                      <div className="ep-expect">
+                        <label className="ep-expect-tog">
+                          <input type="checkbox" checked={expecting} onChange={(e) => { setExpect(e.target.checked); if (e.target.checked) setExpectAt('') }} />
+                          Expecting a response
+                        </label>
+                        {expecting && (
+                          <span className="ep-expect-opts">
+                            <span className="ep-expect-lbl">chase in</span>
+                            {[10, 20, 30].map((n) => (
+                              <button key={n} className={'ep-view ep-expect-preset' + (!expectAt && expectAmount === n ? ' on' : '')} onClick={() => { setExpectAt(''); setExpectAmount(n) }}>{n}</button>
+                            ))}
+                            <input type="number" min={1} className="ep-expect-num" value={expectAmount} title="Custom amount" onChange={(e) => { setExpectAt(''); setExpectAmount(Math.max(1, Math.round(+e.target.value) || 1)) }} />
+                            <button className="ep-unit-toggle" title="Switch minutes / hours" onClick={() => setExpectUnit((u) => (u === 'min' ? 'hr' : 'min'))}>{expectUnit}</button>
+                            <span className="ep-expect-or">or</span>
+                            <label className={'ep-setdt' + (expectAt ? ' on' : '')} title="Set an exact date & time">
+                              <Icon name="calendar" size={13} />
+                              {expectAt ? <span>{new Date(expectAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span> : <span>date/time</span>}
+                              <input type="datetime-local" value={expectAt} onChange={(e) => setExpectAt(e.target.value)}
+                                onClick={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; try { el.showPicker?.() } catch { /* unsupported */ } }} />
+                            </label>
+                          </span>
+                        )}
+                      </div>
                       <span className="db-spacer" />
                       <button className="btn sm" disabled={!draft.trim()} onClick={() => send('keep')} title="Send and keep it in your queue">Send &amp; Keep</button>
                       <button className="btn primary sm" disabled={!draft.trim()} onClick={() => send('resolve')} title={expecting ? 'Send — will wait on the customer' : 'Send and resolve'}>{expecting ? 'Send & Await' : 'Send & Resolve'}</button>
@@ -977,29 +1135,19 @@ export function EmailPanel() {
                   </div>
                 )}
 
-                {/* pop-out comments drawer */}
-                {comments && (
-                  <div className="ep-cdrawer">
-                    <div className="ep-cdrawer-h">
-                      <b>Internal comments</b>
-                      <button className="btn sm iconbtn" onClick={() => setComments(false)}><Icon name="close" size={14} /></button>
-                    </div>
-                    <div className="ep-cdrawer-list">
-                      {thread.comments.map((c) => (
-                        <div key={c.id} className="ep-msg note">
-                          <div className="ep-msg-meta">{c.by} · {c.at}</div>
-                          <div className="ep-msg-body">{c.text}</div>
-                        </div>
-                      ))}
-                      {!thread.comments.length && <div className="ep-empty">No comments yet — visible to the team only.</div>}
-                    </div>
-                    <div className="ep-cdrawer-add">
-                      <textarea rows={2} placeholder="Comment — @mention a colleague…" value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && commentDraft.trim()) { addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }} />
-                      <button className="btn primary sm" disabled={!commentDraft.trim()} onClick={() => { addComment(thread.id, commentDraft.trim()); setCommentDraft('') }}>Add</button>
-                    </div>
-                  </div>
-                )}
+                {/* always-on internal-comment composer — type + Enter, like a chat */}
+                <div className="ep-cbar">
+                  <input
+                    className="ep-cbar-input"
+                    placeholder="Add internal comment — visible to teammates…"
+                    value={commentDraft}
+                    onChange={(e) => setCommentDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && commentDraft.trim()) { e.preventDefault(); addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }}
+                  />
+                  <button className="ep-cbar-send" disabled={!commentDraft.trim()} title="Add comment (Enter)" onClick={() => { if (commentDraft.trim()) { addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }}>
+                    <Icon name="check" size={15} />
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="ep-empty">Select an email.</div>
@@ -1007,7 +1155,6 @@ export function EmailPanel() {
           </div>
           )}
         </div>
-      )}
     </aside>
   )
 }

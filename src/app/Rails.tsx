@@ -34,7 +34,9 @@ export function LeftRail() {
   const panelState = useEmailsStore((s) => s.panelState)
   const setPanelState = useEmailsStore((s) => s.setPanelState)
   const emailFull = panelState === 'full'
-  const emailOpen = panelState !== 'mini'
+  const onBookingPage = screen === 'list' || screen === 'wizard'
+  // email only shows on the booking page, so "open" means open AND on that page
+  const emailOpen = panelState !== 'mini' && onBookingPage
   const navOpen = useUiStore((s) => s.navOpen)
   const toggleNav = useUiStore((s) => s.toggleNav)
   const settingsOpen = useUiStore((s) => s.settingsOpen)
@@ -43,12 +45,13 @@ export function LeftRail() {
   // Primary nav: the three everyday destinations, always visible.
   const primary: NavItem[] = [
     { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' || screen === 'wizard' },
-    { icon: 'mail', label: 'Emails', onClick: () => setPanelState(emailOpen ? 'mini' : 'list'), active: emailOpen },
+    { icon: 'mail', label: 'Emails', onClick: () => { if (emailOpen) { setPanelState('mini') } else { if (!onBookingPage) goToList('bookings'); setPanelState('list') } }, active: emailOpen },
     { icon: 'user', label: 'Customers', onClick: () => goToCustomers(), active: screen === 'customers' },
   ]
   // Secondary nav: tucked inside the Settings group at the bottom, collapsed by default.
   const secondary: NavItem[] = [
     { icon: 'grid', label: 'Form Builder', onClick: () => go('forms'), active: screen === 'forms' },
+    { icon: 'list', label: 'Email Rules', onClick: () => go('emailrules'), active: screen === 'emailrules' },
     { icon: 'pin', label: 'Addresses', onClick: () => go('addresses'), active: screen === 'addresses' },
     { icon: 'tag', label: 'Tariffs', onClick: () => go('tariffs'), active: screen === 'tariffs' },
     { icon: 'users', label: 'Users', onClick: () => go('users'), active: screen === 'users' },
