@@ -693,14 +693,25 @@
 .shell.panel-open .drawer:not(.open) { display: none; }
 .shell.panel-open .drawer .drawer-h { display: none; } /* the tab bar is the header */
 .shell.panel-open .drawer-overlay { display: none; }
-/* footer stacks in the narrow column */
-/* roomier stacked footer in the narrow column (revenue / cust ref / booked-by / our
- * ref were cramped) — each block on its own line with breathing space */
-.shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 16px; padding: 16px 14px 20px; }
-.shell.panel-open .foot-meta { flex-direction: row; flex-wrap: wrap; gap: 6px 28px; }
-.shell.panel-open .foot-actions { flex-direction: column; align-items: stretch; margin-left: 0; gap: 14px; }
-.shell.panel-open .foot-rev { justify-content: flex-start; gap: 10px; }
-.shell.panel-open .saveas { margin-left: 0; padding-left: 0; border-left: none; flex-wrap: wrap; gap: 8px; row-gap: 8px; }
+/* status + the save buttons grouped (clean in both wide and narrow layouts) */
+.saveas-status { display: inline-flex; align-items: center; gap: 7px; }
+.saveas-btns { display: flex; align-items: center; gap: 6px; }
+
+/* ── narrow-column footer: a clean stacked card, clearly sectioned ── */
+.shell.panel-open .footer { flex-direction: column; align-items: stretch; gap: 0; padding: 0; border: none; border-top: 1px solid var(--line); border-radius: 0; background: var(--panel); }
+.shell.panel-open .foot-meta { flex-direction: column; gap: 4px; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+.shell.panel-open .foot-field { justify-content: flex-start; gap: 8px; }
+.shell.panel-open .foot-meta .foot-lbl { width: 66px; }
+.shell.panel-open .foot-actions { flex-direction: column; align-items: stretch; margin-left: 0; gap: 0; }
+.shell.panel-open .foot-rev { justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+.shell.panel-open .foot-rev .foot-amt { font-size: 19px; }
+.shell.panel-open .foot-actions > .bar-ref { padding: 11px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+.shell.panel-open .foot-actions > .bar-ref .cb { flex: 1; }
+.shell.panel-open .foot-actions > .bar-ref input { width: 100%; }
+.shell.panel-open .saveas { flex-direction: column; align-items: stretch; gap: 10px; margin: 0; padding: 12px 16px 16px; border-left: none; }
+.shell.panel-open .saveas-status { justify-content: flex-start; }
+.shell.panel-open .saveas-btns { gap: 8px; }
+.shell.panel-open .saveas-btns .btn { flex: 1; justify-content: center; height: 36px; }
 
 /* ── wizard side-drawer (Service providers / History) as a push panel ──
  * Like the email panel: the drawer widens and the booking form reflows into a
@@ -949,8 +960,9 @@
 .ep-rtools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 /* linked-job strip (one line, expandable) */
-.ep-jobwrap { flex: none; border-bottom: 1px solid var(--line); background: #fafbfd; }
-.ep-jobstrip { display: flex; align-items: center; gap: 8px; padding: 5px 12px; font-size: 11.5px; min-width: 0; }
+/* job context as its own little island floating on the reader canvas */
+.ep-jobwrap { flex: none; margin: 10px 14px 0; border: 1px solid var(--line-strong); border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+.ep-jobstrip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 11.5px; min-width: 0; }
 .ep-js-acct { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
 .ep-js-acct i { font-style: normal; color: var(--muted); font-weight: 400; }
 .ep-js-eta { color: var(--muted); white-space: nowrap; }
@@ -1957,3 +1969,97 @@
 .ar-sub { font-size: 9.5px; font-weight: 800; color: var(--muted); margin: 8px 0 4px; }
 .ar-macro-editor { margin-top: 10px; }
 .ar-tpl-new { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-width: 540px; }
+
+/* ── Summarised stop card — company as title, facts inline w/ icons, empties → add ── */
+.stop-card2 { background: var(--panel); }
+.stop-top { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-bottom: 1px solid var(--line); background: #fff; border-radius: 9px 9px 0 0; }
+.stop-num { width: 22px; height: 22px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; font-size: 12px; flex: none; }
+.stop-top .typesel { height: 24px; font-size: 11.5px; width: auto; flex: none; }
+.stop-head-co { flex: 1; min-width: 0; }
+.stop-head-co .f { grid-template-columns: 1fr; flex: 1; padding-right: 22px; }
+.stop-head-co .f .k { display: none; }
+.stop-head-co .f .v { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stop-co { font-weight: 700; }
+.stop-top .sh-actions { display: inline-flex; align-items: center; gap: 5px; flex: none; }
+.stop-facts { display: flex; flex-direction: column; padding: 4px 12px 8px; }
+.stop-facts .f { display: grid; grid-template-columns: 18px 1fr; gap: 9px; align-items: start; flex: none; padding: 6px 0 6px; padding-right: 24px; position: relative; min-width: 0; border-left: none; }
+.stop-facts .f + .f { border-top: 1px solid #f0f3f7; border-left: none; padding-left: 0; }
+.stop-facts .f .k { font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--muted); width: auto; text-align: center; padding-top: 1px; }
+.stop-facts .f .v { font-size: 12.5px; white-space: normal; line-height: 1.4; overflow: visible; text-overflow: clip; }
+.stop-add { color: var(--accent); font-weight: 600; cursor: pointer; }
+/* location fact: company (bold) over the full address · postcode — never truncated */
+.stop-loc { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.stop-loc-co { font-weight: 700; }
+.stop-loc-addr { font-size: 11.5px; color: var(--muted); }
+/* compaction inside the narrow email-full job column */
+.shell.panel-open .stop-top { padding: 6px 9px; gap: 6px; }
+.shell.panel-open .stop-num { width: 18px; height: 18px; font-size: 10px; }
+.shell.panel-open .stop-top .typesel { height: 22px; font-size: 11px; }
+.shell.panel-open .stop-head-co .f .v { font-size: 12px; }
+.shell.panel-open .stop-facts { padding: 3px 10px 6px; }
+.shell.panel-open .stop-facts .f { padding: 5px 0; padding-right: 22px; }
+.shell.panel-open .stop-facts .f .v { font-size: 11.5px; }
+
+/* collapsible job-side sections (Requirements / Job notes) */
+.sechead-toggle { display: flex; align-items: center; gap: 6px; width: 100%; border: none; background: none; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 0; text-align: left; }
+.sechead-toggle .ic-svg { color: var(--muted); }
+.sh-chev { font-size: 9px; color: var(--muted); width: 10px; flex: none; }
+.sh-count { background: var(--accent-soft); color: var(--accent); border-radius: 999px; font-size: 9.5px; font-weight: 800; padding: 0 6px; margin-left: 4px; }
+.panelbox.collapsed { min-height: 0; }
+
+/* viewer header: subject is the only big thing; status/category drop to a quiet meta
+ * line below it, separated from the tools row by a thin underline */
+.ep-rtitle b { font-size: 14.5px; font-weight: 700; }
+.ep-rmeta2 { display: flex; align-items: center; gap: 7px; margin-top: 5px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+.ep-rtools { padding-top: 9px; }
+
+/* Service & vehicle — summarised box with Edit toggle */
+.svc-head { display: flex; align-items: center; gap: 8px; }
+.svc-head h3 { margin: 0; }
+.svc-summary { display: flex; flex-direction: column; gap: 8px; }
+.svc-sum-row { display: flex; align-items: baseline; gap: 10px; }
+.svc-sum-k { width: 78px; flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); padding-top: 2px; }
+.svc-sum-v { display: flex; flex-wrap: wrap; gap: 5px; font-size: 13px; font-weight: 600; align-items: center; }
+.svc-chip { background: #eef1f5; border-radius: 6px; padding: 2px 8px; font-size: 11.5px; font-weight: 600; }
+.svc-sum-empty { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+/* sub-status tabs as icons (the words wrapped to two lines in the narrow column) */
+.ep-topfilter .ep-tf-ico { display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; }
+.ep-topfilter .ep-tf-ico .ic-svg { color: currentColor; }
+
+/* reader: a grey canvas so the white job island and message cards float (Front-style) */
+.ep-reader { background: #f4f6f9; }
+.ep-rhead { background: #fff; }
+.ep-actionbar, .ep-composer { background: var(--panel); }
+
+/* job status pill sits at the top next to the customer name */
+.bar-status { flex: none; margin-left: 2px; }
+
+/* ── Tighten the email list column (recover ~12% width without squashing) ────────── */
+.ep-listcol { width: 252px; }
+/* New email button pulled inward + a touch smaller */
+.ep-head { padding: 9px 12px; }
+.ep-head .ep-compose-btn { height: 26px; padding: 0 9px; }
+/* smaller scope toggle (Assigned to me / All) */
+.ep-scope { padding: 6px 10px 0; }
+.ep-scope-btn { height: 25px; font-size: 11px; }
+/* slimmer search box → filter/saved-views sit further in */
+.ep-filters { padding: 7px 10px 0; gap: 5px; }
+.ep-searchbox { height: 27px; min-width: 140px; padding: 0 4px 0 9px; }
+/* timestamps + attachment counts pulled in from the edge */
+.ep-row { padding-left: 28px; padding-right: 11px; }
+.ep-row .ep-check { left: 9px; }
+.ep-row-when { right: 11px; }
+.ep-line-top { padding-right: 70px; }
+/* sub-status icon tabs spread evenly (more space; adapts to 3 vs 4 tabs) */
+.ep-topfilter { justify-content: space-around; gap: 0; padding: 6px 6px 0; }
+.ep-topfilter .ep-tf-ico { padding: 0 8px; }
+/* the SENDER (who's emailing) keeps its full name; the assignee truncates first */
+.ep-line-top .ep-row-from { flex: 0 0 auto; }
+.ep-line-top .ep-assignee { flex: 0 1 auto; min-width: 0; }
+
+/* ── Inside a job (full-email mode) → collapse the inbox list (2-way split) ───────── */
+.ep-listcol { transition: width .18s ease; }
+.shell.email-injob .ep-listcol { width: 0; min-width: 0; border-right: none; overflow: hidden; }
+/* freed width goes to the email body + the editor column, which also widens */
+.shell.email-injob { --jobcol-w: clamp(600px, 44vw, 820px); }

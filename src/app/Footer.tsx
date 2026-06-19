@@ -5,7 +5,6 @@
  * Quick Quote offers Draft / Quick Quote only.
  */
 import { RefHistory } from '@/features/customer/RefHistory.tsx'
-import { StatusPill } from '@/app/StatusPill.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useJobsStore, captureSnapshot } from '@/store/jobsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
@@ -64,27 +63,26 @@ export function Footer() {
         </div>
         <RefHistory />
         <div id="footActions" className="saveas">
-          <span className="foot-lbl" style={{ marginRight: 8 }}>Status</span>
-          <StatusPill status={jobStatus} />
-          <span style={{ width: 8 }} />
-          {isBooked ? (
-            // already a booking → can only update or cancel (no draft/quote)
-            <>
-              <button className="btn" onClick={() => goToList()}>Cancel</button>
-              <button className="btn primary" onClick={() => save('Booking')}>Update booking</button>
-            </>
-          ) : quickQuote ? (
-            <>
-              <button className="btn" onClick={() => save('Draft')}>Save as draft</button>
-              <button className="btn primary" onClick={() => save('Quick Quote')}>Save as Quick Quote</button>
-            </>
-          ) : (
-            <>
-              <button className="btn" onClick={() => save('Draft')}>Save draft</button>
-              <button className="btn" onClick={() => save('Quote')}>Save as quote</button>
-              <button className="btn primary" onClick={() => save('Booking')}>Save as booking</button>
-            </>
-          )}
+          <div className="saveas-btns">
+            {isBooked ? (
+              // already a booking → can only update or cancel (no draft/quote)
+              <>
+                <button className="btn" onClick={() => goToList()}>Cancel</button>
+                <button className="btn primary" onClick={() => save('Booking')}>Update booking</button>
+              </>
+            ) : quickQuote ? (
+              <>
+                <button className="btn" onClick={() => save('Draft')}>Save as draft</button>
+                <button className="btn primary" onClick={() => save('Quick Quote')}>Save as Quick Quote</button>
+              </>
+            ) : (
+              <>
+                <button className="btn" onClick={() => save('Draft')}>Save draft</button>
+                <button className="btn" onClick={() => save('Quote')}>Save as quote</button>
+                <button className="btn primary" onClick={() => save('Booking')}>Save as booking</button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

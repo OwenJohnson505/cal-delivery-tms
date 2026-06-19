@@ -35,6 +35,9 @@ export function App() {
   // room — keeping the booking visible (thinner) alongside the email. In FULL mode the
   // drawer is reached via JobTabs and takes over the job column instead.
   const drawerOpen = useUiStore((s) => s.drawer !== null) && emailSide && screen === 'wizard'
+  // Inside a job (the wizard) in full-email mode → collapse the inbox list so the editor
+  // and the email body get the room (a 2-way split). Restores when you leave the job.
+  const emailInJob = emailFull && screen === 'wizard'
 
   const wiz = screen === 'wizard'
   return (
@@ -43,6 +46,7 @@ export function App() {
       + (emailSide ? ' email-side email-list' : '')
       + ((emailFull || emailSide) ? ' email-left' : '')
       + (drawerOpen ? ' drawer-open' : '')
+      + (emailInJob ? ' email-injob' : '')
       + (emailFull && navOpen ? ' nav-pinned' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (

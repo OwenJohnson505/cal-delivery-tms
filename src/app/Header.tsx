@@ -3,6 +3,7 @@
  * (docs / map / print / delivery notes), clear-all. Tools open the relevant modal/window.
  */
 import { Icon } from './Icon.tsx'
+import { StatusPill } from './StatusPill.tsx'
 import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
@@ -40,6 +41,7 @@ export function Header() {
         <div id="ccBox" className="ccbox" style={{ flex: '0 1 auto', minWidth: 0 }}>
           <CustomerHeader />
         </div>
+        {custId && <span className="bar-status"><StatusPill status={jobStatus} /></span>}
         <span className="db-spacer" />
         <div className="bar-tools" id="routeTools">
           <button className="btn sm iconbtn" title="Documents" onClick={() => openModal('docs')}>

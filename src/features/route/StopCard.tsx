@@ -18,6 +18,8 @@ import type { Address, Stop, StopType, TimeMode } from '@/types/index.ts'
 const STATUS_LABEL: Record<string, string> = {
   booked: 'Booked', enroute: 'En route', arrived: 'Arrived', collected: 'Collected', delivered: 'Delivered',
 }
+// Only collection/delivery PROGRESS gets a status box — not the resting states.
+const HIDE_STOP_STATUS = new Set(['', 'booked', 'unallocated', 'dispatched'])
 
 // 'dd-mm-yyyy HH:MM' <-> datetime-local 'yyyy-MM-ddTHH:mm'
 function toLocal(s?: string): string {
@@ -47,20 +49,22 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
     set({ contact: { name: '', tel: '', email: '', ...c, ...patch } })
   const setTime = (mode: TimeMode, extra: Record<string, string> = {}) => set({ time: { mode, ...extra } })
 
+  const add = (txt: string) => <span className="stop-add">＋ {txt}</span>
+
   return (
-    <div className="stop">
-      <div className="stop-head">
-        <span className="num">{index + 1}</span>
+    <div className="stop stop-card2">
+      <div className="stop-top">
+        <span className="stop-num">{index + 1}</span>
         <select className="typesel" value={stop.type} onChange={(e) => set({ type: e.target.value as StopType })}>
           <option>Collection</option>
           <option>Delivery</option>
           <option>Both</option>
         </select>
-        <h3>{a.co || a.pc || 'New address'}</h3>
         {stop.reference && <span className="stop-ref-tag" title="Reference">{stop.reference}</span>}
-        <div className="sh-actions">
-          <StatusPill status={STATUS_LABEL[stop.status] || stop.status} />
-          {stop.status === 'enroute' && stop.eta && <span className="cc-tag">ETA {stop.eta}</span>}
+        <span className="db-spacer" />
+        {!HIDE_STOP_STATUS.has(stop.status) && <StatusPill status={STATUS_LABEL[stop.status] || stop.status} />}
+        {stop.status === 'enroute' && stop.eta && <span className="cc-tag">ETA {stop.eta}</span>}
+        <span className="sh-actions">
           {stop.pod && (
             <button className="btn sm iconbtn" title="View proof" onClick={() => viewPod(stop.id)}>
               <Icon name="camera" size={14} />
@@ -75,116 +79,81 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
               <Icon name="trash" size={14} />
             </button>
           )}
-        </div>
+        </span>
       </div>
 
-      <div className="pv">
-        <div className="prow">
-          <EditableCell
-            label="Company"
-            title="Company"
-            value={a.co ? <b>{a.co}</b> : <span className="ph">No address yet — use Edit</span>}
-          >
-            <div className="fld">
-              <label>Company name</label>
-              <input autoFocus value={a.co} onChange={(e) => setAddr({ co: e.target.value })} />
-            </div>
-          </EditableCell>
-
-          <EditableCell
-            label="Contact"
-            title="Site contact"
-            value={c ? <b>{c.name}{c.tel ? ` · ${c.tel}` : ''}</b> : <span className="ph">—</span>}
-          >
-            <div className="fld"><label>Name</label><input value={c?.name || ''} onChange={(e) => setContact({ name: e.target.value })} /></div>
-            <div className="fld"><label>Phone</label><input value={c?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
-            <div className="fld"><label>Email</label><input value={c?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
-          </EditableCell>
-        </div>
-
-        <div className="prow">
-          <EditableCell
-            label="Address"
-            title="Address"
-            value={
-              a.address ? (
-                <>{[a.address, a.city].filter(Boolean).join(', ')}{a.pc ? <> · <b>{a.pc}</b></> : null}</>
-              ) : (
-                <span className="ph">—</span>
-              )
-            }
-          >
-            <div className="fld"><label>Address</label><input autoFocus value={a.address} onChange={(e) => setAddr({ address: e.target.value })} /></div>
-            <div className="g-cpc">
-              <div className="fld"><label>City</label><input value={a.city} onChange={(e) => setAddr({ city: e.target.value })} /></div>
-              <div className="fld"><label>Postcode</label><input value={a.pc} onChange={(e) => setAddr({ pc: e.target.value })} /></div>
-            </div>
-          </EditableCell>
-
-          <EditableCell label={whenLabel(stop.time)} title="Timing" value={whenValue(stop.time)}>
-            <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
-                <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
-                  {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
-            {stop.time.mode === 'at' && (
-              <div className="fld"><label>At</label><input type="datetime-local" value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} /></div>
-            )}
-            {stop.time.mode === 'by' && (
-              <div className="fld"><label>By</label><input type="datetime-local" value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} /></div>
-            )}
-            {stop.time.mode === 'between' && (
-              <>
-                <div className="fld"><label>From</label><input type="datetime-local" value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} /></div>
-                <div className="fld"><label>To</label><input type="datetime-local" value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} /></div>
-              </>
-            )}
-          </EditableCell>
-        </div>
-
-        {(goods || isColl) && (
-          <div className="prow">
-            <EditableCell
-              label="Goods"
-              title="Goods"
-              editable={isColl}
-              value={goods ? goods : <span className="ph">—</span>}
-            >
-              <div className="fld">
-                <label>Goods — type or paste</label>
-                <textarea
-                  autoFocus
-                  rows={3}
-                  placeholder="e.g. 2 pallets at 400kg total, 1 box"
-                  value={stop.goods}
-                  onChange={(e) => set({ goods: e.target.value, goodsTouched: true })}
-                />
-              </div>
-              <div className="ce-prev">
-                <div className="ce-prev-h">Formatted goods</div>
-                {parseGoods(stop.goods).length ? (
-                  parseGoods(stop.goods).map((it, i) => (
-                    <div className="ce-prev-row" key={i} dangerouslySetInnerHTML={{ __html: fmtItem(it) }} />
-                  ))
-                ) : (
-                  <div className="ce-prev-empty">Nothing parsed yet.</div>
-                )}
+      <div className="stop-facts">
+        {(() => {
+          const addrLine = [a.address, a.city].filter(Boolean).join(', ')
+          const hasLoc = !!(a.co || addrLine || a.pc)
+          return (
+            <EditableCell label="📍" title="Collection / delivery address"
+              value={hasLoc ? (
+                <span className="stop-loc">
+                  <span className="stop-loc-co">{a.co || 'Unnamed site'}</span>
+                  {(addrLine || a.pc) && <span className="stop-loc-addr">{addrLine}{addrLine && a.pc ? ' · ' : ''}{a.pc ? <b>{a.pc}</b> : null}</span>}
+                </span>
+              ) : add('add address')}>
+              <div className="fld"><label>Company name</label><input autoFocus value={a.co} onChange={(e) => setAddr({ co: e.target.value })} /></div>
+              <div className="fld"><label>Address</label><input value={a.address} onChange={(e) => setAddr({ address: e.target.value })} /></div>
+              <div className="g-cpc">
+                <div className="fld"><label>City</label><input value={a.city} onChange={(e) => setAddr({ city: e.target.value })} /></div>
+                <div className="fld"><label>Postcode</label><input value={a.pc} onChange={(e) => setAddr({ pc: e.target.value })} /></div>
               </div>
             </EditableCell>
+          )
+        })()}
+
+        <EditableCell label="👤" title="Site contact"
+          value={c && (c.name || c.tel) ? <b>{c.name}{c.tel ? ` · ${c.tel}` : ''}</b> : add('add contact')}>
+          <div className="fld"><label>Name</label><input value={c?.name || ''} onChange={(e) => setContact({ name: e.target.value })} /></div>
+          <div className="fld"><label>Phone</label><input value={c?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
+          <div className="fld"><label>Email</label><input value={c?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
+        </EditableCell>
+
+        <EditableCell label="🕒" title="Timing" value={<span className="stop-when"><b>{whenLabel(stop.time)}</b> · {whenValue(stop.time)}</span>}>
+          <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
+              <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
+                {m === 'asap' ? 'ASAP' : m.charAt(0).toUpperCase() + m.slice(1)}
+              </button>
+            ))}
           </div>
+          {stop.time.mode === 'at' && (
+            <div className="fld"><label>At</label><input type="datetime-local" value={toLocal(stop.time.at)} onChange={(e) => setTime('at', { at: fromLocal(e.target.value) })} /></div>
+          )}
+          {stop.time.mode === 'by' && (
+            <div className="fld"><label>By</label><input type="datetime-local" value={toLocal(stop.time.by)} onChange={(e) => setTime('by', { by: fromLocal(e.target.value) })} /></div>
+          )}
+          {stop.time.mode === 'between' && (
+            <>
+              <div className="fld"><label>From</label><input type="datetime-local" value={toLocal(stop.time.from)} onChange={(e) => setTime('between', { from: fromLocal(e.target.value), to: stop.time.to || '' })} /></div>
+              <div className="fld"><label>To</label><input type="datetime-local" value={toLocal(stop.time.to)} onChange={(e) => setTime('between', { from: stop.time.from || '', to: fromLocal(e.target.value) })} /></div>
+            </>
+          )}
+        </EditableCell>
+
+        {isColl && (
+          <EditableCell label="📦" title="Goods" editable={isColl} value={goods ? goods : add('add goods')}>
+            <div className="fld">
+              <label>Goods — type or paste</label>
+              <textarea autoFocus rows={3} placeholder="e.g. 2 pallets at 400kg total, 1 box" value={stop.goods} onChange={(e) => set({ goods: e.target.value, goodsTouched: true })} />
+            </div>
+            <div className="ce-prev">
+              <div className="ce-prev-h">Formatted goods</div>
+              {parseGoods(stop.goods).length ? (
+                parseGoods(stop.goods).map((it, i) => <div className="ce-prev-row" key={i} dangerouslySetInnerHTML={{ __html: fmtItem(it) }} />)
+              ) : (
+                <div className="ce-prev-empty">Nothing parsed yet.</div>
+              )}
+            </div>
+          </EditableCell>
         )}
 
         {stop.note && (
-          <div className="prow">
-            <EditableCell label="Note" title="Note" value={stop.note}>
-              <div className="fld">
-                <label>Driver instruction</label>
-                <textarea autoFocus rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} />
-              </div>
-            </EditableCell>
-          </div>
+          <EditableCell label="📝" title="Note" value={stop.note}>
+            <div className="fld"><label>Driver instruction</label><textarea autoFocus rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} /></div>
+          </EditableCell>
         )}
       </div>
     </div>

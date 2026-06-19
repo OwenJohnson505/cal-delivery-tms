@@ -95,6 +95,8 @@ function StatusChip({ status }: { status: EmailStatus }) {
 /** Statuses worth a pill in the list. 'New'/'Assigned' are implied by the
  * (un)assigned name already shown, so we don't repeat them (avoid duplication). */
 const SHOW_STATUS = new Set<EmailStatus>(['In Progress', 'Awaiting Customer', 'Action Ready', 'Resolved'])
+/** Icons for the sub-status tabs (text wraps in the narrow column; icon + tooltip is cleaner). */
+const SUB_ICON: Record<string, string> = { open: 'inbox', awaiting: 'clock', resolved: 'check-circle', unassigned: 'user-plus' }
 /** Chase deadline escalation: ok (in future) · amber (overdue) · red (>1 day overdue). */
 const chaseInfo = (dueMs: number): { level: 'ok' | 'amber' | 'red'; label: string } => {
   const diff = dueMs - Date.now()
@@ -813,8 +815,9 @@ export function EmailPanel() {
             <div className="ep-lanes ep-topfilter">
               {([['open', 'Open'], ['awaiting', 'Awaiting reply'], ['resolved', 'Resolved'],
                 ...(scope === 'all' ? [['unassigned', 'Unassigned'] as const] : [])] as const).map(([key, label]) => (
-                <button key={key} className={'ep-view ep-tf' + (sub === key ? ' on' : '')} onClick={() => setSub(key)}>
-                  {label}{subCount[key] ? <i>{subCount[key]}</i> : null}
+                <button key={key} className={'ep-view ep-tf ep-tf-ico' + (sub === key ? ' on' : '')} onClick={() => setSub(key)} title={label} aria-label={label}>
+                  <Icon name={SUB_ICON[key]} size={15} />
+                  {subCount[key] ? <i>{subCount[key]}</i> : null}
                 </button>
               ))}
             </div>
@@ -938,13 +941,15 @@ export function EmailPanel() {
                 })()}
                 <div className="ep-rhead">
                   <div className="ep-rtitle">
-                    <StatusChip status={thread.status} />
                     <b>{thread.subject}</b>
-                    <span className={'cat-chip ' + CAT_CLASS[thread.category]}>{thread.category}</span>
                     <span className="db-spacer" />
                     <button className="btn sm iconbtn ep-closebody" title="Close email — back to the list" onClick={closeBody}>
                       <Icon name="close" size={14} />
                     </button>
+                  </div>
+                  <div className="ep-rmeta2">
+                    <StatusChip status={thread.status} />
+                    <span className={'cat-chip ' + CAT_CLASS[thread.category]}>{thread.category}</span>
                   </div>
                   <div className="ep-rtools">
                     <select className="ep-assign" value={thread.assigneeId ?? ''} onChange={(e) => assignThread(thread.id, e.target.value || null)} title="Assigned to">
