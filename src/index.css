@@ -2063,3 +2063,10 @@
 .shell.email-injob .ep-listcol { width: 0; min-width: 0; border-right: none; overflow: hidden; }
 /* freed width goes to the email body + the editor column, which also widens */
 .shell.email-injob { --jobcol-w: clamp(600px, 44vw, 820px); }
+
+/* ── The jobs section as its own floating island, clearly separate from the email ─── */
+.shell.panel-open { background: #e6eaf0; }
+.shell.panel-open .email-panel { border-right: none; }
+.shell.panel-open .shell-main { margin: 10px 12px 10px 12px; border-radius: 14px; border: 1px solid var(--line-strong); box-shadow: 0 6px 22px rgba(16, 24, 40, .12); background: var(--panel); overflow: hidden; }
+.shell.panel-open .shell-main .app,
+.shell.panel-open .shell-main .list-app { height: 100%; }
