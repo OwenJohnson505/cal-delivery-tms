@@ -358,13 +358,12 @@ export function ListScreen() {
     const dash = <span className="muted">—</span>
     switch (key) {
       case 'customer':
+        // Customer and Status are now separate columns (the 'progress' column carries the
+        // status pill) — this cell is just the clickable customer name.
         return (
-          <div className="cust-stack">
-            <button className="cell-link cust-name" onClick={(e) => openPop(e, contactNode(j))}>
-              {cust?.displayName || j.customer}
-            </button>
-            {j.progress && <StatusPill status={j.progress} />}
-          </div>
+          <button className="cell-link cust-name" onClick={(e) => openPop(e, contactNode(j))}>
+            {cust?.displayName || j.customer}
+          </button>
         )
       case 'collection': {
         if (!j.collectAt) return dash

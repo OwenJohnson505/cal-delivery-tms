@@ -14,7 +14,7 @@ import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
 import { outcode } from '@/lib/index.ts'
-import type { JobStatus } from '@/types/index.ts'
+import type { JobStatus, Stop } from '@/types/index.ts'
 
 const TAB_STATUSES: Record<ListTab, JobStatus[]> = {
   bookings: ['Booking'],
@@ -36,6 +36,7 @@ function refOk(custRef: string, cust?: Customer): boolean {
 
 export function JobsCards() {
   const jobs = useJobsStore((s) => s.jobs)
+  const deleteJob = useJobsStore((s) => s.deleteJob)
   const customers = useCustomersStore((s) => s.customers)
   const openWizard = useViewStore((s) => s.openWizard)
   const newBooking = useBookingStore((s) => s.newBooking)
@@ -52,6 +53,19 @@ export function JobsCards() {
     e.stopPropagation()
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     setPop({ x: Math.min(r.left, window.innerWidth - 290), y: r.bottom + 6, node })
+  }
+  // Quick-actions menu (the three dots) — Delete for now; more actions will land here.
+  const openMenu = (e: React.MouseEvent, j: SavedJob) => {
+    e.stopPropagation()
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const node = (
+      <div className="rowmenu">
+        <button className="rowmenu-item danger" onClick={() => { setPop(null); if (confirm(`Delete ${j.ref}?`)) deleteJob(j.id) }}>
+          <Icon name="trash" size={14} /> Delete
+        </button>
+      </div>
+    )
+    setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
   }
 
   const counts = (t: ListTab) => jobs.filter((j) => TAB_STATUSES[t].includes(j.status)).length
@@ -114,9 +128,32 @@ export function JobsCards() {
     </div>
   )
 
-  const route = (j: SavedJob) => {
-    const pts = j.snapshot.stops.filter((s) => s.addr.pc).map((s) => outcode(s.addr.pc))
-    return pts.length ? pts.join(' → ') : j.route
+  const addressNode = (s: Stop) => (
+    <div className="cp-card">
+      <div className="cp-h">{s.type} · {s.addr.co || s.addr.pc}</div>
+      <div className="cp-row"><span className="cp-k">Postcode</span><span>{s.addr.pc || '—'}</span></div>
+      <div className="cp-row"><span className="cp-k">Reference</span><span>{s.reference || '—'}</span></div>
+      <div className="cp-row"><span className="cp-k">Contact</span><span>{s.contact?.name || '—'}</span></div>
+      {s.contact?.tel && <a className="cp-link" href={`tel:${s.contact.tel}`}><Icon name="phone" size={13} /> {s.contact.tel}</a>}
+      {s.contact?.email && <a className="cp-link" href={`mailto:${s.contact.email}`}><Icon name="mail" size={13} /> {s.contact.email}</a>}
+    </div>
+  )
+
+  // Clickable postcodes (each opens its address popover), like the table's route column.
+  const routeEls = (j: SavedJob) => {
+    const pts = j.snapshot.stops.filter((s) => s.addr.pc)
+    if (!pts.length) return <span className="jcard-route">{j.route} · {j.vehicle || '—'}</span>
+    return (
+      <span className="jcard-route">
+        {pts.map((s, idx) => (
+          <span key={s.id}>
+            {idx > 0 && <span className="route-arrow">→</span>}
+            <button className="route-pt" onClick={(e) => openPop(e, addressNode(s))}>{outcode(s.addr.pc)}</button>
+          </span>
+        ))}
+        <span className="jcard-veh"> · {j.vehicle || '—'}</span>
+      </span>
+    )
   }
 
   return (
@@ -146,13 +183,15 @@ export function JobsCards() {
                   {displayName(j)}
                 </button>
                 {j.progress && <StatusPill status={j.progress} />}
+                <span className="db-spacer" />
+                <button className="kebab jcard-kebab" title="Quick actions" onClick={(e) => openMenu(e, j)}>⋮</button>
               </div>
               <div className="jcard-times">
                 <span className="jcard-leg"><i>COL</i> {j.collectAt || '—'}{j.collectEta && <em> · ETA {j.collectEta}</em>}</span>
                 <span className="jcard-leg"><i>DEL</i> {j.deliverAt || '—'}{j.deliverEta && <em> · ETA {j.deliverEta}</em>}</span>
               </div>
               <div className="jcard-foot">
-                <span className="jcard-route">{route(j)} · {j.vehicle || '—'}</span>
+                {routeEls(j)}
                 <span className="db-spacer" />
                 {needRef && <span className={ok ? 'ref-ok' : 'ref-bad'} title={j.custRef || 'No PO'}>{ok ? '✓' : '✕'}</span>}
                 {j.supplierName

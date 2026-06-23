@@ -23,15 +23,6 @@ import { useAutomationStore } from '@/store/automationStore.ts'
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/** Clicking outside the email panel only collapses the reader when it's genuine dead
- * space — NOT when it's one of these interactive things (which should act normally). */
-const DEADSPACE_EXCEPT = [
-  'a', 'button', 'input', 'select', 'textarea', 'label', '[role="button"]',
-  '.ep-row', '.siderail', '.drawer', '.drawer-overlay', '.cell-link', '.list-tab',
-  '.jcard', '.jobcard', '.job-card', '.bk-card', '.stop-card', '.stop-head', '.panelbox',
-  '.cc-contact-pop', '.cell-pop', '.ep-filtermenu', '.list-table', 'table',
-].join(',')
-
 const CAT_CLASS: Record<EmailCategory, string> = {
   'Urgent booking': 'cat-urgent',
   'ETA request': 'cat-eta',
@@ -663,21 +654,8 @@ export function EmailPanel() {
     }, 30)
   }
 
-  // With the body open, a click on genuine DEAD SPACE collapses the reader back to the
-  // list. Clicking something interactive (a booking card, a sidebar action, a button,
-  // a form field…) lets it do its thing and keeps the email open.
-  useEffect(() => {
-    if (panelState !== 'full') return
-    const onDown = (e: MouseEvent) => {
-      const el = panelRef.current
-      const target = e.target as HTMLElement | null
-      if (!el || !target || el.contains(target)) return // inside the email panel
-      if (target.closest(DEADSPACE_EXCEPT)) return // interactive → act normally, keep email open
-      closeBody()
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [panelState, compose, draft]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The reader stays open until the user explicitly closes it with the × button — it no
+  // longer collapses when clicking dead space (that was too easy to trigger by accident).
 
   const toggleCheck = (id: string) =>
     setChecked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))

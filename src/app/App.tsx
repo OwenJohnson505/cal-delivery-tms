@@ -2,7 +2,9 @@
  * App — top-level router. Shows the list screens (Bookings / Quotes / Drafts) by default,
  * or the booking wizard when adding/opening a job. The left nav rail is shared chrome.
  */
+import { useCallback, useState, type CSSProperties } from 'react'
 import { LeftRail } from './Rails.tsx'
+import { SplitHandle } from './SplitHandle.tsx'
 import { ListScreen } from '@/features/jobs/ListScreen.tsx'
 import { CustomersScreen } from '@/features/customers/CustomersScreen.tsx'
 import { UsersScreen } from '@/features/users/UsersScreen.tsx'
@@ -41,9 +43,31 @@ export function App() {
   // and the email body get the room (a 2-way split). Restores when you leave the job.
   const emailInJob = emailFull && screen === 'wizard'
 
+  // Paired = email AND bookings both showing → a draggable divider lets the user re-balance
+  // the split (handy on an ultrawide). The chosen width persists; double-click resets it.
+  const paired = emailFull && !emailScreen
+  const [jobColW, setJobColW] = useState<number | null>(() => {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem('cd-jobcol-w') : null
+    return v ? Number(v) : null
+  })
+  const onResize = useCallback((clientX: number) => {
+    if (clientX < 0) { setJobColW(null); try { localStorage.removeItem('cd-jobcol-w') } catch { /* ignore */ } ; return }
+    const NAV = 44, MIN_EMAIL = 440, MIN_JOB = 420
+    const total = window.innerWidth
+    // the booking column is flush to the right edge → its width is everything right of the cursor
+    const w = Math.max(MIN_JOB, Math.min(total - clientX, total - NAV - MIN_EMAIL))
+    setJobColW(Math.round(w))
+    try { localStorage.setItem('cd-jobcol-w', String(Math.round(w))) } catch { /* ignore */ }
+  }, [])
+
   const wiz = screen === 'wizard'
+  const shellStyle = (paired && jobColW != null)
+    ? ({ '--jobcol-w': `${jobColW}px` } as CSSProperties)
+    : undefined
   return (
-    <div className={'shell' + (wiz ? ' wiz' : '')
+    <div
+      style={shellStyle}
+      className={'shell' + (wiz ? ' wiz' : '')
       + (emailFull ? ' panel-open' : '')
       + (emailSide ? ' email-side email-list' : '')
       + ((emailFull || emailSide || emailScreen) ? ' email-left' : '')
@@ -68,6 +92,7 @@ export function App() {
         )}
       </div>
       {emailVisible && <EmailPanel />}
+      {paired && <SplitHandle onResize={onResize} />}
     </div>
   )
 }

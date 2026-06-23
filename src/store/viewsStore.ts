@@ -27,8 +27,8 @@ export interface SavedView {
 /** The full column catalogue — every data point on a booking — in default order. */
 export const COLUMNS: ColumnDef[] = [
   // identity / status
-  { key: 'customer', label: 'Customer / Status' },
-  { key: 'progress', label: 'Job status' },
+  { key: 'customer', label: 'Customer' },
+  { key: 'progress', label: 'Status' },
   { key: 'ourRef', label: 'Our ref' },
   { key: 'custRef', label: 'Customer ref' },
   { key: 'refAccepted', label: 'Ref OK' },
@@ -97,9 +97,9 @@ function viewFrom(id: string, name: string, visible: ColumnKey[], system = true)
 
 // Admin presets — pre-loaded for everyone (as if authored on an admin page).
 const PRESETS: SavedView[] = [
-  viewFrom('sys-standard', 'Standard', ['customer', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes', 'refAccepted']),
-  viewFrom('sys-financials', 'Financials', ['customer', 'revenue', 'cost', 'margin', 'actor']),
-  viewFrom('sys-operations', 'Operations', ['customer', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
+  viewFrom('sys-standard', 'Standard', ['customer', 'progress', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes', 'refAccepted']),
+  viewFrom('sys-financials', 'Financials', ['customer', 'progress', 'revenue', 'cost', 'margin', 'actor']),
+  viewFrom('sys-operations', 'Operations', ['customer', 'progress', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
 ]
 
 const LS_KEY = 'cd-booking-views-v5'

@@ -767,7 +767,7 @@
 
 /* bookings main column hugs the table; margin:0 overrides .list-work's
  * margin:0 auto, which would otherwise eat the flex free space. */
-.bookings-main { flex: 0 1 auto; width: fit-content; min-width: 0; margin: 0; gap: 10px; }
+.bookings-main { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; gap: 10px; }
 /* row 1: tabs + Add new booking on the same line (no page title) */
 .bk-tabsrow { display: flex; align-items: center; gap: 12px; }
 /* row 3: view config (View select · Columns · Email) sits close to the table */
@@ -995,7 +995,8 @@
 }
 .jcard:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(37, 99, 235, .08); }
 .jcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
-.jcard-cust { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jcard-cust { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; min-width: 0; }
+.jcard-kebab { flex: none; margin: -3px -5px -3px 0; }
 .jcard-times { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink); }
 .jcard-leg i { font-style: normal; font-weight: 700; font-size: 9px; color: var(--muted); margin-right: 6px; }
 .jcard-leg em { font-style: normal; color: var(--accent); font-weight: 600; }
@@ -1023,8 +1024,10 @@
 
 /* "live" jobs table — content-sized: every column crops to its longest entry and
  * the card hugs the table (scrolling only if it genuinely can't fit) */
-.list-tablewrap:has(.jobs-table) { overflow-x: auto; width: fit-content; max-width: 100%; }
-.jobs-table { font-size: 12px; width: auto; }
+/* fill the available width (use the dead space on wide screens); scroll only if the
+ * enabled columns genuinely need more room than the panel has */
+.list-tablewrap:has(.jobs-table) { overflow-x: auto; width: auto; max-width: 100%; }
+.jobs-table { font-size: 12px; width: 100%; }
 .jobs-table th, .jobs-table td { padding: 6px 8px; vertical-align: middle; }
 .jobs-table .nowrap { white-space: nowrap; }
 .jobs-table .muted { color: var(--muted); }
@@ -2056,12 +2059,27 @@
 /* freed width goes to the email body + the editor column, which also widens */
 .shell.email-injob { --jobcol-w: clamp(600px, 44vw, 820px); }
 
-/* ── The jobs section as its own floating island, clearly separate from the email ─── */
+/* ── The jobs section is clearly separated from the email — a flat-topped panel (no
+ * rounding, so its top lines up with the email header) set off by a left gutter +
+ * gradient shadow. It fills full height and runs flush to the right edge. ─────────── */
 .shell.panel-open { background: #e6eaf0; }
 .shell.panel-open .email-panel { border-right: none; }
-.shell.panel-open .shell-main { margin: 10px 12px 10px 12px; border-radius: 14px; border: 1px solid var(--line-strong); box-shadow: 0 6px 22px rgba(16, 24, 40, .12); background: var(--panel); overflow: hidden; }
+.shell.panel-open .shell-main {
+  margin: 0; border-radius: 0; border: none; border-left: 1px solid var(--line-strong);
+  box-shadow: -12px 0 24px -14px rgba(16, 24, 40, .22); background: var(--panel); overflow: hidden;
+}
 .shell.panel-open .shell-main .app,
 .shell.panel-open .shell-main .list-app { height: 100%; }
+
+/* draggable divider between the email and the bookings (only when both are showing) */
+.shell.panel-open:not(.email-solo) .email-panel { order: -2; }
+.ep-split { order: -1; flex: 0 0 11px; align-self: stretch; position: relative; z-index: 6; cursor: col-resize; background: transparent; }
+.ep-split::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; transform: translateX(-50%);
+  background: var(--line-strong); opacity: .55; transition: opacity .12s ease, background .12s ease, width .12s ease;
+}
+.ep-split:hover::before, body.col-resizing .ep-split::before { opacity: 1; background: var(--accent); width: 3px; }
+body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* ── Standalone email screen: full-screen inbox, no booking column behind it ───────── */
 /* Collapse the job column to nothing (but keep it rendered — the fixed nav rail lives
