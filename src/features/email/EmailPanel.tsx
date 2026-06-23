@@ -676,7 +676,7 @@ export function EmailPanel() {
         </button>
       </div>
 
-      <div className="ep-body">
+      <div className={'ep-body' + (panelState === 'full' && thread ? ' has-thread' : '')}>
           {/* ── left column: filters + lanes + inbox list ── */}
           <div className="ep-listcol">
             <div className="ep-filters">
@@ -919,6 +919,9 @@ export function EmailPanel() {
                 })()}
                 <div className="ep-rhead">
                   <div className="ep-rtitle">
+                    <button className="ep-back" title="Back to inbox" onClick={() => useEmailsStore.setState({ selectedId: null })}>
+                      <Icon name="chevron-up" size={16} />
+                    </button>
                     <b>{thread.subject}</b>
                     <span className="db-spacer" />
                     <button className="btn sm iconbtn ep-closebody" title="Close email — back to the list" onClick={closeBody}>

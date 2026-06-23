@@ -913,10 +913,19 @@
 .ep-listcol { width: 290px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .ep-readcol { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
 .ep-listcol .ep-list { flex: 1; max-height: none; border-bottom: none; }
+/* Narrow email panel (e.g. the divider dragged to favour bookings) → a clean SINGLE
+ * pane instead of a sparse list-over-reader split: show the reader full-height when an
+ * email is open (back-arrow returns to the inbox), otherwise the full-height list. */
+.ep-back { display: none; border: none; background: none; color: var(--muted); cursor: pointer; padding: 2px; border-radius: 7px; place-items: center; flex: none; }
+.ep-back:hover { color: var(--accent); background: var(--accent-soft); }
 @container (max-width: 619px) {
   .ep-body { flex-direction: column; }
-  .ep-listcol { width: auto; border-right: none; border-bottom: 1px solid var(--line); max-height: 40%; }
-  .ep-listcol .ep-list { max-height: none; }
+  .ep-listcol { width: auto; border-right: none; border-bottom: none; max-height: none; flex: 1; }
+  .ep-listcol .ep-list { max-height: none; flex: 1; }
+  .ep-body.has-thread .ep-listcol { display: none; }
+  .ep-body:not(.has-thread) .ep-readcol { display: none; }
+  .ep-body.has-thread .ep-readcol { flex: 1; }
+  .ep-back { display: inline-grid; }
 }
 
 /* compact two-line inbox rows: category dot + sender + meta / subject */
@@ -2070,6 +2079,16 @@
 }
 .shell.panel-open .shell-main .app,
 .shell.panel-open .shell-main .list-app { height: 100%; }
+
+/* Cards ⇄ Table segmented toggle for the bookings board */
+.viewtoggle { display: inline-flex; flex: none; border: 1px solid var(--line-strong); border-radius: 999px; overflow: hidden; background: #fff; }
+.vt-btn { width: 30px; height: 26px; border: none; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.vt-btn + .vt-btn { border-left: 1px solid var(--line); }
+.vt-btn:hover:not(.on) { background: var(--field); color: var(--ink); }
+.vt-btn.on { background: var(--accent-soft); color: var(--accent); }
+/* table shown as the wide board (beside email) → fill the panel, scroll if truly needed */
+.board-table .list-work { padding: 12px 14px; max-width: none; }
+.board-table .list-tablewrap { overflow: auto; }
 
 /* draggable divider between the email and the bookings (only when both are showing) */
 .shell.panel-open:not(.email-solo) .email-panel { order: -2; }

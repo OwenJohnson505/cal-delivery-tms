@@ -13,6 +13,8 @@ import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore, type ListTab } from '@/store/viewStore.ts'
+import { useUiStore } from '@/store/uiStore.ts'
+import { ViewToggle } from './ViewToggle.tsx'
 import { outcode } from '@/lib/index.ts'
 import type { JobStatus, Stop } from '@/types/index.ts'
 
@@ -39,10 +41,13 @@ export function JobsCards() {
   const deleteJob = useJobsStore((s) => s.deleteJob)
   const customers = useCustomersStore((s) => s.customers)
   const openWizard = useViewStore((s) => s.openWizard)
+  const tab = useViewStore((s) => s.listTab)
+  const setTab = useViewStore((s) => s.setListTab)
   const newBooking = useBookingStore((s) => s.newBooking)
   const loadSnapshot = useBookingStore((s) => s.loadSnapshot)
+  const boardView = useUiStore((s) => s.boardView)
+  const setBoardView = useUiStore((s) => s.setBoardView)
 
-  const [tab, setTab] = useState<ListTab>('bookings')
   const [q, setQ] = useState('')
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
 
@@ -168,6 +173,7 @@ export function JobsCards() {
         </div>
         <span className="db-spacer" />
         <input className="ep-search ej-search" placeholder="Search jobs…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <ViewToggle value={boardView} onChange={setBoardView} />
         <button className="btn sm primary" onClick={addNew}><Icon name="plus" size={14} /> New</button>
       </div>
 

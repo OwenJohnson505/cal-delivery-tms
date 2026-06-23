@@ -22,6 +22,9 @@ interface UiState {
   navOpen: boolean
   /** Whether the left-rail Settings group (secondary nav) is expanded. Collapsed by default. */
   settingsOpen: boolean
+  /** How the bookings board renders beside an open email — compact cards or the full
+   * table (the user picks, e.g. switching to the table once they have the width). */
+  boardView: 'cards' | 'table'
 
   openDrawer(d: DrawerName): void
   closeDrawers(): void
@@ -34,6 +37,11 @@ interface UiState {
   setProvSeen(n: number): void
   toggleNav(): void
   toggleSettings(): void
+  setBoardView(v: 'cards' | 'table'): void
+}
+
+function loadBoardView(): 'cards' | 'table' {
+  try { return localStorage.getItem('cd-board-view') === 'table' ? 'table' : 'cards' } catch { return 'cards' }
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -45,6 +53,7 @@ export const useUiStore = create<UiState>((set) => ({
   provSeen: 0,
   navOpen: false,
   settingsOpen: false,
+  boardView: loadBoardView(),
 
   openDrawer: (d) => set({ drawer: d }),
   closeDrawers: () => set({ drawer: null }),
@@ -56,4 +65,5 @@ export const useUiStore = create<UiState>((set) => ({
   setProvSeen: (n) => set({ provSeen: n }),
   toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+  setBoardView: (v) => { try { localStorage.setItem('cd-board-view', v) } catch { /* ignore */ } ; set({ boardView: v }) },
 }))

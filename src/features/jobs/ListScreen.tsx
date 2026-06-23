@@ -14,8 +14,10 @@ import { useOrgStore, userScope } from '@/store/orgStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
+import { useUiStore } from '@/store/uiStore.ts'
 import { JobsCards } from './JobsCards.tsx'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
+import { ViewToggle } from './ViewToggle.tsx'
 import { outcode } from '@/lib/index.ts'
 import type { JobStatus, Stop } from '@/types/index.ts'
 import type { ReactNode } from 'react'
@@ -103,6 +105,8 @@ export function ListScreen() {
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
   // Immersive (full) email → compact job cards; collapsed email (list/mini) → the table.
   const emailFull = useEmailsStore((s) => s.panelState === 'full')
+  const boardView = useUiStore((s) => s.boardView)
+  const setBoardView = useUiStore((s) => s.setBoardView)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -543,9 +547,10 @@ export function ListScreen() {
     setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
   }
 
-  // Full (immersive) email → the table gives way to compact job cards beside the big
-  // email client. When email is collapsed (list/mini), the table returns.
-  if (emailFull) {
+  // Beside an open email the board defaults to compact cards, but the user can switch to
+  // the full table (e.g. once they've dragged enough width for it). When email is
+  // collapsed (list/mini) the table is always shown full-screen.
+  if (emailFull && boardView === 'cards') {
     return (
       <div className="list-app email-jobs-app">
         <JobsCards />
@@ -554,7 +559,7 @@ export function ListScreen() {
   }
 
   return (
-    <div className="list-app">
+    <div className={'list-app' + (emailFull ? ' email-jobs-app board-table' : '')}>
       <div className="list-work wide bookings-main">
         {/* row 1: tabs + add (no page title — the active tab says where you are) */}
         <div className="bk-tabsrow">
@@ -570,6 +575,7 @@ export function ListScreen() {
             ))}
           </div>
           <span className="db-spacer" />
+          {emailFull && <ViewToggle value={boardView} onChange={setBoardView} />}
           <button className="btn primary" onClick={addNew}>
             <Icon name="plus" size={15} /> Add new booking
           </button>
