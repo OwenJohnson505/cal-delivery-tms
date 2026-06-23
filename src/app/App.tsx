@@ -26,10 +26,12 @@ export function App() {
   // Email only pairs with the booking page (list + wizard) — not customers, settings,
   // service-providers screens, etc.
   const onBookingPage = screen === 'list' || screen === 'wizard'
-  const emailVisible = panelState !== 'mini' && onBookingPage
-  const emailFull = panelState === 'full' && onBookingPage
+  // 'email' is a first-class screen: the inbox opens full-screen on its own, with no
+  // booking column behind it (no longer forced to pair with a booking).
+  const emailScreen = screen === 'email'
+  const emailVisible = (panelState !== 'mini' && onBookingPage) || emailScreen
+  const emailFull = panelState === 'full' && (onBookingPage || emailScreen)
   const emailSide = panelState === 'list' && onBookingPage
-  const navOpen = useUiStore((s) => s.navOpen)
   // In SIDE email mode (list), opening a wizard drawer (Service providers / History)
   // shrinks the booking into a vertical scroller and widens the drawer to take that
   // room — keeping the booking visible (thinner) alongside the email. In FULL mode the
@@ -44,10 +46,10 @@ export function App() {
     <div className={'shell' + (wiz ? ' wiz' : '')
       + (emailFull ? ' panel-open' : '')
       + (emailSide ? ' email-side email-list' : '')
-      + ((emailFull || emailSide) ? ' email-left' : '')
+      + ((emailFull || emailSide || emailScreen) ? ' email-left' : '')
+      + (emailScreen ? ' email-solo' : '')
       + (drawerOpen ? ' drawer-open' : '')
-      + (emailInJob ? ' email-injob' : '')
-      + (emailFull && navOpen ? ' nav-pinned' : '')}>
+      + (emailInJob ? ' email-injob' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (
           <WizardHost />

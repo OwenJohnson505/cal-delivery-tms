@@ -46,6 +46,8 @@ const ICONS: Record<string, string> = {
   inbox: '<path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M4 13h4l1.5 2.5h5L16 13h4"/>',
   'check-circle': '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 9.5"/>',
   'user-plus': '<circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 8v6M15 11h6"/>',
+  'chevron-up': '<path d="M6 14l6-6 6 6"/>',
+  'chevron-down': '<path d="M6 10l6 6 6-6"/>',
 }
 
 export type IconName = keyof typeof ICONS | string

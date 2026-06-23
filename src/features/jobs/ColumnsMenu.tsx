@@ -83,7 +83,7 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
               {columns.map((c, i) => (
                 <div
                   key={c.key}
-                  className={'cm-row' + (drag === i ? ' dragging' : '')}
+                  className={'cm-row' + (drag === i ? ' dragging' : '') + (c.visible ? '' : ' off')}
                   draggable
                   onDragStart={() => setDrag(i)}
                   onDragOver={(e) => e.preventDefault()}
@@ -91,14 +91,15 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
                   onDragEnd={() => setDrag(null)}
                 >
                   <span className="cm-grip" title="Drag to reorder">⋮⋮</span>
-                  <label className="cm-chk">
-                    <input type="checkbox" checked={c.visible} onChange={() => toggleColumn(c.key)} />
-                    {LABEL[c.key]}
-                  </label>
+                  <span className="cm-label">{LABEL[c.key]}</span>
                   <span className="cm-move">
-                    <button disabled={i === 0} title="Move up" onClick={() => moveColumn(i, i - 1)}>↑</button>
-                    <button disabled={i === columns.length - 1} title="Move down" onClick={() => moveColumn(i, i + 1)}>↓</button>
+                    <button className="cm-mv" disabled={i === 0} title="Move up" onClick={() => moveColumn(i, i - 1)}><Icon name="chevron-up" size={13} /></button>
+                    <button className="cm-mv" disabled={i === columns.length - 1} title="Move down" onClick={() => moveColumn(i, i + 1)}><Icon name="chevron-down" size={13} /></button>
                   </span>
+                  <label className="cm-toggle" title={c.visible ? 'Hide column' : 'Show column'}>
+                    <input type="checkbox" checked={c.visible} onChange={() => toggleColumn(c.key)} />
+                    <span className="cm-track"><span className="cm-knob" /></span>
+                  </label>
                 </div>
               ))}
             </div>
@@ -108,10 +109,13 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
               <div className="cm-extra">
                 <div className="cm-extra-h">{extraTitle ?? 'Custom fields'}</div>
                 {extraColumns.map((c) => (
-                  <label className="cm-chk cm-extra-row" key={c.key}>
-                    <input type="checkbox" checked={activeExtra.includes(c.key)} onChange={() => onToggleExtra?.(c.key)} />
-                    {c.label}
-                  </label>
+                  <div className={'cm-row cm-extra-row' + (activeExtra.includes(c.key) ? '' : ' off')} key={c.key}>
+                    <span className="cm-label">{c.label}</span>
+                    <label className="cm-toggle" title={activeExtra.includes(c.key) ? 'Hide column' : 'Show column'}>
+                      <input type="checkbox" checked={activeExtra.includes(c.key)} onChange={() => onToggleExtra?.(c.key)} />
+                      <span className="cm-track"><span className="cm-knob" /></span>
+                    </label>
+                  </div>
                 ))}
               </div>
             )}

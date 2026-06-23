@@ -33,19 +33,30 @@ export function LeftRail() {
   const go = useViewStore((s) => s.go)
   const panelState = useEmailsStore((s) => s.panelState)
   const setPanelState = useEmailsStore((s) => s.setPanelState)
-  const emailFull = panelState === 'full'
   const onBookingPage = screen === 'list' || screen === 'wizard'
-  // email only shows on the booking page, so "open" means open AND on that page
-  const emailOpen = panelState !== 'mini' && onBookingPage
-  const navOpen = useUiStore((s) => s.navOpen)
-  const toggleNav = useUiStore((s) => s.toggleNav)
+  const emailScreen = screen === 'email'
+  // Bookings and Emails are an explicit 3-way toggle: bookings-only · emails-only · both.
+  const bookingsShown = onBookingPage
+  const emailShown = emailScreen || (onBookingPage && panelState !== 'mini')
   const settingsOpen = useUiStore((s) => s.settingsOpen)
   const toggleSettings = useUiStore((s) => s.toggleSettings)
 
+  // Click a section to show only it; click the other to add it (both showing); click an
+  // already-open section while both show to collapse back to just that one.
+  const showBookings = () => {
+    if (emailScreen) { goToList('bookings'); setPanelState('full') }   // emails-only → both
+    else if (onBookingPage) setPanelState('mini')                      // both → bookings-only
+    else { goToList('bookings'); setPanelState('mini') }               // elsewhere → bookings-only
+  }
+  const showEmails = () => {
+    if (onBookingPage && panelState === 'mini') setPanelState('full')  // bookings-only → both
+    else { go('email'); setPanelState('full') }                        // both/elsewhere → emails-only
+  }
+
   // Primary nav: the three everyday destinations, always visible.
   const primary: NavItem[] = [
-    { icon: 'calendar', label: 'Bookings', onClick: () => goToList('bookings'), active: screen === 'list' || screen === 'wizard' },
-    { icon: 'mail', label: 'Emails', onClick: () => { if (emailOpen) { setPanelState('mini') } else { if (!onBookingPage) goToList('bookings'); setPanelState('list') } }, active: emailOpen },
+    { icon: 'calendar', label: 'Bookings', onClick: showBookings, active: bookingsShown },
+    { icon: 'mail', label: 'Emails', onClick: showEmails, active: emailShown },
     { icon: 'user', label: 'Customers', onClick: () => goToCustomers(), active: screen === 'customers' },
   ]
   // Secondary nav: tucked inside the Settings group at the bottom, collapsed by default.
@@ -60,17 +71,7 @@ export function LeftRail() {
   ]
 
   return (
-    <div className={'siderail siderail-left' + (navOpen ? ' nav-pinned' : '')}>
-      <div className="sr-logo">CD</div>
-      {emailFull && (
-        <button
-          className="sr-pin"
-          title={navOpen ? 'Collapse navigation' : 'Keep navigation open'}
-          onClick={toggleNav}
-        >
-          {navOpen ? '‹' : '›'}
-        </button>
-      )}
+    <div className="siderail siderail-left">
       {primary.map((it) => (
         <NavRailItem key={it.label} it={it} />
       ))}

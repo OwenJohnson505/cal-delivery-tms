@@ -232,7 +232,7 @@
  * ============================================================ */
 .list-app {
   height: 100vh;
-  padding-left: 56px; /* clear the fixed left nav rail */
+  padding-left: 44px; /* clear the fixed left nav rail (always the thin 44px rail) */
   background: var(--bg);
   overflow: auto;
 }
@@ -741,26 +741,10 @@
 .shell.drawer-open .foot-actions { flex-wrap: wrap; row-gap: 8px; }
 .shell.drawer-open .saveas { flex-wrap: wrap; }
 
-/* ── left nav while email is open: a slim, clean icon strip — no logo, no boxes
- * around the icons (just the glyphs). Pin (the › button) to widen it a touch. ── */
-.shell.panel-open .siderail-left {
-  width: 44px; transition: width .14s ease; z-index: 320; padding-top: 8px; gap: 2px;
-}
-.shell.panel-open .siderail-left .sr-logo { display: none; }
-.shell.panel-open .siderail-left .sr-ic {
-  border: none; background: none; width: 30px; height: 30px;
-}
-.shell.panel-open .siderail-left .sr-item:hover .sr-ic,
-.shell.panel-open .siderail-left .sr-item.active .sr-ic { background: var(--accent-soft); }
-.shell.panel-open .siderail-left:hover,
-.shell.panel-open .siderail-left.nav-pinned { width: 56px; }
-.shell.panel-open .siderail-left.nav-pinned .sr-logo,
-.shell.panel-open .siderail-left:hover .sr-logo { display: grid; }
-/* reclaim the freed space — content clears the 44px strip (pinned → 56px) */
+/* The left nav is always a slim 44px icon strip (no logo, no boxes, no expand) — see
+ * the base .siderail-left rule. Content just clears the 44px strip. */
 .shell.panel-open .list-app { padding-left: 44px; }
 .shell.panel-open .app { padding-left: 44px; }
-.shell.panel-open.nav-pinned .list-app { padding-left: 56px; }
-.shell.panel-open.nav-pinned .app { padding-left: 56px; }
 .sr-pin {
   border: none; background: none; color: var(--muted);
   width: 24px; height: 22px; border-radius: 7px; cursor: pointer; font-size: 14px;
@@ -1139,8 +1123,8 @@
 .cm-btn.dirty { border-color: var(--accent); color: var(--accent); }
 .cm-count { font-size: 10px; font-weight: 700; color: var(--muted); background: var(--field); border-radius: 999px; padding: 1px 6px; }
 .cm-pop {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 481;
-  width: 290px; background: #fff; border: 1px solid var(--line-strong);
+  position: absolute; top: calc(100% + 6px); left: 0; right: auto; z-index: 491;
+  width: 300px; background: #fff; border: 1px solid var(--line-strong);
   border-radius: 12px; box-shadow: 0 14px 36px rgba(16, 24, 40, .2); padding: 10px;
 }
 .cm-pop-h { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); padding: 2px 4px 8px; }
@@ -1148,15 +1132,27 @@
 .cm-link { background: none; border: none; color: var(--accent); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; padding: 0; }
 .cm-link:disabled { color: var(--muted); cursor: default; }
 .cm-link.danger { color: var(--danger); }
-.cm-list { max-height: 280px; overflow: auto; display: flex; flex-direction: column; gap: 1px; }
-.cm-row { display: flex; align-items: center; gap: 6px; padding: 4px 4px; border-radius: 7px; }
+.cm-list { max-height: 300px; overflow: auto; display: flex; flex-direction: column; gap: 1px; padding: 1px; }
+.cm-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; }
 .cm-row:hover { background: var(--field); }
 .cm-row.dragging { opacity: .5; }
-.cm-grip { color: var(--muted); cursor: grab; font-size: 11px; letter-spacing: -2px; user-select: none; }
-.cm-chk { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; }
-.cm-move { display: inline-flex; gap: 2px; }
-.cm-move button { width: 20px; height: 20px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; color: var(--muted); font-size: 11px; padding: 0; }
-.cm-move button:disabled { opacity: .35; cursor: default; }
+.cm-grip { flex: none; color: var(--line-strong); cursor: grab; font-size: 12px; line-height: 1; letter-spacing: -1px; user-select: none; }
+.cm-grip:active { cursor: grabbing; }
+.cm-label { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-row.off .cm-label { color: var(--muted); }
+/* move up/down — compact, rounded, icon-only */
+.cm-move { flex: none; display: inline-flex; gap: 3px; }
+.cm-mv { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; color: var(--muted); padding: 0; }
+.cm-mv:hover:not(:disabled) { background: var(--field); color: var(--ink); border-color: var(--line-strong); }
+.cm-mv:disabled { opacity: .3; cursor: default; }
+/* show/hide — pill toggle matching the app's rounded language */
+.cm-toggle { flex: none; position: relative; display: inline-flex; cursor: pointer; }
+.cm-toggle input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+.cm-track { display: inline-flex; align-items: center; width: 34px; height: 19px; padding: 2px; border-radius: 999px; background: var(--line-strong); transition: background .15s ease; }
+.cm-knob { width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .3); transition: transform .15s ease; }
+.cm-toggle input:checked + .cm-track { background: var(--accent); }
+.cm-toggle input:checked + .cm-track .cm-knob { transform: translateX(15px); }
+.cm-toggle input:focus-visible + .cm-track { box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
 .cm-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 9px 2px 4px; margin-top: 6px; border-top: 1px solid var(--line); }
 .cm-save { display: inline-flex; gap: 6px; }
 .cm-save input { height: 28px; border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font: inherit; font-size: 12px; width: 130px; }
@@ -1165,8 +1161,6 @@
 /* per-customer custom-field columns section in the columns menu */
 .cm-extra { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 1px; }
 .cm-extra-h { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); padding: 2px 4px 4px; }
-.cm-extra-row { padding: 4px 4px; border-radius: 6px; }
-.cm-extra-row:hover { background: var(--field); }
 .cm-extra-hint { font-size: 11px; color: var(--muted); padding: 2px 4px 4px; line-height: 1.4; }
 /* custom-field column headers read as muted (not sortable) */
 .jobs-table th.cf-col { color: var(--accent); cursor: default; }
@@ -1575,10 +1569,8 @@
   order: -1;                  /* render first → left edge, just after the fixed nav rail */
   border-left: none;
   border-right: 1px solid var(--line);
-  margin-left: 56px;          /* clear the fixed 56px left nav rail */
+  margin-left: 44px;          /* clear the fixed 44px left nav rail */
 }
-.shell.email-left.panel-open .email-panel { margin-left: 44px; }            /* nav collapses to a 44px hover-rail in full mode */
-.shell.email-left.panel-open.nav-pinned .email-panel { margin-left: 56px; } /* …unless the nav is pinned open */
 
 /* the work area no longer clears the nav rail itself — the email panel sits between
  * them now — so drop the left padding that would open a gap before the table/wizard */
@@ -2070,3 +2062,12 @@
 .shell.panel-open .shell-main { margin: 10px 12px 10px 12px; border-radius: 14px; border: 1px solid var(--line-strong); box-shadow: 0 6px 22px rgba(16, 24, 40, .12); background: var(--panel); overflow: hidden; }
 .shell.panel-open .shell-main .app,
 .shell.panel-open .shell-main .list-app { height: 100%; }
+
+/* ── Standalone email screen: full-screen inbox, no booking column behind it ───────── */
+/* Collapse the job column to nothing (but keep it rendered — the fixed nav rail lives
+ * inside it) and reset the island chrome so the inbox fills the whole width. */
+.shell.email-solo .shell-main { flex: 0 0 0; min-width: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; overflow: visible; }
+.shell.email-solo .email-panel { flex: 1 1 auto; min-width: 0; border-right: none; }
+/* reader closed (list-only) → let the inbox list use the full width like a real client */
+.shell.email-solo:not(.panel-open) .ep-listcol { width: 100%; flex: 1 1 auto; border-right: none; }
+.shell.email-solo:not(.panel-open) .ep-list { flex: 1; max-height: none; }
