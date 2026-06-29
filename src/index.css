@@ -2324,10 +2324,8 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt tbody tr:last-child td { border-bottom: none; }
 .pqt tbody tr:not(.pqt-kebab-row):hover > td { background: rgba(0,0,0,.018); }
 
-/* Alert row colours — tint background + 3px inset left edge on first cell */
-.pqt tbody tr.alert.role-danger > td { background: #fdf1f1; }
+/* Alert row indicator — 3px inset left edge only, no background tint */
 .pqt tbody tr.alert.role-danger > td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
-.pqt tbody tr.alert.role-warning > td { background: #fffbeb; }
 .pqt tbody tr.alert.role-warning > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
 .pqt tbody tr.pending > td { background: #f0faf3; }
 .pqt tbody tr.pending > td:first-child { box-shadow: inset 3px 0 0 #16a34a; }
