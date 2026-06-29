@@ -2091,12 +2091,19 @@
 .board-table .list-work { padding: 12px 14px; max-width: none; }
 .board-table .list-tablewrap { overflow: auto; }
 
-/* List-only (inbox shown, no email open) → the inbox is a tidy fixed-width column and the
- * bookings table takes ALL the rest of the width (no dead space beside a half-empty list).
- * Opening an email drops this class, restoring the resizable split. */
-.shell.panel-open.email-listonly { --inbox-w: clamp(300px, 22vw, 360px); }
-.shell.panel-open.email-listonly .email-panel { flex: 0 0 var(--inbox-w); }
+/* List-only (inbox shown, no email open) → the inbox is a RESIZABLE column (drag the
+ * divider) and the bookings table flexes to fill ALL the rest of the width. The inbox
+ * list fills the whole inbox column (overriding the 252px width used in the two-pane
+ * list+reader layout) so there's no dead space inside the panel. */
+.shell.panel-open.email-listonly { --inbox-w: clamp(320px, 26vw, 460px); }
+/* container-type:inline-size (used for the reading single-pane query) collapses the flex
+ * list to its min-content; disable it here (no reader to lay out) so the list can fill. */
+.shell.panel-open.email-listonly .email-panel { flex: 0 0 var(--inbox-w); container-type: normal; }
 .shell.panel-open.email-listonly .shell-main { flex: 1 1 auto; }
+.shell.panel-open.email-listonly .ep-body { flex-direction: row; }
+.shell.panel-open.email-listonly .ep-readcol { display: none; }
+.shell.panel-open.email-listonly .ep-listcol { width: auto; flex: 1 1 auto; border-right: none; max-height: none; }
+.shell.panel-open.email-listonly .ep-list { flex: 1 1 auto; max-height: none; }
 
 /* draggable divider between the email and the bookings (only when both are showing) */
 .shell.panel-open:not(.email-solo) .email-panel { order: -2; }

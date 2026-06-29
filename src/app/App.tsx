@@ -47,28 +47,40 @@ export function App() {
   // Paired = email AND bookings both showing → a draggable divider lets the user re-balance
   // the split (handy on an ultrawide). The chosen width persists; double-click resets it.
   const paired = emailFull && !emailScreen
-  // On the bookings list with no email open in the reader → the inbox is just a narrow
-  // list; the bookings table should take ALL the remaining width (no dead space beside a
-  // half-empty inbox). Opening an email restores the resizable split.
+  // On the bookings list with no email open in the reader → the inbox is a resizable
+  // column and the bookings table flexes to fill ALL the rest of the width. The inbox
+  // width is its own draggable value; reading uses the booking-column width instead.
   const listOnly = paired && screen === 'list' && selectedId == null
   const [jobColW, setJobColW] = useState<number | null>(() => {
     const v = typeof localStorage !== 'undefined' ? localStorage.getItem('cd-jobcol-w') : null
     return v ? Number(v) : null
   })
+  const [inboxW, setInboxW] = useState<number | null>(() => {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem('cd-inbox-w') : null
+    return v ? Number(v) : null
+  })
   const onResize = useCallback((clientX: number) => {
-    if (clientX < 0) { setJobColW(null); try { localStorage.removeItem('cd-jobcol-w') } catch { /* ignore */ } ; return }
-    const NAV = 44, MIN_EMAIL = 440, MIN_JOB = 420
-    const total = window.innerWidth
-    // the booking column is flush to the right edge → its width is everything right of the cursor
-    const w = Math.max(MIN_JOB, Math.min(total - clientX, total - NAV - MIN_EMAIL))
-    setJobColW(Math.round(w))
-    try { localStorage.setItem('cd-jobcol-w', String(Math.round(w))) } catch { /* ignore */ }
-  }, [])
+    const NAV = 44, total = window.innerWidth
+    if (listOnly) {
+      // dragging sets the INBOX width (email on the left); the table flexes to fill the rest
+      if (clientX < 0) { setInboxW(null); try { localStorage.removeItem('cd-inbox-w') } catch { /* ignore */ } ; return }
+      const MIN_INBOX = 300, MIN_TABLE = 460
+      const w = Math.round(Math.max(MIN_INBOX, Math.min(clientX - NAV, total - NAV - MIN_TABLE)))
+      setInboxW(w); try { localStorage.setItem('cd-inbox-w', String(w)) } catch { /* ignore */ }
+    } else {
+      // reading: dragging sets the booking column (flush to the right edge), email fills the rest
+      if (clientX < 0) { setJobColW(null); try { localStorage.removeItem('cd-jobcol-w') } catch { /* ignore */ } ; return }
+      const MIN_EMAIL = 440, MIN_JOB = 420
+      const w = Math.round(Math.max(MIN_JOB, Math.min(total - clientX, total - NAV - MIN_EMAIL)))
+      setJobColW(w); try { localStorage.setItem('cd-jobcol-w', String(w)) } catch { /* ignore */ }
+    }
+  }, [listOnly])
 
   const wiz = screen === 'wizard'
-  const shellStyle = (paired && jobColW != null)
-    ? ({ '--jobcol-w': `${jobColW}px` } as CSSProperties)
-    : undefined
+  const styleVars: Record<string, string> = {}
+  if (paired && jobColW != null) styleVars['--jobcol-w'] = `${jobColW}px`
+  if (listOnly && inboxW != null) styleVars['--inbox-w'] = `${inboxW}px`
+  const shellStyle = Object.keys(styleVars).length ? (styleVars as CSSProperties) : undefined
   return (
     <div
       style={shellStyle}
@@ -98,7 +110,7 @@ export function App() {
         )}
       </div>
       {emailVisible && <EmailPanel />}
-      {paired && !listOnly && <SplitHandle onResize={onResize} />}
+      {paired && <SplitHandle onResize={onResize} />}
     </div>
   )
 }
