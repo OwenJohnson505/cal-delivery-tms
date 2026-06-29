@@ -155,15 +155,10 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
   const colSpan = isExpanded ? 8 : 6
 
   return (
-    <div className="pq">
+    <div className={`pq${isExpanded ? '' : ' pq-cmp'}`}>
 
       {/* ── Header ── */}
       <div className="pq-head">
-        <span className="pq-title"><span className="pq-accent" /> Admin priority queue</span>
-        <div className="pq-density">
-          <button className={'pq-den-btn' + (!isExpanded ? ' active' : '')} onClick={() => setDensity('compact')}>Compact</button>
-          <button className={'pq-den-btn' + (isExpanded ? ' active' : '')} onClick={() => setDensity('expanded')}>Expanded</button>
-        </div>
         <span className="db-spacer" />
         {pendingIds.length > 0 && (
           <button className="pq-confirmall" onClick={() => items.filter(it => pending[it.job.id]).forEach(confirm)}>
@@ -174,6 +169,14 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
           <Icon name="sliders" size={14} /> Priority list
         </button>
         <span className="pq-live"><span className="pq-live-dot" /> Live · now {fmtTime(nowMin)}</span>
+      </div>
+
+      {/* ── Density toolbar ── */}
+      <div className="pq-toolbar">
+        <div className="viewtoggle" role="group" aria-label="Table density">
+          <button className={'vt-btn vt-wide' + (!isExpanded ? ' on' : '')} onClick={() => setDensity('compact')}>Compact</button>
+          <button className={'vt-btn vt-wide' + (isExpanded ? ' on' : '')} onClick={() => setDensity('expanded')}>Expanded</button>
+        </div>
       </div>
 
       {/* ── Table ── */}
@@ -345,16 +348,18 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
       </div>
 
       {/* ── Completed ── */}
-      <div className="pq-done-h"><Icon name="check" size={13} /> Completed — {done.length} job{done.length === 1 ? '' : 's'}</div>
-      {done.map(j => (
-        <div key={j.id} className="pq-done-row">
-          <Icon name="check-circle" size={15} />
-          <span className="pq-done-cust">{custById(j.snapshot.book.cust)?.displayName || j.customer}</span>
-          <span className="pc pq-done-ref">{j.ref}</span>
-          <span className="db-spacer" />
-          <span className="pq-done-when">{j.progress === 'Failed' ? 'Failed' : `Delivered ${(j.deliverEta || j.deliverAt || '').split(' ').pop() || ''}`}</span>
-        </div>
-      ))}
+      <div className="pq-done-wrap">
+        <div className="pq-done-h"><Icon name="check" size={13} /> Completed — {done.length} job{done.length === 1 ? '' : 's'}</div>
+        {done.map(j => (
+          <div key={j.id} className="pq-done-row">
+            <Icon name="check-circle" size={15} />
+            <span className="pq-done-cust">{custById(j.snapshot.book.cust)?.displayName || j.customer}</span>
+            <span className="pc pq-done-ref">{j.ref}</span>
+            <span className="db-spacer" />
+            <span className="pq-done-when">{j.progress === 'Failed' ? 'Failed' : `Delivered ${(j.deliverEta || j.deliverAt || '').split(' ').pop() || ''}`}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
