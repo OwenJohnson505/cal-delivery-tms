@@ -178,7 +178,7 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
 
       {/* ── Table ── */}
       <div className="pqt-scroll">
-        <table className="pqt">
+        <table className={`pqt${isExpanded ? ' pqt-exp' : ' pqt-cmp'}`}>
           <thead>
             <tr>
               <th>Due</th>

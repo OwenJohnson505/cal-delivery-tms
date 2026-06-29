@@ -2398,6 +2398,19 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt-kebab-row > td { padding: 0; border-bottom: 0.5px solid var(--line); }
 .pqt-kebab { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: var(--field); }
 
+/* Compact PQ density — tighter cells, pill-only status, narrower columns, hugs content */
+.pqt.pqt-cmp { width: auto; }
+.pqt-scroll:has(.pqt-cmp) { align-self: flex-start; max-width: 100%; }
+.pqt.pqt-cmp td { padding: 5px 8px; }
+.pqt.pqt-cmp th { padding: 5px 8px; }
+.pqt.pqt-cmp .pqt-due { width: 52px; min-width: 48px; }
+.pqt.pqt-cmp .pqt-due b { font-size: 16px; }
+.pqt.pqt-cmp .pqt-status { min-width: 120px; }
+.pqt.pqt-cmp .pqt-cue { display: none; }
+.pqt.pqt-cmp .pqt-rcpt { display: none; }
+.pqt.pqt-cmp .pqt-job { min-width: 120px; }
+.pqt.pqt-cmp .pqt-stop { min-width: 80px; }
+
 /* ── Priority List settings (Settings → Priority List) ────────────────────────────── */
 .pl-head { display: flex; align-items: center; margin-bottom: 6px; }
 .pl-title { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
