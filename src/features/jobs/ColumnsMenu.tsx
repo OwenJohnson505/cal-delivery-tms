@@ -19,10 +19,12 @@ export interface ExtraColumnsProps {
   onToggleExtra?: (key: string) => void
   /** Shown (greyed) when nothing is filtered, to hint how to get custom-field columns. */
   extraHint?: string
+  /** Show the Columns picker button (false → just the View switcher, e.g. in compact). */
+  showColumns?: boolean
 }
 
 export function ColumnsMenu(props: ExtraColumnsProps = {}) {
-  const { extraTitle, extraColumns = [], activeExtra = [], onToggleExtra, extraHint } = props
+  const { extraTitle, extraColumns = [], activeExtra = [], onToggleExtra, extraHint, showColumns = true } = props
   const presets = useViewsStore((s) => s.presets)
   const userViews = useViewsStore((s) => s.userViews)
   const activeViewId = useViewsStore((s) => s.activeViewId)
@@ -65,12 +67,14 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
       </label>
 
       {/* Columns popover */}
+      {showColumns && (
       <button className={'btn sm cm-btn' + (dirty ? ' dirty' : '')} onClick={() => setOpen((o) => !o)} title="Show / hide / reorder columns">
         <Icon name="list" size={14} /> Columns
         <span className="cm-count">{visibleCount}</span>
       </button>
+      )}
 
-      {open && (
+      {showColumns && open && (
         <>
           <div className="cc-pop-scrim" onClick={() => { setOpen(false); setNaming(false) }} />
           <div className="cm-pop">

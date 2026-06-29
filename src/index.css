@@ -2290,3 +2290,74 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* the Compact / Expanded density toggle (text segmented control) */
 .vt-btn.vt-wide { width: auto; padding: 0 11px; font-size: 11px; font-weight: 600; }
+
+/* ── Admin priority queue view (the "Admins" saved view) ──────────────────────────── */
+.pq { display: flex; flex-direction: column; gap: 8px; max-width: 1120px; }
+.pq-head { display: flex; align-items: center; gap: 12px; padding: 2px 2px 8px; }
+.pq-title { display: inline-flex; align-items: center; gap: 11px; font-size: 17px; font-weight: 700; color: var(--ink); }
+.pq-accent { width: 5px; height: 20px; border-radius: 3px; background: #f59e0b; }
+.pq-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.pq-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 0 rgba(22,163,74,.5); animation: agw-pulse 1.6s infinite; }
+.pq-confirmall { border: 1px solid #bfe6cb; background: #f0faf3; color: #15803d; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.pq-settings { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: #fff; border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.pq-settings:hover { background: var(--field); }
+.pq-list { display: flex; flex-direction: column; gap: 8px; }
+.pq-empty { padding: 36px; text-align: center; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 12px; }
+
+.pq-row { position: relative; display: flex; align-items: center; gap: 14px; padding: 13px 16px 13px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; flex-wrap: wrap; }
+.pq-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 12px 0 0 12px; background: var(--line-strong); }
+.pq-token { flex: 0 0 56px; text-align: center; line-height: 1.05; }
+.pq-token b { font-size: 21px; font-weight: 800; display: block; color: var(--ink); }
+.pq-token span { font-size: 10.5px; color: var(--muted); }
+.pq-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pq-headline { display: flex; align-items: center; gap: 8px; font-size: 14.5px; flex-wrap: wrap; }
+.pq-headline b { font-weight: 700; color: var(--ink); }
+.pq-cust { color: var(--muted); }
+.pq-pc { font-size: 12.5px; color: var(--ink); }
+.pq-eta { font-size: 12px; color: var(--muted); }
+.pq-cue { font-size: 12.5px; font-weight: 500; }
+.pq-cue.green { color: #15803d; }
+.pq-support { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.pq-receipt { color: var(--accent); }
+.pq-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.pq-primary { white-space: nowrap; }
+.pq-icon { width: 34px; height: 34px; border: 1px solid var(--line-strong); background: #fff; border-radius: 9px; cursor: pointer; display: grid; place-items: center; color: var(--muted); font-size: 17px; }
+.pq-icon:hover { background: var(--field); color: var(--ink); }
+.pq-kebab { flex-basis: 100%; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.pq-kebab-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.pq-kebab-btn:hover { background: var(--field); }
+
+/* role colours: danger is loud (tint + cue); warning/neutral are quiet (bar only) */
+.pq-row.role-danger { background: #fdf1f1; border-color: #f1cccc; }
+.pq-row.role-danger .pq-bar { background: #dc2626; }
+.pq-row.role-danger .pq-token b, .pq-row.role-danger .pq-headline > .ic-svg, .pq-row.role-danger .pq-cue { color: #b91c1c; }
+.pq-row.role-warning .pq-bar { background: #f59e0b; }
+.pq-row.role-warning .pq-token b, .pq-row.role-warning .pq-headline > .ic-svg { color: #b45309; }
+.pq-row.role-neutral .pq-bar { background: #cbd5e1; }
+.pq-row.role-neutral .pq-headline > .ic-svg { color: #185fa5; }
+.pq-row.pending { background: #f0faf3; border-color: #bfe6cb; }
+.pq-row.pending .pq-bar { background: #16a34a; }
+.pq-row.pending .pq-headline > .ic-svg { color: #15803d; }
+
+.pq-done-h { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 18px; margin-bottom: 2px; }
+.pq-done-h .ic-svg { color: #16a34a; }
+.pq-done-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--muted); font-size: 12.5px; }
+.pq-done-row .ic-svg { color: #16a34a; }
+.pq-done-cust { font-weight: 600; color: var(--ink); }
+.pq-done-when { font-size: 12px; }
+
+/* ── Priority List settings (Settings → Priority List) ────────────────────────────── */
+.pl-head { display: flex; align-items: center; margin-bottom: 6px; }
+.pl-title { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+.pl-sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; max-width: 660px; line-height: 1.5; }
+.pl-card { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); margin-bottom: 16px; max-width: 740px; overflow: hidden; }
+.pl-card-h { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 14px 18px 8px; }
+.pl-row { display: flex; align-items: center; gap: 16px; padding: 13px 18px; border-top: 1px solid var(--line); }
+.pl-row-main { flex: 1; min-width: 0; }
+.pl-row-lbl { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.pl-row-hint { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+.pl-num { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.pl-num input { width: 74px; height: 34px; border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 10px; font: inherit; font-size: 14px; text-align: right; }
+.pl-num span { font-size: 12px; color: var(--muted); }
+.pl-toggle { flex: none; }
+.pl-foot { font-size: 12px; color: var(--muted); }

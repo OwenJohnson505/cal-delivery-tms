@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand'
 
-export type Screen = 'list' | 'wizard' | 'customers' | 'users' | 'teams' | 'tariffs' | 'addresses' | 'forms' | 'emailrules' | 'email'
+export type Screen = 'list' | 'wizard' | 'customers' | 'users' | 'teams' | 'tariffs' | 'addresses' | 'forms' | 'emailrules' | 'email' | 'priority'
 export type ListTab = 'bookings' | 'quotes' | 'drafts'
 
 interface ViewState {

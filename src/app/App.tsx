@@ -16,6 +16,7 @@ import { FormsScreen } from '@/features/forms/FormsScreen.tsx'
 import { WizardHost } from '@/features/forms/LiveBookingScreen.tsx'
 import { EmailPanel } from '@/features/email/EmailPanel.tsx'
 import { EmailRulesScreen } from '@/features/email/EmailRulesScreen.tsx'
+import { PriorityListScreen } from '@/features/jobs/PriorityListScreen.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
@@ -106,6 +107,7 @@ export function App() {
             {screen === 'addresses' && <AddressesScreen />}
             {screen === 'forms' && <FormsScreen />}
             {screen === 'emailrules' && <EmailRulesScreen />}
+            {screen === 'priority' && <PriorityListScreen />}
             {screen === 'list' && <ListScreen />}
           </>
         )}

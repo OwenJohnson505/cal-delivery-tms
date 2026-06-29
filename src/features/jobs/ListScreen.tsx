@@ -16,6 +16,7 @@ import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
+import { PriorityQueue } from './PriorityQueue.tsx'
 import { outcode } from '@/lib/index.ts'
 import type { JobStatus, Stop } from '@/types/index.ts'
 import type { ReactNode } from 'react'
@@ -126,6 +127,7 @@ export function ListScreen() {
   const customers = useCustomersStore((s) => s.customers)
   const columnCfg = useViewsStore((s) => s.columns)
   const visibleCols = useMemo(() => columnCfg.filter((c) => c.visible).map((c) => c.key), [columnCfg])
+  const isPriorityView = useViewsStore((s) => s.getView(s.activeViewId)?.layout === 'priority')
 
   const [query, setQuery] = useState('')
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
@@ -670,23 +672,30 @@ export function ListScreen() {
           )}
         </div>
 
-        {/* row 3: view configuration — density toggle + (expanded only) column picker */}
+        {/* row 3: view configuration — the saved-view switcher is always visible; the
+            density toggle + column picker only apply to the table layouts. */}
         <div className="list-toolbar bk-viewrow">
-          <div className="viewtoggle" role="group" aria-label="Table density">
-            <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into 3 columns">Compact</button>
-            <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
-          </div>
-          {density === 'expanded' && (
-            <ColumnsMenu
-              extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
-              extraColumns={cfColumns}
-              activeExtra={validActiveCf}
-              onToggleExtra={toggleCf}
-              extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
-            />
+          <ColumnsMenu
+            showColumns={!isPriorityView && density === 'expanded'}
+            extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
+            extraColumns={cfColumns}
+            activeExtra={validActiveCf}
+            onToggleExtra={toggleCf}
+            extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
+          />
+          {!isPriorityView && (
+            <div className="viewtoggle" role="group" aria-label="Table density">
+              <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into a few columns">Compact</button>
+              <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
+            </div>
           )}
         </div>
 
+        {isPriorityView ? (
+          // Admin oversight: the priority queue spans every active booking, not just the
+          // signed-in user's team scope.
+          <PriorityQueue jobs={jobs.filter((j) => j.status === 'Booking')} />
+        ) : (
         <div className="list-tablewrap">
           <table className={'list-table jobs-table' + (density === 'compact' ? ' compact' : '')}>
             <thead>
@@ -741,6 +750,7 @@ export function ListScreen() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {pop && (

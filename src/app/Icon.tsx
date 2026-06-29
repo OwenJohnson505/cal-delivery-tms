@@ -48,6 +48,11 @@ const ICONS: Record<string, string> = {
   'user-plus': '<circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M18 8v6M15 11h6"/>',
   'chevron-up': '<path d="M6 14l6-6 6 6"/>',
   'chevron-down': '<path d="M6 10l6 6 6-6"/>',
+  'alert-triangle': '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v5M12 18h.01"/>',
+  flag: '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
+  'arrow-up-right': '<path d="M7 17 17 7M9 7h8v8"/>',
+  'user-x': '<circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 11 0"/><path d="M17 9l5 5M22 9l-5 5"/>',
+  list2: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
   // call-centre agent wearing a headset (band over the head, two ear cups, mic boom to mouth)
   headset: '<path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="2.5" y="13" width="4" height="6" rx="1.6"/><rect x="17.5" y="13" width="4" height="6" rx="1.6"/><path d="M19.5 19v.5a3 3 0 0 1-3 3H13"/>',
   'phone-in': '<path d="M16 3h5v5"/><path d="M21 3l-6 6"/><path d="M5 5h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 7a2 2 0 0 1 2-2"/>',

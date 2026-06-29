@@ -22,6 +22,8 @@ export interface SavedView {
   columns: ColumnState[]
   /** Admin preset shared with everyone (not user-editable / deletable). */
   system?: boolean
+  /** 'table' (default) = the configurable columns; 'priority' = the Admin priority queue. */
+  layout?: 'table' | 'priority'
 }
 
 /** The full column catalogue — every data point on a booking — in default order. */
@@ -100,9 +102,10 @@ const PRESETS: SavedView[] = [
   viewFrom('sys-standard', 'Standard', ['customer', 'ourRef', 'progress', 'vehicle', 'collPostcode', 'collection', 'collectionEta', 'delPostcode', 'delivery', 'deliveryEta', 'supplier', 'notes']),
   viewFrom('sys-financials', 'Financials', ['customer', 'progress', 'revenue', 'cost', 'margin', 'actor']),
   viewFrom('sys-operations', 'Operations', ['customer', 'ourRef', 'progress', 'vehicle', 'collPostcode', 'collection', 'collectionEta', 'delPostcode', 'delivery', 'deliveryEta', 'supplier', 'notes']),
+  { ...viewFrom('sys-admins', 'Admins', ['customer', 'progress', 'collection', 'delivery', 'supplier']), layout: 'priority' },
 ]
 
-const LS_KEY = 'cd-booking-views-v7' // bumped for the expanded (granular) default columns
+const LS_KEY = 'cd-booking-views-v8' // bumped for the Admins (priority queue) view
 
 interface Persisted {
   userViews: SavedView[]

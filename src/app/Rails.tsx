@@ -63,6 +63,7 @@ export function LeftRail() {
   const secondary: NavItem[] = [
     { icon: 'grid', label: 'Form Builder', onClick: () => go('forms'), active: screen === 'forms' },
     { icon: 'list', label: 'Email Rules', onClick: () => go('emailrules'), active: screen === 'emailrules' },
+    { icon: 'sliders', label: 'Priority List', onClick: () => go('priority'), active: screen === 'priority' },
     { icon: 'pin', label: 'Addresses', onClick: () => go('addresses'), active: screen === 'addresses' },
     { icon: 'tag', label: 'Tariffs', onClick: () => go('tariffs'), active: screen === 'tariffs' },
     { icon: 'users', label: 'Users', onClick: () => go('users'), active: screen === 'users' },
