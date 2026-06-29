@@ -2248,63 +2248,35 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .mon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .mon-card { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 16px; }
 
-/* ── Live jobs board — dark data table (logistics-ops board styling) ───────────────── */
-.list-tablewrap.jobs-board {
-  background: #1b1e27; border: 1px solid #2b313d; border-radius: 16px; box-shadow: 0 12px 34px rgba(0, 0, 0, .22);
-}
-.jb-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #262c38; }
-.jb-title { display: inline-flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; color: #f1f4f9; }
-.jb-accent { width: 5px; height: 20px; border-radius: 3px; background: #f59e0b; }
-.jb-hint { font-size: 12.5px; color: #8b94a7; }
-.jb-hint b { color: #cdd4e0; font-weight: 600; }
-
-.jobs-board .list-table { background: transparent; color: #dfe4ee; }
-.jobs-board .list-table th { background: transparent; color: #7c8597; border-bottom: 1px solid #262c38; padding: 13px 18px; }
-.jobs-board .list-table th:hover { background: rgba(255, 255, 255, .03); }
-.jobs-board .list-table td { border-bottom: 1px solid #232934; padding: 15px 18px; color: #dfe4ee; }
-.jobs-board .list-table tbody tr:last-child td { border-bottom: none; }
-.jobs-board .list-table tbody tr:hover { background: rgba(255, 255, 255, .035); }
-.jobs-board .list-table td.empty { color: #7c8597; }
-.jobs-board .th-arrow, .jobs-board .th-dot { color: #9aa3b5; }
-.jobs-board .muted { color: #6b7385; }
-
-/* the Job cell: company name + our ref */
-.job-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.job-co { font-size: 14px; font-weight: 700; color: #f3f6fb; }
-.job-ref { font-size: 11.5px; color: #7c8597; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
-.jobs-board .cell-link { color: #dfe4ee; }
-.jobs-board .cell-link:hover .job-co { color: #fff; text-decoration: underline; }
-.jobs-board .route-pt, .jobs-board .cell-link:hover { color: #e7ebf2; }
-
+/* ── Bookings table: time deltas, mono postcodes, compact (grouped) density ─────────── */
 /* postcodes — monospace */
 .pc { font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: .02em; }
-.jobs-board .pc { color: #cdd4e0; font-size: 12.5px; }
 
-/* collection / delivery: date · booked → actual · coloured delta */
-.tcell { display: flex; flex-direction: column; gap: 2px; }
-.tcell-date { font-size: 11px; color: #7c8597; }
-.tcell-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.tcell-booked { color: #cbd2de; font-variant-numeric: tabular-nums; }
-.tcell-arrow { color: #5b6478; }
+/* collection / delivery time: date · booked → actual · coloured delta */
+.tcell { display: flex; flex-direction: column; gap: 1px; }
+.tcell-date { font-size: 10.5px; color: var(--muted); }
+.tcell-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.tcell-booked { color: var(--ink); font-variant-numeric: tabular-nums; }
+.tcell-arrow { color: var(--muted); }
 .tcell-actual { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tcell-delta { font-size: 11px; font-weight: 600; }
-.jobs-board .tcell-actual.d-green, .jobs-board .tcell-delta.d-green { color: #4ade80; }
-.jobs-board .tcell-actual.d-amber, .jobs-board .tcell-delta.d-amber { color: #fbbf24; }
-.jobs-board .tcell-actual.d-red, .jobs-board .tcell-delta.d-red { color: #f87171; }
-.jobs-board .tcell-actual.d-pending, .jobs-board .tcell-delta.d-pending { color: #7c8597; }
+.tcell-delta { font-size: 10.5px; font-weight: 600; }
+.eta-cell { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.eta-delta { font-size: 10px; font-weight: 600; }
+.d-green, .tcell-actual.d-green, .tcell-delta.d-green, .eta-val.d-green, .eta-delta.d-green { color: #15803d; }
+.d-amber, .tcell-actual.d-amber, .tcell-delta.d-amber, .eta-val.d-amber, .eta-delta.d-amber { color: #b45309; }
+.d-red, .tcell-actual.d-red, .tcell-delta.d-red, .eta-val.d-red, .eta-delta.d-red { color: #b91c1c; }
+.tcell-actual.d-pending, .tcell-delta.d-pending, .eta-val.d-pending, .eta-delta.d-pending { color: var(--muted); }
 
-/* status pill on the dark board → translucent chip with a glowing status dot */
-.jobs-board .status-pill {
-  color: #e7ebf2; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .09);
-  position: relative; padding-left: 22px;
-}
-.jobs-board .status-pill::before {
-  content: ''; position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
-  width: 7px; height: 7px; border-radius: 50%; background: var(--sc-fg); box-shadow: 0 0 7px var(--sc-fg);
-}
+/* compact density: 3 grouped columns (related data points together) */
+.jobs-table.compact td.cmp { vertical-align: top; padding: 11px 14px; }
+.cmp-cust { min-width: 170px; }
+.cmp-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cmp-co { font-size: 13.5px; font-weight: 600; }
+.cmp-ref { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; margin-top: 3px; }
+.cmp-coll, .cmp-del { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.cmp-veh { font-size: 12px; color: var(--muted); }
+.cmp-sup { font-size: 12.5px; }
+.cmp .pc { font-size: 12.5px; font-weight: 600; color: var(--ink); }
 
-/* row actions on dark */
-.jobs-board .kebab { color: #8b94a7; }
-.jobs-board .kebab:hover { background: rgba(255, 255, 255, .08); color: #fff; }
-.jobs-board .notes-icon { color: #8b94a7; }
-.jobs-board .notes-icon.has { color: #cdd4e0; }
+/* the Compact / Expanded density toggle (text segmented control) */
+.vt-btn.vt-wide { width: auto; padding: 0 11px; font-size: 11px; font-weight: 600; }

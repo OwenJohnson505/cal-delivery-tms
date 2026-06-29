@@ -26,6 +26,9 @@ interface UiState {
    * table when it fits the column without horizontal scroll, otherwise cards; the user
    * can also force 'cards' or 'table'. */
   boardView: 'auto' | 'cards' | 'table'
+  /** Bookings table density: 'compact' groups related data into 3 columns; 'expanded'
+   * gives every data point its own column (the configured view). */
+  tableDensity: 'compact' | 'expanded'
 
   openDrawer(d: DrawerName): void
   closeDrawers(): void
@@ -39,6 +42,7 @@ interface UiState {
   toggleNav(): void
   toggleSettings(): void
   setBoardView(v: 'auto' | 'cards' | 'table'): void
+  setTableDensity(v: 'compact' | 'expanded'): void
 }
 
 // v2 key: the old 'cd-board-view' stored a forced cards/table choice from before 'auto'
@@ -46,6 +50,10 @@ interface UiState {
 const BOARD_VIEW_KEY = 'cd-board-view-v2'
 function loadBoardView(): 'auto' | 'cards' | 'table' {
   try { const v = localStorage.getItem(BOARD_VIEW_KEY); return v === 'cards' || v === 'table' ? v : 'auto' } catch { return 'auto' }
+}
+const DENSITY_KEY = 'cd-table-density'
+function loadDensity(): 'compact' | 'expanded' {
+  try { return localStorage.getItem(DENSITY_KEY) === 'expanded' ? 'expanded' : 'compact' } catch { return 'compact' }
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -58,6 +66,7 @@ export const useUiStore = create<UiState>((set) => ({
   navOpen: false,
   settingsOpen: false,
   boardView: loadBoardView(),
+  tableDensity: loadDensity(),
 
   openDrawer: (d) => set({ drawer: d }),
   closeDrawers: () => set({ drawer: null }),
@@ -70,4 +79,5 @@ export const useUiStore = create<UiState>((set) => ({
   toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
   setBoardView: (v) => { try { localStorage.setItem(BOARD_VIEW_KEY, v) } catch { /* ignore */ } ; set({ boardView: v }) },
+  setTableDensity: (v) => { try { localStorage.setItem(DENSITY_KEY, v) } catch { /* ignore */ } ; set({ tableDensity: v }) },
 }))

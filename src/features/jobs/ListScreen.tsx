@@ -135,6 +135,8 @@ export function ListScreen() {
   const emailFull = useEmailsStore((s) => s.panelState === 'full')
   const boardView = useUiStore((s) => s.boardView)
   const setBoardView = useUiStore((s) => s.setBoardView)
+  const density = useUiStore((s) => s.tableDensity)
+  const setTableDensity = useUiStore((s) => s.setTableDensity)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -432,15 +434,21 @@ export function ListScreen() {
     const dash = <span className="muted">—</span>
     switch (key) {
       case 'customer':
-        // The "Job" cell — customer name + our ref stacked (click opens contact details).
         return (
-          <button className="cell-link job-cell" onClick={(e) => openPop(e, contactNode(j))}>
-            <span className="job-co">{cust?.displayName || j.customer}</span>
-            <span className="job-ref">{j.ref}</span>
+          <button className="cell-link cust-name" onClick={(e) => openPop(e, contactNode(j))}>
+            {cust?.displayName || j.customer}
           </button>
         )
-      case 'collection': return <TimeCell at={j.collectAt} eta={j.collectEta} />
-      case 'delivery': return <TimeCell at={j.deliverAt} eta={j.deliverEta} failed={j.progress === 'Failed'} />
+      case 'collection': {
+        if (!j.collectAt) return dash
+        const [d, t] = j.collectAt.split(' ')
+        return <div className="dt-stack"><span>{fmtDate(d)}</span><span className="dtt">{t}</span></div>
+      }
+      case 'delivery': {
+        if (!j.deliverAt) return dash
+        const [d, t] = j.deliverAt.split(' ')
+        return <div className="dt-stack"><span>{fmtDate(d)}</span><span className="dtt">{t}</span></div>
+      }
       case 'collectionEta': return etaCell(j, 'collect')
       case 'deliveryEta': return etaCell(j, 'deliver')
       case 'refAccepted':
@@ -562,9 +570,12 @@ export function ListScreen() {
 
   const etaCell = (j: SavedJob, which: 'collect' | 'deliver') => {
     const eta = which === 'collect' ? j.collectEta : j.deliverEta
+    const booked = ((which === 'collect' ? j.collectAt : j.deliverAt).split(' ')[1]) || ''
+    const failed = which === 'deliver' && j.progress === 'Failed'
+    const info = eta ? deltaInfo(booked, eta) : null
     return (
       <button
-        className="cell-link"
+        className="cell-link eta-cell"
         title="Click: ETA audit · double-click: change ETA"
         onClick={(e) => {
           e.stopPropagation()
@@ -590,8 +601,42 @@ export function ListScreen() {
           })
         }}
       >
-        {eta || '—'}
+        <span className={'eta-val' + (info ? ' ' + info.cls : '')}>{failed ? 'failed' : (eta || '—')}</span>
+        {info && info.label && <span className={'eta-delta ' + info.cls}>{info.label}</span>}
       </button>
+    )
+  }
+
+  /** Compact (grouped) row: 3 dense columns — customer+ref+status · collection (PC/date/
+   * time) · delivery (PC/vehicle/time/supplier). The individual cells stay clickable. */
+  const compactCells = (j: SavedJob) => {
+    const cust = custById[j.snapshot.book.cust ?? '']
+    const c = firstColl(j)
+    const d = lastDel(j)
+    return (
+      <>
+        <td className="cmp cmp-cust">
+          <div className="cmp-line">
+            <button className="cell-link cmp-co" onClick={(e) => openPop(e, contactNode(j))}>{cust?.displayName || j.customer}</button>
+            {j.progress && <StatusPill status={j.progress} />}
+          </div>
+          <div className="cmp-ref">{j.ref}</div>
+        </td>
+        <td className="cmp cmp-coll">
+          {c?.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(c))}>{c.addr.pc}</button> : <span className="muted">—</span>}
+          <TimeCell at={j.collectAt} eta={j.collectEta} />
+        </td>
+        <td className="cmp cmp-del">
+          <div className="cmp-line">
+            {d?.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(d))}>{d.addr.pc}</button> : <span className="muted">—</span>}
+            {j.vehicle && <span className="cmp-veh">{j.vehicle}</span>}
+          </div>
+          <TimeCell at={j.deliverAt} eta={j.deliverEta} failed={j.progress === 'Failed'} />
+          {j.supplierName
+            ? <button className="cell-link cmp-sup" onClick={(e) => openPop(e, supplierNode(j))}>🚚 {j.supplierName}</button>
+            : <span className="muted cmp-sup">Unassigned</span>}
+        </td>
+      </>
     )
   }
 
@@ -674,27 +719,34 @@ export function ListScreen() {
           )}
         </div>
 
-        {/* row 3: view configuration */}
+        {/* row 3: view configuration — density toggle + (expanded only) column picker */}
         <div className="list-toolbar bk-viewrow">
-          <ColumnsMenu
-            extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
-            extraColumns={cfColumns}
-            activeExtra={validActiveCf}
-            onToggleExtra={toggleCf}
-            extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
-          />
+          <div className="viewtoggle" role="group" aria-label="Table density">
+            <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into 3 columns">Compact</button>
+            <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
+          </div>
+          {density === 'expanded' && (
+            <ColumnsMenu
+              extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
+              extraColumns={cfColumns}
+              activeExtra={validActiveCf}
+              onToggleExtra={toggleCf}
+              extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
+            />
+          )}
         </div>
 
-        <div className="list-tablewrap jobs-board" ref={tableWrapRef}>
-          <div className="jb-head">
-            <span className="jb-title"><span className="jb-accent" /> Live jobs board</span>
-            <span className="db-spacer" />
-            <span className="jb-hint">Times shown <b>ETA → actual</b> · colour = on time / late</span>
-          </div>
-          <table className="list-table jobs-table">
+        <div className="list-tablewrap" ref={tableWrapRef}>
+          <table className={'list-table jobs-table' + (density === 'compact' ? ' compact' : '')}>
             <thead>
               <tr>
-                {renderCols.map((key) => (
+                {density === 'compact' ? (
+                  <>
+                    <th>Customer</th>
+                    <th>Collection</th>
+                    <th>Delivery</th>
+                  </>
+                ) : renderCols.map((key) => (
                   <th
                     key={key}
                     className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + (key.startsWith('cf:') ? 'cf-col ' : 'th-sortable')}
@@ -717,7 +769,7 @@ export function ListScreen() {
             <tbody>
               {rows.map((j) => (
                 <tr key={j.id} onDoubleClick={() => open(j)}>
-                  {renderCols.map((key) => (
+                  {density === 'compact' ? compactCells(j) : renderCols.map((key) => (
                     <td key={key} className={(NUM_COLS.has(key) ? 'num ' : '') + (FIT_COLS.has(key) ? 'fit ' : '') + (NOWRAP_COLS.has(key) ? 'nowrap' : '')}>
                       {cell(key, j)}
                     </td>
@@ -729,7 +781,7 @@ export function ListScreen() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td className="empty" colSpan={renderCols.length + 1}>
+                  <td className="empty" colSpan={density === 'compact' ? 4 : renderCols.length + 1}>
                     No {TAB_LABEL[tab].toLowerCase()} {query ? 'match your search' : 'yet'}.
                   </td>
                 </tr>

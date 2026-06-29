@@ -97,12 +97,12 @@ function viewFrom(id: string, name: string, visible: ColumnKey[], system = true)
 
 // Admin presets — pre-loaded for everyone (as if authored on an admin page).
 const PRESETS: SavedView[] = [
-  viewFrom('sys-standard', 'Standard', ['customer', 'progress', 'vehicle', 'collPostcode', 'collection', 'delPostcode', 'delivery', 'supplier', 'notes']),
+  viewFrom('sys-standard', 'Standard', ['customer', 'ourRef', 'progress', 'vehicle', 'collPostcode', 'collection', 'collectionEta', 'delPostcode', 'delivery', 'deliveryEta', 'supplier', 'notes']),
   viewFrom('sys-financials', 'Financials', ['customer', 'progress', 'revenue', 'cost', 'margin', 'actor']),
-  viewFrom('sys-operations', 'Operations', ['customer', 'progress', 'vehicle', 'collPostcode', 'collection', 'delPostcode', 'delivery', 'supplier', 'notes']),
+  viewFrom('sys-operations', 'Operations', ['customer', 'ourRef', 'progress', 'vehicle', 'collPostcode', 'collection', 'collectionEta', 'delPostcode', 'delivery', 'deliveryEta', 'supplier', 'notes']),
 ]
 
-const LS_KEY = 'cd-booking-views-v6' // bumped for the jobs-board default columns
+const LS_KEY = 'cd-booking-views-v7' // bumped for the expanded (granular) default columns
 
 interface Persisted {
   userViews: SavedView[]
