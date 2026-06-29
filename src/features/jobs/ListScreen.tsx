@@ -29,14 +29,41 @@ const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta
  * anything whose data length barely varies (dates, times, postcodes, icons). */
 const FIT_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'route', 'vehicle', 'refAccepted', 'notes'])
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const fmtDate = (d: string) => { const m = /^(\d{2})-(\d{2})/.exec(d); return m ? `${+m[1]} ${MONTHS[+m[2] - 1]}` : d }
+const toMin = (t: string) => { const m = /^(\d{2}):(\d{2})/.exec(t); return m ? +m[1] * 60 + +m[2] : null }
 
-/** Small ASAP / AT / BY tag next to a time ('between' shows nothing — implied by a range). */
-function TimeTag({ mode }: { mode: string }) {
-  if (mode === 'between') return null
-  const label = mode === 'asap' ? 'ASAP' : mode === 'by' ? 'BY' : mode === 'at' ? 'AT' : ''
-  if (!label) return null
-  return <span className={'tt tt-' + mode}>{label}</span>
+/** Compare the booked time with the ETA/actual and produce a coloured delta — the
+ * "Live jobs board" treatment: green early/on-time, amber a little late, red very late. */
+function deltaInfo(booked: string, eta: string, failed?: boolean): { actual: string; label: string; cls: string } {
+  if (failed) return { actual: eta || '– –', label: 'failed', cls: 'd-red' }
+  if (!eta) return { actual: '– –', label: booked ? `due ${booked}` : '', cls: 'd-pending' }
+  const bm = toMin(booked), em = toMin(eta)
+  if (bm == null || em == null) return { actual: eta, label: '', cls: 'd-pending' }
+  const delta = em - bm
+  if (delta <= 0) return { actual: eta, label: delta === 0 ? 'on time' : `${-delta}m early`, cls: 'd-green' }
+  if (delta <= 30) return { actual: eta, label: `${delta}m late`, cls: 'd-amber' }
+  return { actual: eta, label: `${delta}m late`, cls: 'd-red' }
 }
+
+/** A collection/delivery cell: date · booked → actual · coloured delta. */
+function TimeCell({ at, eta, failed }: { at: string; eta: string; failed?: boolean }) {
+  if (!at) return <span className="muted">—</span>
+  const [date, time] = at.split(' ')
+  const info = deltaInfo(time, eta, failed)
+  return (
+    <div className="tcell">
+      <span className="tcell-date">{fmtDate(date)}</span>
+      <span className="tcell-row">
+        <span className="tcell-booked">{time}</span>
+        <span className="tcell-arrow">→</span>
+        <span className={'tcell-actual ' + info.cls}>{info.actual}</span>
+      </span>
+      {info.label && <span className={'tcell-delta ' + info.cls}>{info.label}</span>}
+    </div>
+  )
+}
+
 
 /** Is the customer ref accepted? fixed PO must match; else an accepted prefix; else any
  * ref if one is required; else fine. */
@@ -380,13 +407,13 @@ export function ListScreen() {
       case 'collContact': return txt(c?.contact?.name)
       case 'collPhone': return txt(c?.contact?.tel)
       case 'collRef': return txt(c?.reference)
-      case 'collPostcode': return txt(c?.addr.pc)
+      case 'collPostcode': return c?.addr.pc ? <span className="pc">{c.addr.pc}</span> : txt('')
       case 'collCity': return txt(c?.addr.city)
       case 'delCompany': return txt(d?.addr.co)
       case 'delContact': return txt(d?.contact?.name)
       case 'delPhone': return txt(d?.contact?.tel)
       case 'delRef': return txt(d?.reference)
-      case 'delPostcode': return txt(d?.addr.pc)
+      case 'delPostcode': return d?.addr.pc ? <span className="pc">{d.addr.pc}</span> : txt('')
       case 'delCity': return txt(d?.addr.city)
       case 'goods': return txt(j.snapshot.stops.map((s) => s.goods).filter(Boolean).join('; '))
       case 'bodyType': return txt(j.snapshot.ms.body.sel.join(', '))
@@ -405,23 +432,15 @@ export function ListScreen() {
     const dash = <span className="muted">—</span>
     switch (key) {
       case 'customer':
-        // Customer and Status are now separate columns (the 'progress' column carries the
-        // status pill) — this cell is just the clickable customer name.
+        // The "Job" cell — customer name + our ref stacked (click opens contact details).
         return (
-          <button className="cell-link cust-name" onClick={(e) => openPop(e, contactNode(j))}>
-            {cust?.displayName || j.customer}
+          <button className="cell-link job-cell" onClick={(e) => openPop(e, contactNode(j))}>
+            <span className="job-co">{cust?.displayName || j.customer}</span>
+            <span className="job-ref">{j.ref}</span>
           </button>
         )
-      case 'collection': {
-        if (!j.collectAt) return dash
-        const [d, t] = j.collectAt.split(' ')
-        return <div className="dt-stack"><span>{d}</span><span className="dtt">{t} <TimeTag mode={j.collectMode} /></span></div>
-      }
-      case 'delivery': {
-        if (!j.deliverAt) return dash
-        const [d, t] = j.deliverAt.split(' ')
-        return <div className="dt-stack"><span>{d}</span><span className="dtt">{t} <TimeTag mode={j.deliverMode} /></span></div>
-      }
+      case 'collection': return <TimeCell at={j.collectAt} eta={j.collectEta} />
+      case 'delivery': return <TimeCell at={j.deliverAt} eta={j.deliverEta} failed={j.progress === 'Failed'} />
       case 'collectionEta': return etaCell(j, 'collect')
       case 'deliveryEta': return etaCell(j, 'deliver')
       case 'refAccepted':
@@ -666,7 +685,12 @@ export function ListScreen() {
           />
         </div>
 
-        <div className="list-tablewrap" ref={tableWrapRef}>
+        <div className="list-tablewrap jobs-board" ref={tableWrapRef}>
+          <div className="jb-head">
+            <span className="jb-title"><span className="jb-accent" /> Live jobs board</span>
+            <span className="db-spacer" />
+            <span className="jb-hint">Times shown <b>ETA → actual</b> · colour = on time / late</span>
+          </div>
           <table className="list-table jobs-table">
             <thead>
               <tr>

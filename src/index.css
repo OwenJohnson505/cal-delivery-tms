@@ -191,6 +191,7 @@
   display: inline-flex; align-items: center; white-space: nowrap;
   font-size: 11px; font-weight: 700; letter-spacing: .01em;
   border-radius: 999px; padding: 2px 10px;
+  color: var(--sc-fg); background: var(--sc-bg);
 }
 
 /* Stop number: the number alone identifies the stop — keep the badge one calm,
@@ -2246,3 +2247,64 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .mon-callbar { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #fff; background: #2563eb; padding: 8px 14px; border-radius: 10px; margin-bottom: 16px; }
 .mon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .mon-card { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 16px; }
+
+/* ── Live jobs board — dark data table (logistics-ops board styling) ───────────────── */
+.list-tablewrap.jobs-board {
+  background: #1b1e27; border: 1px solid #2b313d; border-radius: 16px; box-shadow: 0 12px 34px rgba(0, 0, 0, .22);
+}
+.jb-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #262c38; }
+.jb-title { display: inline-flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; color: #f1f4f9; }
+.jb-accent { width: 5px; height: 20px; border-radius: 3px; background: #f59e0b; }
+.jb-hint { font-size: 12.5px; color: #8b94a7; }
+.jb-hint b { color: #cdd4e0; font-weight: 600; }
+
+.jobs-board .list-table { background: transparent; color: #dfe4ee; }
+.jobs-board .list-table th { background: transparent; color: #7c8597; border-bottom: 1px solid #262c38; padding: 13px 18px; }
+.jobs-board .list-table th:hover { background: rgba(255, 255, 255, .03); }
+.jobs-board .list-table td { border-bottom: 1px solid #232934; padding: 15px 18px; color: #dfe4ee; }
+.jobs-board .list-table tbody tr:last-child td { border-bottom: none; }
+.jobs-board .list-table tbody tr:hover { background: rgba(255, 255, 255, .035); }
+.jobs-board .list-table td.empty { color: #7c8597; }
+.jobs-board .th-arrow, .jobs-board .th-dot { color: #9aa3b5; }
+.jobs-board .muted { color: #6b7385; }
+
+/* the Job cell: company name + our ref */
+.job-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.job-co { font-size: 14px; font-weight: 700; color: #f3f6fb; }
+.job-ref { font-size: 11.5px; color: #7c8597; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+.jobs-board .cell-link { color: #dfe4ee; }
+.jobs-board .cell-link:hover .job-co { color: #fff; text-decoration: underline; }
+.jobs-board .route-pt, .jobs-board .cell-link:hover { color: #e7ebf2; }
+
+/* postcodes — monospace */
+.pc { font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: .02em; }
+.jobs-board .pc { color: #cdd4e0; font-size: 12.5px; }
+
+/* collection / delivery: date · booked → actual · coloured delta */
+.tcell { display: flex; flex-direction: column; gap: 2px; }
+.tcell-date { font-size: 11px; color: #7c8597; }
+.tcell-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.tcell-booked { color: #cbd2de; font-variant-numeric: tabular-nums; }
+.tcell-arrow { color: #5b6478; }
+.tcell-actual { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tcell-delta { font-size: 11px; font-weight: 600; }
+.jobs-board .tcell-actual.d-green, .jobs-board .tcell-delta.d-green { color: #4ade80; }
+.jobs-board .tcell-actual.d-amber, .jobs-board .tcell-delta.d-amber { color: #fbbf24; }
+.jobs-board .tcell-actual.d-red, .jobs-board .tcell-delta.d-red { color: #f87171; }
+.jobs-board .tcell-actual.d-pending, .jobs-board .tcell-delta.d-pending { color: #7c8597; }
+
+/* status pill on the dark board → translucent chip with a glowing status dot */
+.jobs-board .status-pill {
+  color: #e7ebf2; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .09);
+  position: relative; padding-left: 22px;
+}
+.jobs-board .status-pill::before {
+  content: ''; position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--sc-fg); box-shadow: 0 0 7px var(--sc-fg);
+}
+
+/* row actions on dark */
+.jobs-board .kebab { color: #8b94a7; }
+.jobs-board .kebab:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.jobs-board .notes-icon { color: #8b94a7; }
+.jobs-board .notes-icon.has { color: #cdd4e0; }

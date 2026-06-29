@@ -208,11 +208,13 @@ function genRow(status: JobStatus, ref: string, i: number): SeedRow {
     snap: sample({ status, cust: t.cust, collPc: t.collPc, delPc: t.delPc, vehicle: t.vehicle,
       coll: { co: t.collCo, ref: `COL-${900 + i}` }, del: { co: t.delCo, ref: `DEL-${900 + i}` } }),
     progress: prog, revenue: rev, cost: Math.round(rev * 0.68),
-    collectAt: timed ? `${dY2(i)} ${hm(cH, 0)}` : '',
+    collectAt: timed ? `${dY2(i)} ${hm(cH, 30)}` : '',
     deliverAt: timed ? `${dY2(i)} ${hm(dH, 30)}` : '',
     collectMode: 'at', deliverMode: 'by',
-    collectEta: allocated ? hm(cH, (i * 3) % 60) : '',
-    deliverEta: allocated && DELIVERY_STARTED.has(prog) ? hm(dH, (i * 5) % 60) : '',
+    // ETAs spread around the booked time (and occasionally an hour late) → a mix of
+    // early/on-time/late so the board's colour coding has something to show.
+    collectEta: allocated ? hm(cH + (i % 7 === 0 ? 1 : 0), 30 + (((i * 11) % 25) - 10)) : '',
+    deliverEta: allocated && DELIVERY_STARTED.has(prog) ? hm(dH + (i % 5 === 0 ? 1 : 0), 30 + (((i * 13) % 35) - 12)) : '',
     custRef: `PO-${1200 + i}`, actorName: actor,
     supplierName: drv ? drv[0] : '',
     supplierPhone: drv ? drv[1] : '',

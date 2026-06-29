@@ -34,8 +34,8 @@ export const COLUMNS: ColumnDef[] = [
   { key: 'refAccepted', label: 'Ref OK' },
   { key: 'accountCode', label: 'Account code' },
   // timing
-  { key: 'collection', label: 'Coll Time' },
-  { key: 'delivery', label: 'Del Time' },
+  { key: 'collection', label: 'Collection' },
+  { key: 'delivery', label: 'Delivery' },
   { key: 'collectionEta', label: 'Coll ETA' },
   { key: 'deliveryEta', label: 'Del ETA' },
   // route
@@ -46,14 +46,14 @@ export const COLUMNS: ColumnDef[] = [
   { key: 'collContact', label: 'Collection contact' },
   { key: 'collPhone', label: 'Collection phone' },
   { key: 'collRef', label: 'Collection ref' },
-  { key: 'collPostcode', label: 'Collection postcode' },
+  { key: 'collPostcode', label: 'Coll PC' },
   { key: 'collCity', label: 'Collection city' },
   // delivery stop
   { key: 'delCompany', label: 'Delivery company' },
   { key: 'delContact', label: 'Delivery contact' },
   { key: 'delPhone', label: 'Delivery phone' },
   { key: 'delRef', label: 'Delivery ref' },
-  { key: 'delPostcode', label: 'Delivery postcode' },
+  { key: 'delPostcode', label: 'Del PC' },
   { key: 'delCity', label: 'Delivery city' },
   // goods / service
   { key: 'goods', label: 'Goods' },
@@ -97,12 +97,12 @@ function viewFrom(id: string, name: string, visible: ColumnKey[], system = true)
 
 // Admin presets — pre-loaded for everyone (as if authored on an admin page).
 const PRESETS: SavedView[] = [
-  viewFrom('sys-standard', 'Standard', ['customer', 'progress', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes', 'refAccepted']),
+  viewFrom('sys-standard', 'Standard', ['customer', 'progress', 'vehicle', 'collPostcode', 'collection', 'delPostcode', 'delivery', 'supplier', 'notes']),
   viewFrom('sys-financials', 'Financials', ['customer', 'progress', 'revenue', 'cost', 'margin', 'actor']),
-  viewFrom('sys-operations', 'Operations', ['customer', 'progress', 'collection', 'collectionEta', 'route', 'delivery', 'deliveryEta', 'vehicle', 'supplier', 'notes']),
+  viewFrom('sys-operations', 'Operations', ['customer', 'progress', 'vehicle', 'collPostcode', 'collection', 'delPostcode', 'delivery', 'supplier', 'notes']),
 ]
 
-const LS_KEY = 'cd-booking-views-v5'
+const LS_KEY = 'cd-booking-views-v6' // bumped for the jobs-board default columns
 
 interface Persisted {
   userViews: SavedView[]
