@@ -3,7 +3,7 @@
  * actions (open in the wizard, delete) and an "Add new booking" button that opens a
  * fresh wizard. Basic data-table version; filtering is by tab + search for now.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { StatusPill } from '@/app/StatusPill.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
@@ -15,9 +15,7 @@ import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
-import { JobsCards } from './JobsCards.tsx'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
-import { ViewToggle } from './ViewToggle.tsx'
 import { outcode } from '@/lib/index.ts'
 import type { JobStatus, Stop } from '@/types/index.ts'
 import type { ReactNode } from 'react'
@@ -133,8 +131,6 @@ export function ListScreen() {
   const [notesJob, setNotesJob] = useState<SavedJob | null>(null)
   // Immersive (full) email → compact job cards; collapsed email (list/mini) → the table.
   const emailFull = useEmailsStore((s) => s.panelState === 'full')
-  const boardView = useUiStore((s) => s.boardView)
-  const setBoardView = useUiStore((s) => s.setBoardView)
   const density = useUiStore((s) => s.tableDensity)
   const setTableDensity = useUiStore((s) => s.setTableDensity)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
@@ -328,48 +324,6 @@ export function ListScreen() {
   const toggleCf = (key: string) => setActiveCf((p) => (p.includes(key) ? p.filter((x) => x !== key) : [...p, key]))
   // standard visible columns + any active custom-field columns (appended)
   const renderCols = [...visibleCols, ...validActiveCf]
-
-  // Auto-fit: show the table when it actually fits the board column without horizontal
-  // scroll, otherwise cards. Two measurements, both via layout effects (ListScreen
-  // re-renders as the divider moves, so this stays live; a ResizeObserver proved
-  // unreliable here):
-  //   • boardW   — the board column's available width (shell-main).
-  //   • measuredMin — the table's TRUE min-content width (measured off the real table),
-  //                   far more accurate than estimating per-column widths.
-  const [boardW, setBoardW] = useState(0)
-  const [measuredMin, setMeasuredMin] = useState<number | null>(null)
-  const tableWrapRef = useRef<HTMLDivElement>(null)
-  const renderColsKey = renderCols.join(',')
-
-  const measureBoard = () => {
-    const el = document.querySelector('.shell-main') as HTMLElement | null
-    if (el) setBoardW((prev) => (prev === el.clientWidth ? prev : el.clientWidth))
-  }
-  useLayoutEffect(measureBoard)
-  useEffect(() => {
-    window.addEventListener('resize', measureBoard)
-    return () => window.removeEventListener('resize', measureBoard)
-  }, [])
-  // forget the cached table width when the column set changes (re-measure fresh)
-  useEffect(() => { setMeasuredMin(null) }, [renderColsKey])
-
-  // A low fallback (until the real table has been measured once) that's small enough to
-  // optimistically render the table so it CAN be measured; the measurement then governs.
-  const minTableW = measuredMin != null ? measuredMin + 64 : renderCols.length * 58 + 44
-  const effectiveView: 'cards' | 'table' = boardView === 'auto' ? (boardW >= minTableW ? 'table' : 'cards') : boardView
-
-  // While the table is on screen, measure its real min-content width by briefly shrinking
-  // it (synchronously, before paint — no flicker) and reading the result back.
-  useLayoutEffect(() => {
-    if (effectiveView !== 'table') return
-    const table = tableWrapRef.current?.querySelector('table') as HTMLElement | null
-    if (!table) return
-    const prev = table.style.width
-    table.style.width = 'min-content'
-    const min = table.offsetWidth
-    table.style.width = prev
-    setMeasuredMin((m) => (m === min ? m : min))
-  }, [effectiveView, renderColsKey, boardW])
 
   function addNew() {
     newBooking()
@@ -568,39 +522,43 @@ export function ListScreen() {
     )
   }
 
+  /** ETA cell interactions, shared by the expanded ETA column and the compact time cells:
+   * single click = ETA audit popover (debounced), double-click = inline ETA editor — so a
+   * missing ETA can be added straight from the list without opening the job. */
+  const etaProps = (j: SavedJob, which: 'collect' | 'deliver') => ({
+    title: 'Click: ETA audit · double-click: change ETA',
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation()
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      if (etaClickTimer.current) window.clearTimeout(etaClickTimer.current)
+      etaClickTimer.current = window.setTimeout(() => {
+        setPop({ x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6, node: etaAuditNode(j, which) })
+      }, 220)
+    },
+    onDoubleClick: (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (etaClickTimer.current) window.clearTimeout(etaClickTimer.current)
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      setPop({
+        x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6,
+        node: (
+          <EtaEditor
+            initial={which === 'collect' ? j.collectEta : j.deliverEta}
+            label={which === 'collect' ? 'collection' : 'delivery'}
+            onSave={(v) => { setEta(j.id, which, v); setPop(null) }}
+          />
+        ),
+      })
+    },
+  })
+
   const etaCell = (j: SavedJob, which: 'collect' | 'deliver') => {
     const eta = which === 'collect' ? j.collectEta : j.deliverEta
     const booked = ((which === 'collect' ? j.collectAt : j.deliverAt).split(' ')[1]) || ''
     const failed = which === 'deliver' && j.progress === 'Failed'
     const info = eta ? deltaInfo(booked, eta) : null
     return (
-      <button
-        className="cell-link eta-cell"
-        title="Click: ETA audit · double-click: change ETA"
-        onClick={(e) => {
-          e.stopPropagation()
-          const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-          if (etaClickTimer.current) window.clearTimeout(etaClickTimer.current)
-          etaClickTimer.current = window.setTimeout(() => {
-            setPop({ x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6, node: etaAuditNode(j, which) })
-          }, 220)
-        }}
-        onDoubleClick={(e) => {
-          e.stopPropagation()
-          if (etaClickTimer.current) window.clearTimeout(etaClickTimer.current)
-          const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-          setPop({
-            x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6,
-            node: (
-              <EtaEditor
-                initial={eta}
-                label={which === 'collect' ? 'collection' : 'delivery'}
-                onSave={(v) => { setEta(j.id, which, v); setPop(null) }}
-              />
-            ),
-          })
-        }}
-      >
+      <button className="cell-link eta-cell" {...etaProps(j, which)}>
         <span className={'eta-val' + (info ? ' ' + info.cls : '')}>{failed ? 'failed' : (eta || '—')}</span>
         {info && info.label && <span className={'eta-delta ' + info.cls}>{info.label}</span>}
       </button>
@@ -609,13 +567,19 @@ export function ListScreen() {
 
   /** Compact (dense) row: Customer (name/ref/status stacked) · COL · DEL · Vehicle+Driver.
    * Each cell is a real <td> (no flex on the td → columns stay aligned). The COL/DEL
-   * headers carry the labels, so the cells themselves are just postcode + time. */
-  const compactStop = (s: Stop | undefined, at: string, eta: string, failed?: boolean) => (
-    <td className="cmp cmp-stop">
-      {s && s.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(s))}>{s.addr.pc}</button> : <span className="pc muted">—</span>}
-      <TimeCell at={at} eta={eta} failed={failed} />
-    </td>
-  )
+   * headers carry the labels, so the cells are just postcode + a (double-clickable) time. */
+  const compactStop = (j: SavedJob, which: 'collect' | 'deliver') => {
+    const s = which === 'collect' ? firstColl(j) : lastDel(j)
+    const at = which === 'collect' ? j.collectAt : j.deliverAt
+    const eta = which === 'collect' ? j.collectEta : j.deliverEta
+    const failed = which === 'deliver' && j.progress === 'Failed'
+    return (
+      <td className="cmp cmp-stop">
+        {s && s.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(s))}>{s.addr.pc}</button> : <span className="pc muted">—</span>}
+        <button className="cmp-time" {...etaProps(j, which)}><TimeCell at={at} eta={eta} failed={failed} /></button>
+      </td>
+    )
+  }
   const compactCells = (j: SavedJob) => {
     const cust = custById[j.snapshot.book.cust ?? '']
     return (
@@ -625,12 +589,12 @@ export function ListScreen() {
           <div className="cmp-ref">{j.ref}</div>
           {j.progress && <div className="cmp-status"><StatusPill status={j.progress} /></div>}
         </td>
-        {compactStop(firstColl(j), j.collectAt, j.collectEta)}
-        {compactStop(lastDel(j), j.deliverAt, j.deliverEta, j.progress === 'Failed')}
+        {compactStop(j, 'collect')}
+        {compactStop(j, 'deliver')}
         <td className="cmp cmp-vd">
           <div className="cmp-veh">{j.vehicle || '—'}</div>
           {j.supplierName
-            ? <button className="cell-link cmp-sup" onClick={(e) => openPop(e, supplierNode(j))}>🚚 {j.supplierName}</button>
+            ? <button className="cell-link cmp-sup" onClick={(e) => openPop(e, supplierNode(j))}>{j.supplierName}</button>
             : <span className="muted cmp-sup">Unassigned</span>}
         </td>
       </>
@@ -651,17 +615,8 @@ export function ListScreen() {
     setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
   }
 
-  // Beside an open email the board auto-fits (table when it fits the width, else cards),
-  // unless the user has forced a view. When email is collapsed (list/mini) the table is
-  // always shown full-screen.
-  if (emailFull && effectiveView === 'cards') {
-    return (
-      <div className="list-app email-jobs-app">
-        <JobsCards />
-      </div>
-    )
-  }
-
+  // One table for everything (Compact or Expanded). Beside an open email it sits in the
+  // job column; the compact table is dense enough to fit there without cards.
   return (
     <div className={'list-app' + (emailFull ? ' email-jobs-app board-table' : '')}>
       <div className="list-work wide bookings-main">
@@ -679,7 +634,6 @@ export function ListScreen() {
             ))}
           </div>
           <span className="db-spacer" />
-          {emailFull && <ViewToggle value={boardView} onChange={setBoardView} />}
           <button className="btn primary" onClick={addNew}>
             <Icon name="plus" size={15} /> Add new booking
           </button>
@@ -733,7 +687,7 @@ export function ListScreen() {
           )}
         </div>
 
-        <div className="list-tablewrap" ref={tableWrapRef}>
+        <div className="list-tablewrap">
           <table className={'list-table jobs-table' + (density === 'compact' ? ' compact' : '')}>
             <thead>
               <tr>

@@ -2281,6 +2281,9 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* COL / DEL columns — postcode over the booked → ETA time */
 .cmp-stop { white-space: nowrap; }
 .cmp .pc { font-size: 13px; font-weight: 600; color: var(--ink); display: inline-block; margin-bottom: 3px; }
+/* the time is a borderless button → single-click audit, double-click to set/change ETA */
+.cmp-time { display: block; border: none; background: none; padding: 0; margin: 0; font: inherit; text-align: left; cursor: pointer; }
+.cmp-time:hover .tcell-actual { text-decoration: underline; }
 /* vehicle & driver */
 .cmp-veh { color: var(--ink); font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .cmp-sup { font-size: 12.5px; white-space: nowrap; }
