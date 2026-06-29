@@ -29,22 +29,6 @@ const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta
  * anything whose data length barely varies (dates, times, postcodes, icons). */
 const FIT_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'route', 'vehicle', 'refAccepted', 'notes'])
 
-/** Rough minimum comfortable width (px) per column — used to decide whether the table
- * fits the available width without horizontal scroll (else the board shows cards). */
-const COL_MIN: Record<string, number> = {
-  customer: 150, progress: 118, ourRef: 110, custRef: 110, refAccepted: 56, accountCode: 110,
-  collection: 124, delivery: 124, collectionEta: 96, deliveryEta: 96, route: 150, stopCount: 70,
-  vehicle: 96, supplier: 130, supplierPhone: 124, supplierEmail: 164, revenue: 84, cost: 84,
-  margin: 84, actor: 140, created: 120, notes: 56, goods: 150, bodyType: 120, equipment: 120,
-  serviceType: 120, collCompany: 150, collContact: 130, collPhone: 124, collRef: 110,
-  collPostcode: 110, collCity: 120, delCompany: 150, delContact: 130, delPhone: 124, delRef: 110,
-  delPostcode: 110, delCity: 120,
-}
-/** Estimated min table width = sum of column mins + the actions column + side padding. */
-function estimateMinTableWidth(cols: string[]): number {
-  const sum = cols.reduce((t, k) => t + (k.startsWith('cf:') ? 120 : (COL_MIN[k] ?? 120)), 0)
-  return sum + 44 /* actions */ + 56 /* .list-work side padding + borders */
-}
 
 /** Small ASAP / AT / BY tag next to a time ('between' shows nothing — implied by a range). */
 function TimeTag({ mode }: { mode: string }) {
@@ -316,22 +300,47 @@ export function ListScreen() {
   // standard visible columns + any active custom-field columns (appended)
   const renderCols = [...visibleCols, ...validActiveCf]
 
-  // Auto-fit: measure the board column (shell-main) and show the table when it fits without
-  // horizontal scroll, otherwise cards. ListScreen re-renders whenever the divider moves
-  // (App owns that width), so a layout effect re-measures on every change — more reliable
-  // here than a ResizeObserver. A window-resize listener covers viewport changes too.
+  // Auto-fit: show the table when it actually fits the board column without horizontal
+  // scroll, otherwise cards. Two measurements, both via layout effects (ListScreen
+  // re-renders as the divider moves, so this stays live; a ResizeObserver proved
+  // unreliable here):
+  //   • boardW   — the board column's available width (shell-main).
+  //   • measuredMin — the table's TRUE min-content width (measured off the real table),
+  //                   far more accurate than estimating per-column widths.
   const [boardW, setBoardW] = useState(0)
-  const measure = () => {
+  const [measuredMin, setMeasuredMin] = useState<number | null>(null)
+  const tableWrapRef = useRef<HTMLDivElement>(null)
+  const renderColsKey = renderCols.join(',')
+
+  const measureBoard = () => {
     const el = document.querySelector('.shell-main') as HTMLElement | null
     if (el) setBoardW((prev) => (prev === el.clientWidth ? prev : el.clientWidth))
   }
-  useLayoutEffect(measure)
+  useLayoutEffect(measureBoard)
   useEffect(() => {
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    window.addEventListener('resize', measureBoard)
+    return () => window.removeEventListener('resize', measureBoard)
   }, [])
-  const minTableW = useMemo(() => estimateMinTableWidth(renderCols), [renderCols])
+  // forget the cached table width when the column set changes (re-measure fresh)
+  useEffect(() => { setMeasuredMin(null) }, [renderColsKey])
+
+  // A low fallback (until the real table has been measured once) that's small enough to
+  // optimistically render the table so it CAN be measured; the measurement then governs.
+  const minTableW = measuredMin != null ? measuredMin + 64 : renderCols.length * 58 + 44
   const effectiveView: 'cards' | 'table' = boardView === 'auto' ? (boardW >= minTableW ? 'table' : 'cards') : boardView
+
+  // While the table is on screen, measure its real min-content width by briefly shrinking
+  // it (synchronously, before paint — no flicker) and reading the result back.
+  useLayoutEffect(() => {
+    if (effectiveView !== 'table') return
+    const table = tableWrapRef.current?.querySelector('table') as HTMLElement | null
+    if (!table) return
+    const prev = table.style.width
+    table.style.width = 'min-content'
+    const min = table.offsetWidth
+    table.style.width = prev
+    setMeasuredMin((m) => (m === min ? m : min))
+  }, [effectiveView, renderColsKey, boardW])
 
   function addNew() {
     newBooking()
@@ -657,7 +666,7 @@ export function ListScreen() {
           />
         </div>
 
-        <div className="list-tablewrap">
+        <div className="list-tablewrap" ref={tableWrapRef}>
           <table className="list-table jobs-table">
             <thead>
               <tr>
