@@ -607,15 +607,14 @@ export function ListScreen() {
     )
   }
 
-  /** Compact (grouped) row: 3 columns — Customer (name/ref/status stacked) · Collection &
-   * Delivery side by side · Vehicle & Driver. Inner flex lives in DIVs, never on the <td>
-   * (that would break table-column alignment). The individual bits stay clickable. */
-  const compactLeg = (label: string, s: Stop | undefined, at: string, eta: string, failed?: boolean) => (
-    <div className="cmp-leg">
-      <span className="cmp-leg-lbl">{label}</span>
+  /** Compact (dense) row: Customer (name/ref/status stacked) · COL · DEL · Vehicle+Driver.
+   * Each cell is a real <td> (no flex on the td → columns stay aligned). The COL/DEL
+   * headers carry the labels, so the cells themselves are just postcode + time. */
+  const compactStop = (s: Stop | undefined, at: string, eta: string, failed?: boolean) => (
+    <td className="cmp cmp-stop">
       {s && s.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(s))}>{s.addr.pc}</button> : <span className="pc muted">—</span>}
       <TimeCell at={at} eta={eta} failed={failed} />
-    </div>
+    </td>
   )
   const compactCells = (j: SavedJob) => {
     const cust = custById[j.snapshot.book.cust ?? '']
@@ -626,12 +625,8 @@ export function ListScreen() {
           <div className="cmp-ref">{j.ref}</div>
           {j.progress && <div className="cmp-status"><StatusPill status={j.progress} /></div>}
         </td>
-        <td className="cmp cmp-route">
-          <div className="cmp-legs">
-            {compactLeg('Collection', firstColl(j), j.collectAt, j.collectEta)}
-            {compactLeg('Delivery', lastDel(j), j.deliverAt, j.deliverEta, j.progress === 'Failed')}
-          </div>
-        </td>
+        {compactStop(firstColl(j), j.collectAt, j.collectEta)}
+        {compactStop(lastDel(j), j.deliverAt, j.deliverEta, j.progress === 'Failed')}
         <td className="cmp cmp-vd">
           <div className="cmp-veh">{j.vehicle || '—'}</div>
           {j.supplierName
@@ -745,7 +740,8 @@ export function ListScreen() {
                 {density === 'compact' ? (
                   <>
                     <th>Customer</th>
-                    <th>Collection / Delivery</th>
+                    <th>COL</th>
+                    <th>DEL</th>
                     <th>Vehicle / Driver</th>
                   </>
                 ) : renderCols.map((key) => (
@@ -783,7 +779,7 @@ export function ListScreen() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td className="empty" colSpan={density === 'compact' ? 4 : renderCols.length + 1}>
+                  <td className="empty" colSpan={density === 'compact' ? 5 : renderCols.length + 1}>
                     No {TAB_LABEL[tab].toLowerCase()} {query ? 'match your search' : 'yet'}.
                   </td>
                 </tr>
