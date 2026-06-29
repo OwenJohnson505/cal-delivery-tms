@@ -2363,16 +2363,33 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt-cue { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .pqt-rcpt { font-size: 11px; color: var(--accent); margin-top: 3px; }
 
-/* Risk score chip — coloured by band */
-.pqt-risk { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 24px; border-radius: 6px; font-size: 12px; font-weight: 700; }
-.band-red { background: #fee2e2; color: #b91c1c; }
-.band-amber { background: #fef3c7; color: #92400e; }
-.band-green { background: #dcfce7; color: #15803d; }
+/* Density toggle in header */
+.pq-density { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.pq-den-btn { padding: 5px 12px; font: inherit; font-size: 12px; font-weight: 600; background: none; border: none; cursor: pointer; color: var(--muted); line-height: 1; }
+.pq-den-btn.active { background: var(--ink); color: #fff; }
+.pq-den-btn:not(.active):hover { background: var(--field); color: var(--ink); }
+
+/* COL / DEL header labels */
+.pqt-th-col { color: #FD8903; font-weight: 800; }
+.pqt-th-del { color: #2563eb; font-weight: 800; }
+
+/* Stop cell — compact: current leg only; expanded: separate COL / DEL cells */
+.pqt-stop { min-width: 100px; }
+.pqt-stop-label { font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.pqt-stop-label.col { color: #FD8903; }
+.pqt-stop-label.del { color: #2563eb; }
+.pqt-stop-eta { font-size: 12px; color: var(--ink); margin-top: 2px; padding-left: 24px; }
+.pqt-stop-time { white-space: nowrap; }
+.pqt-stop-time b { font-size: 13px; font-weight: 700; }
+
+/* Route in expanded job cell: COL → DEL postcodes */
+.pqt-route { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+.pqt-route-col { font-family: monospace; font-size: 11px; font-weight: 700; color: #FD8903; }
+.pqt-route-del { font-family: monospace; font-size: 11px; font-weight: 700; color: #2563eb; }
+.pqt-route-arr { font-size: 11px; color: var(--muted); }
 
 /* Other columns */
 .pqt-veh { white-space: nowrap; }
-.pqt-eta span { display: block; font-size: 11px; color: var(--muted); line-height: 1.2; }
-.pqt-eta b { font-size: 13px; font-weight: 700; }
 .pqt-act { white-space: nowrap; }
 .pqt-act-inner { display: flex; align-items: center; gap: 5px; }
 .pqt-empty { text-align: center; color: var(--muted); padding: 36px; }
