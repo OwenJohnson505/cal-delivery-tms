@@ -22,9 +22,10 @@ interface UiState {
   navOpen: boolean
   /** Whether the left-rail Settings group (secondary nav) is expanded. Collapsed by default. */
   settingsOpen: boolean
-  /** How the bookings board renders beside an open email — compact cards or the full
-   * table (the user picks, e.g. switching to the table once they have the width). */
-  boardView: 'cards' | 'table'
+  /** How the bookings board renders beside an open email. 'auto' (default) shows the
+   * table when it fits the column without horizontal scroll, otherwise cards; the user
+   * can also force 'cards' or 'table'. */
+  boardView: 'auto' | 'cards' | 'table'
 
   openDrawer(d: DrawerName): void
   closeDrawers(): void
@@ -37,11 +38,14 @@ interface UiState {
   setProvSeen(n: number): void
   toggleNav(): void
   toggleSettings(): void
-  setBoardView(v: 'cards' | 'table'): void
+  setBoardView(v: 'auto' | 'cards' | 'table'): void
 }
 
-function loadBoardView(): 'cards' | 'table' {
-  try { return localStorage.getItem('cd-board-view') === 'table' ? 'table' : 'cards' } catch { return 'cards' }
+// v2 key: the old 'cd-board-view' stored a forced cards/table choice from before 'auto'
+// existed — ignore it so everyone gets the auto-fit default.
+const BOARD_VIEW_KEY = 'cd-board-view-v2'
+function loadBoardView(): 'auto' | 'cards' | 'table' {
+  try { const v = localStorage.getItem(BOARD_VIEW_KEY); return v === 'cards' || v === 'table' ? v : 'auto' } catch { return 'auto' }
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -65,5 +69,5 @@ export const useUiStore = create<UiState>((set) => ({
   setProvSeen: (n) => set({ provSeen: n }),
   toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
-  setBoardView: (v) => { try { localStorage.setItem('cd-board-view', v) } catch { /* ignore */ } ; set({ boardView: v }) },
+  setBoardView: (v) => { try { localStorage.setItem(BOARD_VIEW_KEY, v) } catch { /* ignore */ } ; set({ boardView: v }) },
 }))

@@ -3,7 +3,7 @@
  * actions (open in the wizard, delete) and an "Add new booking" button that opens a
  * fresh wizard. Basic data-table version; filtering is by tab + search for now.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { StatusPill } from '@/app/StatusPill.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
@@ -28,6 +28,23 @@ const NOWRAP_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta
 /** Columns that hug their content (width:1%) so flexible ones absorb the slack —
  * anything whose data length barely varies (dates, times, postcodes, icons). */
 const FIT_COLS = new Set<ColumnKey>(['collection', 'delivery', 'collectionEta', 'deliveryEta', 'route', 'vehicle', 'refAccepted', 'notes'])
+
+/** Rough minimum comfortable width (px) per column — used to decide whether the table
+ * fits the available width without horizontal scroll (else the board shows cards). */
+const COL_MIN: Record<string, number> = {
+  customer: 150, progress: 118, ourRef: 110, custRef: 110, refAccepted: 56, accountCode: 110,
+  collection: 124, delivery: 124, collectionEta: 96, deliveryEta: 96, route: 150, stopCount: 70,
+  vehicle: 96, supplier: 130, supplierPhone: 124, supplierEmail: 164, revenue: 84, cost: 84,
+  margin: 84, actor: 140, created: 120, notes: 56, goods: 150, bodyType: 120, equipment: 120,
+  serviceType: 120, collCompany: 150, collContact: 130, collPhone: 124, collRef: 110,
+  collPostcode: 110, collCity: 120, delCompany: 150, delContact: 130, delPhone: 124, delRef: 110,
+  delPostcode: 110, delCity: 120,
+}
+/** Estimated min table width = sum of column mins + the actions column + side padding. */
+function estimateMinTableWidth(cols: string[]): number {
+  const sum = cols.reduce((t, k) => t + (k.startsWith('cf:') ? 120 : (COL_MIN[k] ?? 120)), 0)
+  return sum + 44 /* actions */ + 56 /* .list-work side padding + borders */
+}
 
 /** Small ASAP / AT / BY tag next to a time ('between' shows nothing — implied by a range). */
 function TimeTag({ mode }: { mode: string }) {
@@ -299,6 +316,23 @@ export function ListScreen() {
   // standard visible columns + any active custom-field columns (appended)
   const renderCols = [...visibleCols, ...validActiveCf]
 
+  // Auto-fit: measure the board column (shell-main) and show the table when it fits without
+  // horizontal scroll, otherwise cards. ListScreen re-renders whenever the divider moves
+  // (App owns that width), so a layout effect re-measures on every change — more reliable
+  // here than a ResizeObserver. A window-resize listener covers viewport changes too.
+  const [boardW, setBoardW] = useState(0)
+  const measure = () => {
+    const el = document.querySelector('.shell-main') as HTMLElement | null
+    if (el) setBoardW((prev) => (prev === el.clientWidth ? prev : el.clientWidth))
+  }
+  useLayoutEffect(measure)
+  useEffect(() => {
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  const minTableW = useMemo(() => estimateMinTableWidth(renderCols), [renderCols])
+  const effectiveView: 'cards' | 'table' = boardView === 'auto' ? (boardW >= minTableW ? 'table' : 'cards') : boardView
+
   function addNew() {
     newBooking()
     openWizard(null)
@@ -547,10 +581,10 @@ export function ListScreen() {
     setPop({ x: Math.max(8, r.right - 150), y: r.bottom + 4, node })
   }
 
-  // Beside an open email the board defaults to compact cards, but the user can switch to
-  // the full table (e.g. once they've dragged enough width for it). When email is
-  // collapsed (list/mini) the table is always shown full-screen.
-  if (emailFull && boardView === 'cards') {
+  // Beside an open email the board auto-fits (table when it fits the width, else cards),
+  // unless the user has forced a view. When email is collapsed (list/mini) the table is
+  // always shown full-screen.
+  if (emailFull && effectiveView === 'cards') {
     return (
       <div className="list-app email-jobs-app">
         <JobsCards />
