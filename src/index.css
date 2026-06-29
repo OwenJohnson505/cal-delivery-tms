@@ -2270,7 +2270,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* compact density: dense columns that hug their content (no stretching to full width).
  * NB: never put flex on a <td> or it stops being a table cell and columns mis-align. */
 .jobs-table.compact { width: auto; }
-.list-tablewrap:has(.jobs-table.compact) { width: fit-content; max-width: 100%; }
+.list-tablewrap:has(.jobs-table.compact) { width: fit-content; max-width: 100%; align-self: flex-start; }
 .jobs-table.compact td.cmp { vertical-align: top; padding: 13px 18px; }
 /* col 1 — customer name / ref / status stacked */
 .cmp-cust { min-width: 140px; }
@@ -2315,7 +2315,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pq-done-when { font-size: 12px; }
 
 /* Dense table — horizontal-scroll wrapper + hairline rules */
-.pqt-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.pqt-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .pqt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .pqt th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; background: var(--field); position: sticky; top: 0; z-index: 1; }
 .pqt th:first-child { border-radius: 11px 0 0 0; }
