@@ -2091,6 +2091,13 @@
 .board-table .list-work { padding: 12px 14px; max-width: none; }
 .board-table .list-tablewrap { overflow: auto; }
 
+/* List-only (inbox shown, no email open) → the inbox is a tidy fixed-width column and the
+ * bookings table takes ALL the rest of the width (no dead space beside a half-empty list).
+ * Opening an email drops this class, restoring the resizable split. */
+.shell.panel-open.email-listonly { --inbox-w: clamp(300px, 22vw, 360px); }
+.shell.panel-open.email-listonly .email-panel { flex: 0 0 var(--inbox-w); }
+.shell.panel-open.email-listonly .shell-main { flex: 1 1 auto; }
+
 /* draggable divider between the email and the bookings (only when both are showing) */
 .shell.panel-open:not(.email-solo) .email-panel { order: -2; }
 .ep-split { order: -1; flex: 0 0 11px; align-self: stretch; position: relative; z-index: 6; cursor: col-resize; background: transparent; }

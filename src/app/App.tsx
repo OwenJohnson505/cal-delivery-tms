@@ -22,6 +22,7 @@ import { useUiStore } from '@/store/uiStore.ts'
 export function App() {
   const screen = useViewStore((s) => s.screen)
   const panelState = useEmailsStore((s) => s.panelState)
+  const selectedId = useEmailsStore((s) => s.selectedId)
   // 'full' = immersive (narrow job column + cards/vertical-wizard + big email);
   // 'list' = side mode (normal table / normal wizard + email panel alongside);
   // 'mini' = fully closed — no email chrome at all; reopened from the left-rail Emails button.
@@ -46,6 +47,10 @@ export function App() {
   // Paired = email AND bookings both showing → a draggable divider lets the user re-balance
   // the split (handy on an ultrawide). The chosen width persists; double-click resets it.
   const paired = emailFull && !emailScreen
+  // On the bookings list with no email open in the reader → the inbox is just a narrow
+  // list; the bookings table should take ALL the remaining width (no dead space beside a
+  // half-empty inbox). Opening an email restores the resizable split.
+  const listOnly = paired && screen === 'list' && selectedId == null
   const [jobColW, setJobColW] = useState<number | null>(() => {
     const v = typeof localStorage !== 'undefined' ? localStorage.getItem('cd-jobcol-w') : null
     return v ? Number(v) : null
@@ -73,7 +78,8 @@ export function App() {
       + ((emailFull || emailSide || emailScreen) ? ' email-left' : '')
       + (emailScreen ? ' email-solo' : '')
       + (drawerOpen ? ' drawer-open' : '')
-      + (emailInJob ? ' email-injob' : '')}>
+      + (emailInJob ? ' email-injob' : '')
+      + (listOnly ? ' email-listonly' : '')}>
       <div className="shell-main">
         {screen === 'wizard' ? (
           <WizardHost />
@@ -92,7 +98,7 @@ export function App() {
         )}
       </div>
       {emailVisible && <EmailPanel />}
-      {paired && <SplitHandle onResize={onResize} />}
+      {paired && !listOnly && <SplitHandle onResize={onResize} />}
     </div>
   )
 }
