@@ -607,31 +607,33 @@ export function ListScreen() {
     )
   }
 
-  /** Compact (grouped) row: 3 dense columns — customer+ref+status · collection (PC/date/
-   * time) · delivery (PC/vehicle/time/supplier). The individual cells stay clickable. */
+  /** Compact (grouped) row: 3 columns — Customer (name/ref/status stacked) · Collection &
+   * Delivery side by side · Vehicle & Driver. Inner flex lives in DIVs, never on the <td>
+   * (that would break table-column alignment). The individual bits stay clickable. */
+  const compactLeg = (label: string, s: Stop | undefined, at: string, eta: string, failed?: boolean) => (
+    <div className="cmp-leg">
+      <span className="cmp-leg-lbl">{label}</span>
+      {s && s.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(s))}>{s.addr.pc}</button> : <span className="pc muted">—</span>}
+      <TimeCell at={at} eta={eta} failed={failed} />
+    </div>
+  )
   const compactCells = (j: SavedJob) => {
     const cust = custById[j.snapshot.book.cust ?? '']
-    const c = firstColl(j)
-    const d = lastDel(j)
     return (
       <>
         <td className="cmp cmp-cust">
-          <div className="cmp-line">
-            <button className="cell-link cmp-co" onClick={(e) => openPop(e, contactNode(j))}>{cust?.displayName || j.customer}</button>
-            {j.progress && <StatusPill status={j.progress} />}
-          </div>
+          <button className="cell-link cmp-co" onClick={(e) => openPop(e, contactNode(j))}>{cust?.displayName || j.customer}</button>
           <div className="cmp-ref">{j.ref}</div>
+          {j.progress && <div className="cmp-status"><StatusPill status={j.progress} /></div>}
         </td>
-        <td className="cmp cmp-coll">
-          {c?.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(c))}>{c.addr.pc}</button> : <span className="muted">—</span>}
-          <TimeCell at={j.collectAt} eta={j.collectEta} />
-        </td>
-        <td className="cmp cmp-del">
-          <div className="cmp-line">
-            {d?.addr.pc ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(d))}>{d.addr.pc}</button> : <span className="muted">—</span>}
-            {j.vehicle && <span className="cmp-veh">{j.vehicle}</span>}
+        <td className="cmp cmp-route">
+          <div className="cmp-legs">
+            {compactLeg('Collection', firstColl(j), j.collectAt, j.collectEta)}
+            {compactLeg('Delivery', lastDel(j), j.deliverAt, j.deliverEta, j.progress === 'Failed')}
           </div>
-          <TimeCell at={j.deliverAt} eta={j.deliverEta} failed={j.progress === 'Failed'} />
+        </td>
+        <td className="cmp cmp-vd">
+          <div className="cmp-veh">{j.vehicle || '—'}</div>
           {j.supplierName
             ? <button className="cell-link cmp-sup" onClick={(e) => openPop(e, supplierNode(j))}>🚚 {j.supplierName}</button>
             : <span className="muted cmp-sup">Unassigned</span>}
@@ -743,8 +745,8 @@ export function ListScreen() {
                 {density === 'compact' ? (
                   <>
                     <th>Customer</th>
-                    <th>Collection</th>
-                    <th>Delivery</th>
+                    <th>Collection / Delivery</th>
+                    <th>Vehicle / Driver</th>
                   </>
                 ) : renderCols.map((key) => (
                   <th
