@@ -267,6 +267,46 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
       msgs: [{ id: uid(), from: { name: 'Gary Mills', email: 'gary@millswholesale.example' }, at: minsAgo(300),
         body: 'Hi, do you do ad-hoc pallet work out of Leeds? Looking for a price list. Cheers, Gary' }],
     }),
+    base({
+      id: 'th-6', read: false, mailbox: 'bookings@cal.delivery', subject: 'ETA on BK-100485 into Bradford?', linkedJobRef: 'BK-100485',
+      msgs: [{ id: uid(), from: { name: 'Helen Cross', email: 'h.cross@brightway.co.uk' }, at: minsAgo(18),
+        body: 'Hi — what time is the 7.5t landing at the Bradford store (BD1) today? They want to free up the bay if it is running late.\n\nHelen' }],
+    }),
+    base({
+      id: 'th-7', read: false, mailbox: 'bookings@cal.delivery', subject: 'New booking — 26t Leeds to Oldham Thursday',
+      msgs: [{ id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(96),
+        body: 'Morning,\n\nCan we book a 26t for Thursday? Collection LS9 0PX about 07:00, delivery to the Oldham store OL1 1AA. Curtainsider, no tail lift.\n\nOur ref NGL-4471.\n\nDan' }],
+    }),
+    base({
+      id: 'th-8', read: true, mailbox: 'accounts@cal.delivery', subject: 'POD for BK-100479 please', lane: 'Done', linkedJobRef: 'BK-100479',
+      msgs: [
+        { id: uid(), from: { name: 'Sam Okafor', email: 'sam@lrdc.co.uk' }, at: minsAgo(220),
+          body: 'Hi, could you send the signed POD for BK-100479? Need it to close the GRN our end.\n\nSam' },
+        { id: uid(), from: { name: 'Emma Watts', email: 'accounts@cal.delivery' }, at: minsAgo(205), outbound: true,
+          body: 'Hi Sam,\n\nPOD attached — delivered 16:20, signed by S. Okafor. Let me know if you need anything else.\n\nEmma' },
+      ],
+    }),
+    base({
+      id: 'th-9', read: false, mailbox: 'bookings@cal.delivery', subject: 'Driver running late into Birmingham',
+      msgs: [{ id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(42),
+        body: 'Hi — the M15 to B1 load looks like it is running late, site cut-off is 17:00. Can you confirm the driver registration and an updated ETA?\n\nPriya',
+        attachments: [{ id: uid(), name: 'delivery-window.pdf' }] }],
+    }),
+    base({
+      id: 'th-10', read: true, mailbox: 'sarah@cal.delivery', subject: 'Quote please — Artic Sheffield to Hull', lane: 'Waiting',
+      expectingResponse: true, chaseDueAt: SEED_NOW + 3 * 60 * 60_000,
+      msgs: [
+        { id: uid(), from: { name: 'Rachel Innes', email: 'r.innes@forsythretail.co.uk' }, at: minsAgo(260),
+          body: 'Hi Sarah,\n\nCould you price a regular Artic run, Sheffield (S1) to Hull (HU1), roughly 3 days a week? Volume from next month.\n\nRachel' },
+        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: minsAgo(240), outbound: true,
+          body: 'Hi Rachel,\n\nThanks — putting some numbers together for the 3-day Artic contract and will come back to you tomorrow with a rate.\n\nSarah' },
+      ],
+    }),
+    base({
+      id: 'th-11', read: true, mailbox: 'accounts@cal.delivery', subject: 'Invoice query — INV-3391',
+      msgs: [{ id: uid(), from: { name: 'Karen Doyle', email: 'ap@meridianfoods.com' }, at: minsAgo(140),
+        body: 'Hi, invoice INV-3391 shows a £35 handballing charge we were not expecting on the M15 to L7 job. Could you confirm what this relates to?\n\nKaren (Meridian AP)' }],
+    }),
   ]
 }
 

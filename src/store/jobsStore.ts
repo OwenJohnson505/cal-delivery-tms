@@ -154,6 +154,82 @@ type SeedRow = {
   supplierAssignedBy?: string; supplierAssignedAt?: string
 }
 
+// Bulk filler so the screens look realistic with a full page of data. A handful of
+// distinct route/customer templates are recreated many times with varied progress,
+// suppliers, dates and values — deterministic, so the seed is stable.
+type JobTpl = { cust: string; collPc: string; delPc: string; vehicle: string; collCo: string; delCo: string; base: number }
+const TEMPLATES: JobTpl[] = [
+  { cust: 'brightway', collPc: 'LS9 0PX', delPc: 'WA2 7NE', vehicle: '18t', collCo: 'Brightway DC', delCo: 'Tesco Extra', base: 420 },
+  { cust: 'meridian', collPc: 'M15 4FN', delPc: 'L7 9PG', vehicle: 'Luton', collCo: 'Meridian Foods', delCo: 'Liverpool RDC', base: 310 },
+  { cust: 'orbit', collPc: 'LS4 2AB', delPc: 'M1 4ET', vehicle: 'Artic', collCo: 'Orbit Retail NDC', delCo: 'Manchester hub', base: 560 },
+  { cust: 'northgate', collPc: 'BD1 2AB', delPc: 'LS9 0PX', vehicle: '7.5t', collCo: 'Northgate Depot', delCo: 'Leeds DC', base: 260 },
+  { cust: 'forsyth', collPc: 'S1 2HE', delPc: 'NG1 5DT', vehicle: '18t', collCo: 'Forsyth RDC', delCo: 'Nottingham store', base: 380 },
+  { cust: 'cal', collPc: 'LS9 0PX', delPc: 'M15 4FN', vehicle: 'Small van', collCo: 'Cal Hub', delCo: 'Manchester drop', base: 95 },
+  { cust: 'owen', collPc: 'WA4 1PX', delPc: 'PR1 2RS', vehicle: 'Transit', collCo: 'Owen Yard', delCo: 'Preston site', base: 140 },
+  { cust: 'brightway', collPc: 'LS9 0PX', delPc: 'BD1 2AB', vehicle: '7.5t', collCo: 'Brightway DC', delCo: 'Bradford store', base: 240 },
+  { cust: 'meridian', collPc: 'M15 4FN', delPc: 'B1 1AA', vehicle: '18t', collCo: 'Meridian Foods', delCo: 'Birmingham RDC', base: 460 },
+  { cust: 'orbit', collPc: 'LS4 2AB', delPc: 'WA4 1PX', vehicle: '7.5t', collCo: 'Orbit Retail NDC', delCo: 'Warrington DC', base: 200 },
+  { cust: 'northgate', collPc: 'BD1 2AB', delPc: 'S1 2HE', vehicle: 'Artic', collCo: 'Northgate Depot', delCo: 'Sheffield hub', base: 520 },
+  { cust: 'forsyth', collPc: 'S1 2HE', delPc: 'LS9 0PX', vehicle: 'Luton', collCo: 'Forsyth RDC', delCo: 'Leeds store', base: 300 },
+  { cust: 'brightway', collPc: 'LS9 0PX', delPc: 'NE1 4ST', vehicle: 'Artic', collCo: 'Brightway DC', delCo: 'Newcastle DC', base: 640 },
+  { cust: 'meridian', collPc: 'M15 4FN', delPc: 'CH1 3AE', vehicle: 'Luton', collCo: 'Meridian Foods', delCo: 'Chester depot', base: 280 },
+  { cust: 'orbit', collPc: 'LS4 2AB', delPc: 'HU1 3DZ', vehicle: '18t', collCo: 'Orbit Retail NDC', delCo: 'Hull store', base: 410 },
+  { cust: 'cal', collPc: 'LS9 0PX', delPc: 'YO1 7HH', vehicle: 'Small van', collCo: 'Cal Hub', delCo: 'York drop', base: 110 },
+  { cust: 'owen', collPc: 'WA4 1PX', delPc: 'M1 4ET', vehicle: 'Transit', collCo: 'Owen Yard', delCo: 'Manchester site', base: 130 },
+  { cust: 'northgate', collPc: 'BD1 2AB', delPc: 'WF1 1XX', vehicle: '7.5t', collCo: 'Northgate Depot', delCo: 'Wakefield DC', base: 220 },
+  { cust: 'forsyth', collPc: 'S1 2HE', delPc: 'DN1 1UA', vehicle: '18t', collCo: 'Forsyth RDC', delCo: 'Doncaster store', base: 360 },
+  { cust: 'brightway', collPc: 'LS9 0PX', delPc: 'OL1 1AA', vehicle: '26t', collCo: 'Brightway DC', delCo: 'Oldham store', base: 480 },
+]
+const DRIVERS: Array<[string, string]> = [
+  ['Dave Foster', '07700 900204'], ['Aisha Khan', '07700 900118'], ['Rob Niles', '07700 900330'],
+  ['Lena Park', '07700 900412'], ['Mo Iqbal', '07700 900527'], ['Greg Shaw', '07700 900639'],
+  ['Tina Cole', '07700 900741'], ['Sam Reed', '07700 900852'], ['Carl Webb', '07700 900963'],
+]
+const ACTORS = ['Sarah Doyle', 'James Hill', 'Tom Baker', 'Priya Shah', 'Emma Watts']
+const PROGRESS = ['Unallocated', 'Allocated', 'En route COL', 'On site COL', 'Collected', 'En route DEL', 'On site DEL', 'Part DEL', 'Delivered', 'Failed']
+const DELIVERY_STARTED = new Set(['Collected', 'En route DEL', 'On site DEL', 'Part DEL', 'Delivered'])
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const dY4 = (i: number) => `${pad2(10 + (i % 18))}-06-2026`
+const dY2 = (i: number) => `${pad2(10 + (i % 18))}-06-26`
+const hm = (h: number, m: number) => `${pad2(h)}:${pad2(m)}`
+
+function genRow(status: JobStatus, ref: string, i: number): SeedRow {
+  const t = TEMPLATES[i % TEMPLATES.length]
+  const booking = status === 'Booking'
+  const prog = booking ? PROGRESS[i % PROGRESS.length] : ''
+  const allocated = booking && prog !== 'Unallocated' && prog !== 'Failed'
+  const drv = allocated ? DRIVERS[i % DRIVERS.length] : null
+  const actor = ACTORS[i % ACTORS.length]
+  const cH = 6 + (i % 6), dH = 13 + (i % 6)
+  const rev = t.base + (i % 5) * 25
+  const timed = booking || status === 'Quote'
+  return {
+    ref, status, at: `${dY4(i)} ${hm(8 + (i % 8), (i * 7) % 60)}`,
+    snap: sample({ status, cust: t.cust, collPc: t.collPc, delPc: t.delPc, vehicle: t.vehicle,
+      coll: { co: t.collCo, ref: `COL-${900 + i}` }, del: { co: t.delCo, ref: `DEL-${900 + i}` } }),
+    progress: prog, revenue: rev, cost: Math.round(rev * 0.68),
+    collectAt: timed ? `${dY2(i)} ${hm(cH, 0)}` : '',
+    deliverAt: timed ? `${dY2(i)} ${hm(dH, 30)}` : '',
+    collectMode: 'at', deliverMode: 'by',
+    collectEta: allocated ? hm(cH, (i * 3) % 60) : '',
+    deliverEta: allocated && DELIVERY_STARTED.has(prog) ? hm(dH, (i * 5) % 60) : '',
+    custRef: `PO-${1200 + i}`, actorName: actor,
+    supplierName: drv ? drv[0] : '',
+    supplierPhone: drv ? drv[1] : '',
+    supplierEmail: drv ? drv[0].toLowerCase().replace(/ /g, '.') + '@hauliers.co.uk' : '',
+    supplierAssignedBy: drv ? actor : '',
+    supplierAssignedAt: drv ? `${dY2(i)} 10:00` : '',
+  }
+}
+function genJobs(): SeedRow[] {
+  const out: SeedRow[] = []
+  let i = 0
+  for (let k = 0; k < 48; k++) out.push(genRow('Booking', `BK-${100600 + k}`, i++))
+  for (let k = 0; k < 10; k++) out.push(genRow('Quote', `QU-${100600 + k}`, i++))
+  for (let k = 0; k < 5; k++) out.push(genRow('Draft', `DR-${100600 + k}`, i++))
+  return out
+}
+
 function seedJobs(): SavedJob[] {
   const rows: SeedRow[] = [
     { ref: 'BK-100482', status: 'Booking', at: '06-06-2026 18:53', notes: 'Call ahead — gate code 4471.',
@@ -196,6 +272,7 @@ function seedJobs(): SavedJob[] {
     { ref: 'DR-100510', status: 'Draft', at: '06-06-2026 16:41', snap: sample({ status: 'Draft', cust: 'brightway', collPc: 'WA2 7NE', delPc: 'LS9 0PX', vehicle: '' }),
       progress: '', revenue: 0, cost: 0, collectAt: '', deliverAt: '', collectMode: 'asap', deliverMode: 'asap', collectEta: '', deliverEta: '', custRef: '', actorName: 'Sarah Doyle', supplierName: '' },
   ]
+  rows.push(...genJobs()) // bulk filler → ~70 jobs across Bookings / Quotes / Drafts
   return rows.map((r, i) => ({
     id: `seed-${i}`,
     ref: r.ref,
