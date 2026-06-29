@@ -5,7 +5,7 @@
 import { useCallback, useState, type CSSProperties } from 'react'
 import { LeftRail } from './Rails.tsx'
 import { SplitHandle } from './SplitHandle.tsx'
-import { AgentsWidget } from './AgentsWidget.tsx'
+import { AgentsWidget, MonitorOverlay } from './AgentsWidget.tsx'
 import { ListScreen } from '@/features/jobs/ListScreen.tsx'
 import { CustomersScreen } from '@/features/customers/CustomersScreen.tsx'
 import { UsersScreen } from '@/features/users/UsersScreen.tsx'
@@ -113,6 +113,7 @@ export function App() {
       {emailVisible && <EmailPanel />}
       {paired && <SplitHandle onResize={onResize} />}
       <AgentsWidget />
+      <MonitorOverlay />
     </div>
   )
 }
