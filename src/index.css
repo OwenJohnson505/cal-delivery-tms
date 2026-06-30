@@ -2342,7 +2342,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* Job column — leg icon badge + customer + ref */
 .pqt-job { display: flex; align-items: flex-start; gap: 8px; min-width: 150px; }
 .pqt-leg { flex: none; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; margin-top: 1px; }
-.leg-collect { background: rgba(253,137,3,.12); color: #FD8903; }
+.leg-collect { background: rgba(100,116,139,.1); color: #64748b; }
 .leg-deliver { background: rgba(37,99,235,.1); color: #2563eb; }
 .pqt-job-main { display: flex; flex-direction: column; gap: 1px; }
 .pqt-job-main b { font-weight: 700; font-size: 13px; color: var(--ink); line-height: 1.2; }
@@ -2364,22 +2364,15 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt-rcpt { font-size: 11px; color: var(--accent); margin-top: 3px; }
 
 /* COL / DEL header labels */
-.pqt-th-col { color: #FD8903; font-weight: 800; }
+.pqt-th-col { color: var(--muted); font-weight: 800; }
 .pqt-th-del { color: #2563eb; font-weight: 800; }
 
 /* Stop cell — compact: current leg only; expanded: separate COL / DEL cells */
 .pqt-stop { min-width: 100px; }
-.pqt-stop-label { font-size: 10px; font-weight: 800; letter-spacing: .04em; }
-.pqt-stop-label.col { color: #FD8903; }
-.pqt-stop-label.del { color: #2563eb; }
-.pqt-stop-eta { font-size: 12px; color: var(--ink); margin-top: 2px; padding-left: 24px; }
+.pqt-stop-eta { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .pqt-stop-time { white-space: nowrap; }
 .pqt-stop-time b { font-size: 13px; font-weight: 700; }
 
-/* Route in expanded job cell: COL → DEL postcodes */
-.pqt-route { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
-.pqt-route-col { font-family: monospace; font-size: 11px; font-weight: 700; color: #FD8903; }
-.pqt-route-del { font-family: monospace; font-size: 11px; font-weight: 700; color: #2563eb; }
 .pqt-route-arr { font-size: 11px; color: var(--muted); }
 
 /* Other columns */

@@ -230,20 +230,13 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
                       {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts.join(' · ')}</div>}
                     </td>
 
-                    {/* Col 3: Job — leg icon + customer + ref (+ route in expanded) */}
+                    {/* Col 3: Job — leg icon + customer + ref */}
                     <td>
                       <div className="pqt-job">
                         <span className={`pqt-leg leg-${it.stage}`}><Icon name={it.legIcon} size={13} /></span>
                         <div className="pqt-job-main">
                           <b>{it.cust?.displayName || it.job.customer}</b>
                           <span className="pqt-ref">{it.job.ref}</span>
-                          {isExpanded && (
-                            <span className="pqt-route">
-                              <span className="pqt-route-col">{it.collPc}</span>
-                              <span className="pqt-route-arr">→</span>
-                              <span className="pqt-route-del">{it.delPc}</span>
-                            </span>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -251,29 +244,15 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
                     {/* Cols 4–7 (expanded) or Col 4 (compact: current stop) */}
                     {isExpanded ? (
                       <>
-                        <td className="pqt-stop">
-                          <div><span className="pqt-stop-label col">COL</span> <span className="pc">{it.collPc}</span></div>
-                        </td>
-                        <td className="pqt-stop-time">
-                          <span className="pqt-stop-label col">COL</span> <b>{it.collDue}</b>
-                        </td>
-                        <td className="pqt-stop">
-                          <div><span className="pqt-stop-label del">DEL</span> <span className="pc">{it.delPc}</span></div>
-                        </td>
-                        <td className="pqt-stop-time">
-                          <span className="pqt-stop-label del">DEL</span> <b>{it.delDue}</b>
-                        </td>
+                        <td className="pqt-stop"><span className="pc">{it.collPc}</span></td>
+                        <td className="pqt-stop-time"><b>{it.collDue}</b></td>
+                        <td className="pqt-stop"><span className="pc">{it.delPc}</span></td>
+                        <td className="pqt-stop-time"><b>{it.delDue}</b></td>
                         <td className="pqt-veh">{it.job.vehicle || <span className="muted">—</span>}</td>
                       </>
                     ) : (
-                      /* Compact: only the current leg, clearly labelled */
                       <td className="pqt-stop">
-                        <div>
-                          <span className={`pqt-stop-label ${it.stage === 'collect' ? 'col' : 'del'}`}>
-                            {it.stage === 'collect' ? 'COL' : 'DEL'}
-                          </span>{' '}
-                          <span className="pc">{it.pc}</span>
-                        </div>
+                        <span className="pc">{it.pc}</span>
                         <div className="pqt-stop-eta">{it.due}</div>
                       </td>
                     )}
