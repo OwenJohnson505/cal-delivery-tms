@@ -2365,7 +2365,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* COL / DEL header labels */
 .pqt-th-col { color: var(--muted); font-weight: 800; }
-.pqt-th-del { color: #2563eb; font-weight: 800; }
+.pqt-th-del { color: var(--muted); font-weight: 800; }
 
 /* Stop cell — compact: current leg only; expanded: separate COL / DEL cells */
 .pqt-stop { min-width: 100px; }
