@@ -284,9 +284,9 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     const etaMin = hhmmMin(driverEta)
     const dueMin = hhmmMin(bookedTime)
     const etaDelta = (etaMin != null && dueMin != null) ? etaMin - dueMin : null
-    const deltaStr = etaDelta != null
-      ? etaDelta > 0 ? ` +${etaDelta}m`       // late
-      : etaDelta < 0 ? ` ${Math.abs(etaDelta)}m`  // early (no sign)
+    const deltaStr = etaDelta == null ? ''
+      : etaDelta > 0 ? ` +${etaDelta}m`
+      : etaDelta < 0 ? ` ${Math.abs(etaDelta)}m`
       : ''
     const etaDisplay = driverEta
       ? `${driverEta}${deltaStr}`
