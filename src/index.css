@@ -2398,12 +2398,33 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 .pqt-route-arr { font-size: 11px; color: var(--muted); }
 
-/* Other columns */
+/* Expanded-mode other columns */
 .pqt-veh { white-space: nowrap; }
 .pqt-driver { white-space: nowrap; font-size: 12.5px; min-width: 90px; }
-.pqt-act { white-space: nowrap; padding-left: 8px !important; padding-right: 8px !important; }
-.pqt-act-inner { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+/* Compact: combined Due + Status column */
+.pqt-due-status { min-width: 165px; vertical-align: top !important; }
+.pqt-due-num { margin-bottom: 5px; }
+.pqt-due-num b { font-size: 18px; font-weight: 800; display: inline; color: var(--ink); line-height: 1.1; margin-right: 3px; }
+.pqt-due-num span { font-size: 11px; color: var(--muted); }
+.alert.role-danger .pqt-due-num b { color: #b91c1c; }
+.alert.role-warning .pqt-due-num b { color: #b45309; }
+
+/* Compact: Driver + Vehicle column */
+.pqt-driver-veh { white-space: nowrap; font-size: 12.5px; min-width: 90px; vertical-align: top !important; }
+.pqt-veh-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* Actions cell */
+.pqt-act { padding-left: 8px !important; padding-right: 10px !important; vertical-align: middle; }
 .pqt-th-act { text-align: right; }
+
+/* 2×2 grid: [secondary][📞] / [primary][⋯] */
+.pqt-act-grid { display: grid; grid-template-columns: 1fr 32px; grid-template-rows: auto auto; gap: 3px 4px; }
+.pqt-act-grid .btn { width: 100%; justify-content: center; }
+/* Pending state: stacked confirm/undo */
+.pqt-act-pending { display: flex; flex-direction: column; gap: 3px; }
+.pqt-act-pending .btn { width: 100%; justify-content: center; }
+
 .pqt-empty { text-align: center; color: var(--muted); padding: 36px; }
 
 /* Compact PQ cells — mirroring standard compact view layout */
@@ -2419,11 +2440,13 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pq-time-val { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 20px; white-space: nowrap; }
 /* ETA value — double-click to edit when it's the active leg */
 .pq-eta-val { cursor: default; }
-.pq-cmp-stop td:has(.pq-eta-missing) .pq-time-label:last-of-type,
-.pq-eta-missing { color: #d97706; cursor: pointer; }
+/* ETA relative to due time — green early, amber late, amber missing on active leg */
+.pq-eta-early { color: #16a34a; cursor: pointer; }
+.pq-eta-early:hover { text-decoration: underline; }
+.pq-eta-late { color: #d97706; cursor: pointer; }
+.pq-eta-late:hover { text-decoration: underline; }
+.pq-eta-missing { color: #d97706; cursor: pointer; font-style: italic; }
 .pq-eta-missing:hover { text-decoration: underline; }
-.pq-eta-val:not(.pq-eta-missing):not(.pq-eta-na) { cursor: pointer; }
-.pq-eta-val:not(.pq-eta-missing):not(.pq-eta-na):hover { text-decoration: underline; }
 .pq-eta-na { color: var(--muted); font-weight: 400; }
 /* Inline time input that replaces the ETA value when editing */
 .pq-eta-input-inline { border: 1px solid var(--accent); border-radius: 5px; font: inherit; font-size: 12px; font-weight: 600; padding: 1px 5px; height: 22px; background: #fff; outline: none; }

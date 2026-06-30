@@ -1,7 +1,7 @@
 /**
  * PriorityQueue — the "Admins" saved view as a dense single TABLE.
  * Two density modes:
- *   Compact  (7 cols): Due · Status · Customer · COL · DEL · Driver · Actions
+ *   Compact  (6 cols): Status+Due · Customer · COL · DEL · Driver+Vehicle · Actions
  *   Expanded (10 cols): Due · Status · Job · COL PC · COL ETA · DEL PC · DEL ETA · Vehicle · Driver · Actions
  */
 import React, { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -15,14 +15,12 @@ import { useViewStore } from '@/store/viewStore.ts'
 import type { Stop } from '@/types/index.ts'
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
-/** Extract "HH:MM" from "DD-MM-YY HH:MM" (or bare "HH:MM") */
 function timeOf(dt: string): string {
   const s = (dt || '').trim()
   if (/^\d{1,2}:\d{2}$/.test(s)) return s
   const parts = s.split(' ')
   return parts.length === 2 ? parts[1] : ''
 }
-/** "HH:MM" → minutes from midnight, or null if unparseable */
 function hhmmMin(t: string): number | null {
   const m = (t || '').match(/^(\d{1,2}):(\d{2})$/)
   return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null
@@ -72,7 +70,6 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
   const collPc = collStop?.addr.pc || '—'
   const delPc = delStop?.addr.pc || '—'
 
-  // Booked times from real job data; fall back to hashRef for mock/ASAP jobs
   const collBookedTime = timeOf(job.collectAt)
   const delBookedTime = timeOf(job.deliverAt)
   const collDueMin = hhmmMin(collBookedTime) ?? BASE_NOW + ((hashRef(job.ref + 'collect') % 190) - 90)
@@ -80,7 +77,6 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
   const collDue = collBookedTime || fmtTime(collDueMin)
   const delDue = delBookedTime || fmtTime(delDueMin)
 
-  // Driver ETAs from the job store
   const driverCollEta = job.collectEta || ''
   const driverDelEta = job.deliverEta || ''
 
@@ -97,7 +93,6 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
 
   let role: Role, pill: string, num: string, qual: string, sortKey: number
   let cue: string | undefined
-
   const driverEta = stage === 'collect' ? driverCollEta : driverDelEta
 
   if (noDriver && cfg.unassignedDanger) {
@@ -132,7 +127,6 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
     num = `${delta}m`; qual = 'to go'; sortKey = delta + tie
   } else {
     role = 'neutral'; pill = 'Upcoming'
-    cue = undefined
     num = `${delta}m`; qual = 'to go'
     sortKey = delta > 0 ? delta + tie : MISSING_ETA_RANK
   }
@@ -201,7 +195,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     if (kebab === id) { closeKebab(); return }
     setKebab(id); setKebabMode('menu'); setNoteText('')
   }
-
   const snoozeJob = (id: string, note: string) => {
     if (note.trim()) addReceipt(id, note.trim())
     addReceipt(id, `Snoozed — retry ${fmtTime(nowMin + 5)}`)
@@ -226,7 +219,8 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const cancelInlineEta = () => { setEtaEdit(null); setEtaEditVal('') }
 
   const isExpanded = density === 'expanded'
-  const colSpan = isExpanded ? 10 : 7
+  // compact: 6 · expanded: 10
+  const colSpan = isExpanded ? 10 : 6
 
   function openJob(job: SavedJob) {
     useBookingStore.getState().loadSnapshot(job.snapshot)
@@ -271,7 +265,10 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     )
   }
 
-  /** Compact stop cell — postcode + Due row + ETA row (double-click ETA to edit inline) */
+  /**
+   * Compact stop cell — postcode + Due row + ETA row (colour-coded + delta, double-click to edit).
+   * isActive = this is the leg we are currently chasing (ETA field is editable + highlighted if missing).
+   */
   const stopTimeCell = (
     stop: Stop | undefined,
     pc: string,
@@ -282,7 +279,22 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     isActive: boolean,
   ) => {
     const isEditing = etaEdit?.id === id && etaEdit?.which === which
-    const hasEta = !!driverEta
+
+    // Colour-code ETA relative to booked time
+    const etaMin = hhmmMin(driverEta)
+    const dueMin = hhmmMin(bookedTime)
+    const etaDelta = (etaMin != null && dueMin != null) ? etaMin - dueMin : null
+    const deltaStr = etaDelta != null
+      ? etaDelta > 0 ? ` +${etaDelta}m`       // late
+      : etaDelta < 0 ? ` ${Math.abs(etaDelta)}m`  // early (no sign)
+      : ''
+    const etaDisplay = driverEta
+      ? `${driverEta}${deltaStr}`
+      : isActive ? '— set ETA' : '—'
+    const etaClass = driverEta
+      ? (etaDelta != null ? (etaDelta > 0 ? 'pq-eta-late' : etaDelta < 0 ? 'pq-eta-early' : '') : '')
+      : isActive ? 'pq-eta-missing' : 'pq-eta-na'
+
     return (
       <td className="pq-cmp-stop">
         {stop
@@ -309,11 +321,11 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
             />
           ) : (
             <span
-              className={`pq-time-val pq-eta-val${hasEta ? '' : isActive ? ' pq-eta-missing' : ' pq-eta-na'}`}
+              className={`pq-time-val pq-eta-val ${etaClass}`}
               title={isActive ? 'Double-click to update ETA' : undefined}
               onDoubleClick={isActive ? (e) => openInlineEta(e, id, which, driverEta) : undefined}
             >
-              {driverEta || (isActive ? '— set ETA' : '—')}
+              {etaDisplay}
             </span>
           )}
         </div>
@@ -327,10 +339,10 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
         <table className={`pqt${isExpanded ? ' pqt-exp' : ' pqt-cmp'}`}>
           <thead>
             <tr>
-              <th>Due</th>
-              <th>Status</th>
               {isExpanded ? (
                 <>
+                  <th>Due</th>
+                  <th>Status</th>
                   <th>Job</th>
                   <th><span className="pqt-th-col">COL</span> Postcode</th>
                   <th><span className="pqt-th-col">COL</span> ETA</th>
@@ -340,6 +352,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                 </>
               ) : (
                 <>
+                  <th>Status</th>
                   <th>Customer</th>
                   <th><span className="pqt-th-col">COL</span></th>
                   <th><span className="pqt-th-del">DEL</span></th>
@@ -356,6 +369,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
               const isSnoozed = !!(snoozed[id] && nowMin < snoozed[id])
               const rcpts = receipts[id] ?? []
               const driver = it.job.supplierName || null
+              const vehicle = it.job.vehicle || ''
               const isAlert = it.role !== 'neutral'
               const rowClass = [
                 isSnoozed ? 'pqt-snoozed' : '',
@@ -373,34 +387,32 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                 ? () => { console.log('[TODO] Find driver', id) }
                 : () => markOnSite(it)
 
+              // Shared status content (used in both compact combined-cell and expanded separate cell)
+              const pillNode = isSnoozed
+                ? <span className="pqt-pill role-snoozed"><Icon name="clock" size={11} /> Snoozed · {fmtTime(snoozed[id])}</span>
+                : isPending
+                  ? <span className="pqt-pill role-pending"><span className="pqt-dot" />{it.stage === 'collect' ? 'Collected' : 'Delivered'} {pending[id]}</span>
+                  : <span className={`pqt-pill role-${it.role}`}><span className="pqt-dot" />{it.pill}</span>
+
               return (
                 <Fragment key={id}>
                   <tr className={rowClass} onDoubleClick={() => openJob(it.job)} style={{ cursor: 'pointer' }}>
 
-                    {/* Due */}
-                    <td className="pqt-due">
-                      <b>{it.num}</b>
-                      <span>{it.qual}</span>
-                    </td>
-
-                    {/* Status — pill + context cue */}
-                    <td className="pqt-status">
-                      {isSnoozed
-                        ? <span className="pqt-pill role-snoozed"><Icon name="clock" size={11} /> Snoozed · {fmtTime(snoozed[id])}</span>
-                        : isPending
-                          ? <span className="pqt-pill role-pending"><span className="pqt-dot" />{it.stage === 'collect' ? 'Collected' : 'Delivered'} {pending[id]}</span>
-                          : <span className={`pqt-pill role-${it.role}`}><span className="pqt-dot" />{it.pill}</span>}
-                      {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
-                      {it.isOnSite && !isPending && (
-                        <div className="pqt-cue pqt-onsite-dur">
-                          <Icon name="clock" size={11} /> {it.onSiteMin} min on site
-                        </div>
-                      )}
-                      {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
-                    </td>
-
                     {isExpanded ? (
+                      /* Expanded: separate Due + Status + Job + stop columns */
                       <>
+                        <td className="pqt-due">
+                          <b>{it.num}</b>
+                          <span>{it.qual}</span>
+                        </td>
+                        <td className="pqt-status">
+                          {pillNode}
+                          {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
+                          {it.isOnSite && !isPending && (
+                            <div className="pqt-onsite-dur"><Icon name="clock" size={11} /> {it.onSiteMin} min on site</div>
+                          )}
+                          {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
+                        </td>
                         <td>
                           <div className="pqt-job">
                             <span className={`pqt-leg leg-${it.stage}`}><Icon name={it.legIcon} size={13} /></span>
@@ -430,11 +442,26 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                           <b>{it.delDue}</b>
                           {it.driverDelEta && <div className="pqt-driver-eta">ETA {it.driverDelEta}</div>}
                         </td>
-                        <td className="pqt-veh">{it.job.vehicle || <span className="muted">—</span>}</td>
+                        <td className="pqt-veh">{vehicle || <span className="muted">—</span>}</td>
                       </>
                     ) : (
+                      /* Compact: combined Status+Due · Customer · COL · DEL */
                       <>
-                        {/* Compact customer cell */}
+                        {/* Col 1: combined priority number + pill + cue */}
+                        <td className="pqt-due-status">
+                          <div className="pqt-due-num">
+                            <b>{it.num}</b>
+                            <span>{it.qual}</span>
+                          </div>
+                          {pillNode}
+                          {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
+                          {it.isOnSite && !isPending && (
+                            <div className="pqt-onsite-dur"><Icon name="clock" size={11} /> {it.onSiteMin} min on site</div>
+                          )}
+                          {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
+                        </td>
+
+                        {/* Col 2: customer + ref + progress */}
                         <td className="pq-cmp-cust">
                           <button className="cell-link cmp-co" onClick={(e) => openPop(e, contactNode(it))}>
                             {it.cust?.displayName || it.job.customer}
@@ -445,56 +472,61 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                             <StatusPill status={it.job.progress} />
                           </div>
                         </td>
-                        {/* COL stop — due + ETA */}
+
+                        {/* Col 3: COL stop — booked + ETA */}
                         {stopTimeCell(it.collStop, it.collPc, it.collDue, it.driverCollEta, id, 'collect', it.stage === 'collect')}
-                        {/* DEL stop — due + ETA */}
+
+                        {/* Col 4: DEL stop — booked + ETA */}
                         {stopTimeCell(it.delStop, it.delPc, it.delDue, it.driverDelEta, id, 'deliver', it.stage === 'deliver')}
                       </>
                     )}
 
-                    {/* Driver */}
-                    <td className={`pqt-driver${driver ? '' : ' muted'}`}>{driver ?? 'Unassigned'}</td>
+                    {/* Driver (+ vehicle in compact) */}
+                    {isExpanded ? (
+                      <td className={`pqt-driver${driver ? '' : ' muted'}`}>{driver ?? 'Unassigned'}</td>
+                    ) : (
+                      <td className="pqt-driver-veh">
+                        <div className={driver ? '' : 'muted'}>{driver ?? 'Unassigned'}</div>
+                        {vehicle && <div className="pqt-veh-sub">{vehicle}</div>}
+                      </td>
+                    )}
 
-                    {/* Actions — 4 fixed slots */}
+                    {/* Actions — 2×2 grid: [secondary][📞] / [primary][⋯] */}
                     <td className="pqt-act" onClick={e => e.stopPropagation()}>
-                      <div className="pqt-act-inner">
-                        {isPending ? (
-                          <>
-                            <button className="btn primary sm pq-act-primary" onClick={() => confirmAction(it)}>Confirm</button>
-                            <button className="btn sm pq-act-sec" onClick={() => undo(id)}>Undo</button>
-                            <span className="pq-act-icon" />
-                            <span className="pq-act-icon" />
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              className="btn sm pq-act-sec"
-                              style={{ visibility: secondaryVisible ? 'visible' : 'hidden' }}
-                              onClick={secondaryAction}
-                            >
-                              {secondaryLabel}
-                            </button>
-                            <button className="btn primary sm pq-act-primary" onClick={primaryAction}>
-                              {primaryLabel}
-                            </button>
-                            <button
-                              className="pq-act-icon"
-                              disabled={it.noDriver}
-                              title={it.noDriver ? 'No driver assigned' : `Call ${driver}`}
-                              onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); console.log('[TODO] Aircall', driver) }}
-                            >
-                              <Icon name="phone" size={14} />
-                            </button>
-                            <button
-                              className="pq-act-icon"
-                              title="More actions"
-                              onClick={(e) => { e.stopPropagation(); openKebab(id) }}
-                            >
-                              <Icon name="more" size={14} />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      {isPending ? (
+                        <div className="pqt-act-pending">
+                          <button className="btn primary sm" onClick={() => confirmAction(it)}>Confirm</button>
+                          <button className="btn sm" onClick={() => undo(id)}>Undo</button>
+                        </div>
+                      ) : (
+                        <div className="pqt-act-grid">
+                          <button
+                            className="btn sm pq-act-sec"
+                            style={{ visibility: secondaryVisible ? 'visible' : 'hidden' }}
+                            onClick={secondaryAction}
+                          >
+                            {secondaryLabel}
+                          </button>
+                          <button
+                            className="pq-act-icon"
+                            disabled={it.noDriver}
+                            title={it.noDriver ? 'No driver assigned' : `Call ${driver}`}
+                            onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); console.log('[TODO] Aircall', driver) }}
+                          >
+                            <Icon name="phone" size={14} />
+                          </button>
+                          <button className="btn primary sm pq-act-primary" onClick={primaryAction}>
+                            {primaryLabel}
+                          </button>
+                          <button
+                            className="pq-act-icon"
+                            title="More actions"
+                            onClick={(e) => { e.stopPropagation(); openKebab(id) }}
+                          >
+                            <Icon name="more" size={14} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
 
