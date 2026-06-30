@@ -11,6 +11,8 @@ interface ViewState {
   listTab: ListTab
   /** Id of the saved job currently open in the wizard, or null for a new one. */
   editingJobId: string | null
+  /** Id of the job currently pinned in the floating monitor pill, or null. */
+  pinnedJobId: string | null
 
   goToList(tab?: ListTab): void
   goToCustomers(): void
@@ -18,16 +20,19 @@ interface ViewState {
   go(screen: Screen): void
   openWizard(editingJobId?: string | null): void
   setListTab(tab: ListTab): void
+  pinJob(id: string | null): void
 }
 
 export const useViewStore = create<ViewState>((set) => ({
   screen: 'list',
   listTab: 'bookings',
   editingJobId: null,
+  pinnedJobId: null,
 
   goToList: (tab) => set((s) => ({ screen: 'list', listTab: tab ?? s.listTab })),
   goToCustomers: () => set({ screen: 'customers' }),
   go: (screen) => set({ screen }),
   openWizard: (editingJobId = null) => set({ screen: 'wizard', editingJobId }),
   setListTab: (tab) => set({ listTab: tab }),
+  pinJob: (id) => set({ pinnedJobId: id }),
 }))

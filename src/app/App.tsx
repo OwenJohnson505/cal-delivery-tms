@@ -17,6 +17,7 @@ import { WizardHost } from '@/features/forms/LiveBookingScreen.tsx'
 import { EmailPanel } from '@/features/email/EmailPanel.tsx'
 import { EmailRulesScreen } from '@/features/email/EmailRulesScreen.tsx'
 import { PriorityListScreen } from '@/features/jobs/PriorityListScreen.tsx'
+import { PinnedJobPill } from '@/features/jobs/PinnedJobPill.tsx'
 import { useViewStore } from '@/store/viewStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
@@ -114,6 +115,7 @@ export function App() {
       </div>
       {emailVisible && <EmailPanel />}
       {paired && <SplitHandle onResize={onResize} />}
+      <PinnedJobPill />
       <AgentsWidget />
       <MonitorOverlay />
     </div>

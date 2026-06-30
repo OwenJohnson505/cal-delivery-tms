@@ -116,6 +116,8 @@ export function ListScreen() {
   const tab = useViewStore((s) => s.listTab)
   const setListTab = useViewStore((s) => s.setListTab)
   const openWizard = useViewStore((s) => s.openWizard)
+  const pinnedJobId = useViewStore((s) => s.pinnedJobId)
+  const pinJob = useViewStore((s) => s.pinJob)
   const newBooking = useBookingStore((s) => s.newBooking)
   const loadSnapshot = useBookingStore((s) => s.loadSnapshot)
 
@@ -605,12 +607,16 @@ export function ListScreen() {
     )
   }
 
-  // Per-row quick-actions menu (kebab). Just Delete for now.
+  // Per-row quick-actions menu (kebab).
   const openRowMenu = (e: React.MouseEvent, j: SavedJob) => {
     e.stopPropagation()
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const isPinned = pinnedJobId === j.id
     const node = (
       <div className="rowmenu">
+        <button className="rowmenu-item" onClick={() => { setPop(null); pinJob(isPinned ? null : j.id) }}>
+          <Icon name="pin" size={14} /> {isPinned ? 'Unpin job' : 'Pin job'}
+        </button>
         <button className="rowmenu-item danger" onClick={() => { setPop(null); if (confirm(`Delete ${j.ref}?`)) deleteJob(j.id) }}>
           <Icon name="trash" size={14} /> Delete
         </button>
