@@ -2321,9 +2321,12 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* ── Admin priority queue view (the "Admins" saved view) ──────────────────────────── */
 /* Shared: header, live indicator, action buttons, completed section */
 .pq { display: flex; flex-direction: column; gap: 0; }
-.pq-primary { white-space: nowrap; }
-.pq-icon { width: 32px; height: 32px; border: 1px solid var(--line-strong); background: #fff; border-radius: 8px; cursor: pointer; display: grid; place-items: center; color: var(--muted); }
-.pq-icon:hover { background: var(--field); color: var(--ink); }
+/* Action cell — 4 fixed slots: [secondary] [primary] [📞] [⋯] — consistent across all row states */
+.pq-act-primary { min-width: 115px; white-space: nowrap; justify-content: center; }
+.pq-act-sec { min-width: 82px; white-space: nowrap; justify-content: center; }
+.pq-act-icon { width: 32px; height: 32px; flex: none; border: 1px solid var(--line-strong); background: #fff; border-radius: 8px; cursor: pointer; display: grid; place-items: center; color: var(--muted); padding: 0; }
+.pq-act-icon:hover:not(:disabled) { background: var(--field); color: var(--ink); }
+.pq-act-icon:disabled { opacity: 0.3; cursor: default; }
 .pq-kebab-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; color: var(--ink); }
 .pq-kebab-btn:hover { background: var(--field); }
 .pq-done-wrap { display: flex; flex-direction: column; }
@@ -2369,7 +2372,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt-ref { font-size: 11px; color: var(--muted); font-family: monospace; }
 
 /* Status column — pill + optional cue + receipts */
-.pqt-status { min-width: 230px; }
+.pqt-status { min-width: 155px; }
 .pqt-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 2px 8px 2px 5px; border-radius: 99px; }
 .pqt-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .pqt-pill.role-danger { color: #b91c1c; background: #fee2e2; }
@@ -2397,9 +2400,19 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* Other columns */
 .pqt-veh { white-space: nowrap; }
-.pqt-act { white-space: nowrap; }
-.pqt-act-inner { display: flex; align-items: center; gap: 5px; }
+.pqt-driver { white-space: nowrap; font-size: 12.5px; min-width: 90px; }
+.pqt-act { white-space: nowrap; padding-left: 8px !important; padding-right: 8px !important; }
+.pqt-act-inner { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.pqt-th-act { text-align: right; }
 .pqt-empty { text-align: center; color: var(--muted); padding: 36px; }
+
+/* Compact PQ cells — mirroring standard compact view layout */
+.pq-cmp-cust { min-width: 140px; vertical-align: top !important; }
+.pq-cmp-stop { min-width: 88px; vertical-align: top !important; white-space: nowrap; }
+.pq-cmp-stop .pc { font-size: 13px; font-weight: 600; color: var(--ink); display: inline-block; margin-bottom: 3px; }
+.pq-eta { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+/* Leg-direction badge inline with the progress pill in compact customer cell */
+.pq-leg-inline { width: 15px; height: 15px; border-radius: 4px; display: inline-grid; place-items: center; vertical-align: middle; margin-right: 3px; margin-top: -1px; }
 
 /* Snoozed row — de-emphasised until snooze expires */
 .pqt tbody tr.pqt-snoozed > td { opacity: 0.45; }

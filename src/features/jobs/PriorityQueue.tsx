@@ -1,15 +1,15 @@
 /**
  * PriorityQueue — the "Admins" saved view as a dense single TABLE.
  * Two density modes:
- *   Compact  (6 cols): Due · Status · Job · Stop (current leg, COL/DEL labelled) · Driver · Actions
- *   Expanded (8 cols): Due · Status · Job (+ route) · Collection · Delivery · Vehicle · Driver · Actions
- * Priority order: 1. No driver  2. Overdue collect  3. Overdue deliver  4. Stalled  5. Upcoming
+ *   Compact  (7 cols): Due · Status · Customer · COL · DEL · Driver · Actions
+ *   Expanded (10 cols): Due · Status · Job · COL PC · COL ETA · DEL PC · DEL ETA · Vehicle · Driver · Actions
  */
 import React, { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from '@/app/Icon.tsx'
+import { StatusPill } from '@/app/StatusPill.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
-import { usePriorityStore, type PriorityConfig } from '@/store/priorityStore.ts'
+import { usePriorityStore } from '@/store/priorityStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
 import type { Stop } from '@/types/index.ts'
@@ -26,7 +26,6 @@ const fmtTime = (min: number): string =>
 const hashRef = (s: string): number => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h }
 const BASE_NOW = 9 * 60 + 20
 
-// ── Stage classification ──────────────────────────────────────────────────────
 const DELIVER_STAGES = new Set(['Collected', 'Part COL', 'En route DEL', 'On site DEL', 'Part DEL'])
 function stageOf(progress: string): 'collect' | 'deliver' | 'done' {
   if (progress === 'Delivered' || progress === 'Failed') return 'done'
@@ -34,7 +33,6 @@ function stageOf(progress: string): 'collect' | 'deliver' | 'done' {
   return 'collect'
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 type Role = 'danger' | 'warning' | 'neutral'
 type KebabMode = 'menu' | 'note' | 'eta'
 
@@ -50,8 +48,7 @@ interface QItem {
   num: string; qual: string; sortKey: number
 }
 
-// ── Build item + priority engine ──────────────────────────────────────────────
-function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cfg: PriorityConfig): QItem {
+function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cfg: ReturnType<typeof usePriorityStore.getState>['config']): QItem {
   const stage = stageOf(job.progress) as 'collect' | 'deliver'
   const verb = stage === 'collect' ? 'Collect' : 'Deliver'
   const stops = job.snapshot.stops
@@ -122,7 +119,6 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
   }
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'compact' | 'expanded' }) {
   const customers = useCustomersStore(s => s.customers)
   const setProgress = useJobsStore(s => s.setProgress)
@@ -139,7 +135,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const [etaText, setEtaText] = useState('')
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
-  const etaRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const t = window.setInterval(() => setNowMin(n => n + 1), Math.max(5, cfg.refreshSec) * 1000)
@@ -170,15 +165,11 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     setProgress(it.job.id, it.stage === 'collect' ? 'On site COL' : 'On site DEL')
     addReceipt(it.job.id, `On site ${fmtTime(nowMin)}`)
   }
-
-  const closeKebab = () => {
-    setKebab(null); setKebabMode('menu'); setNoteText(''); setEtaText('')
-  }
+  const closeKebab = () => { setKebab(null); setKebabMode('menu'); setNoteText(''); setEtaText('') }
   const openKebab = (id: string) => {
     if (kebab === id) { closeKebab(); return }
     setKebab(id); setKebabMode('menu'); setNoteText(''); setEtaText('')
   }
-
   const snoozeJob = (id: string, note: string) => {
     if (note.trim()) addReceipt(id, note.trim())
     addReceipt(id, `Snoozed — retry ${fmtTime(nowMin + 5)}`)
@@ -186,15 +177,13 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     closeKebab()
   }
   const saveEta = (it: QItem, eta: string) => {
-    if (eta) {
-      setEta(it.job.id, it.stage === 'collect' ? 'collect' : 'deliver', eta)
-      addReceipt(it.job.id, `ETA → ${eta}`)
-    }
+    if (eta) { setEta(it.job.id, it.stage, eta); addReceipt(it.job.id, `ETA → ${eta}`) }
     closeKebab()
   }
 
   const isExpanded = density === 'expanded'
-  const colSpan = isExpanded ? 8 : 6
+  // compact: 7 cols · expanded: 10 cols
+  const colSpan = isExpanded ? 10 : 7
 
   function openJob(job: SavedJob) {
     useBookingStore.getState().loadSnapshot(job.snapshot)
@@ -229,33 +218,27 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
         {c ? (
           <>
             <div className="cp-row"><span className="cp-k">Name</span><span>{c.name || '—'}</span></div>
-            {c.email
-              ? <a className="cp-link" href={`mailto:${c.email}`}><Icon name="mail" size={13} /> {c.email}</a>
+            {c.email ? <a className="cp-link" href={`mailto:${c.email}`}><Icon name="mail" size={13} /> {c.email}</a>
               : <div className="cp-row"><span className="cp-k">Email</span><span>—</span></div>}
-            {c.tel
-              ? <a className="cp-link" href={`tel:${c.tel}`}><Icon name="phone" size={13} /> {c.tel}</a>
+            {c.tel ? <a className="cp-link" href={`tel:${c.tel}`}><Icon name="phone" size={13} /> {c.tel}</a>
               : <div className="cp-row"><span className="cp-k">Phone</span><span>—</span></div>}
           </>
-        ) : (
-          <div className="cp-row"><span>No contact on file</span></div>
-        )}
+        ) : <div className="cp-row"><span>No contact on file</span></div>}
       </div>
     )
   }
 
   return (
     <div className={`pq${isExpanded ? '' : ' pq-cmp'}`}>
-
-      {/* ── Table ── */}
       <div className="pqt-scroll">
         <table className={`pqt${isExpanded ? ' pqt-exp' : ' pqt-cmp'}`}>
           <thead>
             <tr>
               <th>Due</th>
               <th>Status</th>
-              <th>Job</th>
               {isExpanded ? (
                 <>
+                  <th>Job</th>
                   <th><span className="pqt-th-col">COL</span> Postcode</th>
                   <th><span className="pqt-th-col">COL</span> ETA</th>
                   <th><span className="pqt-th-del">DEL</span> Postcode</th>
@@ -263,10 +246,14 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                   <th>Vehicle</th>
                 </>
               ) : (
-                <th>Stop</th>
+                <>
+                  <th>Customer</th>
+                  <th><span className="pqt-th-col">COL</span></th>
+                  <th><span className="pqt-th-del">DEL</span></th>
+                </>
               )}
               <th>Driver</th>
-              <th></th>
+              <th className="pqt-th-act"></th>
             </tr>
           </thead>
           <tbody>
@@ -281,45 +268,64 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                 isSnoozed ? 'pqt-snoozed' : '',
                 !isSnoozed && (isPending ? 'pending' : isAlert ? `alert role-${it.role}` : ''),
               ].filter(Boolean).join(' ')
-              const currentStop = it.stage === 'collect' ? it.collStop : it.delStop
+
+              // Derive consistent 4-slot action buttons
+              const secondaryLabel = it.noDriver ? 'Find driver' : 'On site'
+              const secondaryVisible = it.noDriver || !it.isOnSite
+              const primaryLabel = it.noDriver
+                ? 'Post job'
+                : it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'
+              const primaryAction = it.noDriver
+                ? () => { console.log('[TODO] Post job', id); addReceipt(id, 'Job posted') }
+                : () => markActioned(id)
+              const secondaryAction = it.noDriver
+                ? () => { console.log('[TODO] Find driver', id) }
+                : () => markOnSite(it)
+
+              const stopCell = (stop: Stop | undefined, pc: string, due: string) => (
+                <td className="pq-cmp-stop">
+                  {stop
+                    ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(stop))}>{pc}</button>
+                    : <span className="pc muted">{pc}</span>}
+                  <span className="pq-eta">{due}</span>
+                </td>
+              )
 
               return (
                 <Fragment key={id}>
                   <tr className={rowClass} onDoubleClick={() => openJob(it.job)} style={{ cursor: 'pointer' }}>
 
-                    {/* Col 1: Due */}
+                    {/* Due */}
                     <td className="pqt-due">
                       <b>{it.num}</b>
                       <span>{it.qual}</span>
                     </td>
 
-                    {/* Col 2: Status */}
+                    {/* Status */}
                     <td className="pqt-status">
                       {isSnoozed
                         ? <span className="pqt-pill role-snoozed"><Icon name="clock" size={11} /> Snoozed · {fmtTime(snoozed[id])}</span>
                         : isPending
-                          ? <span className="pqt-pill role-pending"><span className="pqt-dot" />{it.stage === 'collect' ? 'Collected' : 'Delivered'} {pending[id]} · confirm?</span>
+                          ? <span className="pqt-pill role-pending"><span className="pqt-dot" />{it.stage === 'collect' ? 'Collected' : 'Delivered'} {pending[id]}</span>
                           : <span className={`pqt-pill role-${it.role}`}><span className="pqt-dot" />{it.pill}</span>}
                       {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
                       {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
                     </td>
 
-                    {/* Col 3: Job */}
-                    <td>
-                      <div className="pqt-job">
-                        <span className={`pqt-leg leg-${it.stage}`}><Icon name={it.legIcon} size={13} /></span>
-                        <div className="pqt-job-main">
-                          <button className="cell-link" onClick={(e) => openPop(e, contactNode(it))}>
-                            {it.cust?.displayName || it.job.customer}
-                          </button>
-                          <span className="pqt-ref">{it.job.ref}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Stop columns */}
                     {isExpanded ? (
                       <>
+                        {/* Job */}
+                        <td>
+                          <div className="pqt-job">
+                            <span className={`pqt-leg leg-${it.stage}`}><Icon name={it.legIcon} size={13} /></span>
+                            <div className="pqt-job-main">
+                              <button className="cell-link" onClick={(e) => openPop(e, contactNode(it))}>
+                                {it.cust?.displayName || it.job.customer}
+                              </button>
+                              <span className="pqt-ref">{it.job.ref}</span>
+                            </div>
+                          </div>
+                        </td>
                         <td className="pqt-stop">
                           {it.collStop
                             ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(it.collStop!))}>{it.collPc}</button>
@@ -335,71 +341,77 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                         <td className="pqt-veh">{it.job.vehicle || <span className="muted">—</span>}</td>
                       </>
                     ) : (
-                      <td className="pqt-stop">
-                        {currentStop
-                          ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(currentStop))}>{it.pc}</button>
-                          : <span className="pc muted">{it.pc}</span>}
-                        <div className="pqt-stop-eta">{it.due}</div>
-                      </td>
+                      <>
+                        {/* Compact: customer cell — mirrors standard cmp-cust */}
+                        <td className="pq-cmp-cust">
+                          <button className="cell-link cmp-co" onClick={(e) => openPop(e, contactNode(it))}>
+                            {it.cust?.displayName || it.job.customer}
+                          </button>
+                          <div className="cmp-ref">{it.job.ref}</div>
+                          <div className="cmp-status">
+                            <span className={`pqt-leg leg-${it.stage} pq-leg-inline`}><Icon name={it.legIcon} size={11} /></span>
+                            <StatusPill status={it.job.progress} />
+                          </div>
+                        </td>
+                        {/* COL stop */}
+                        {stopCell(it.collStop, it.collPc, it.collDue)}
+                        {/* DEL stop */}
+                        {stopCell(it.delStop, it.delPc, it.delDue)}
+                      </>
                     )}
 
                     {/* Driver */}
-                    <td className={driver ? '' : 'muted'}>{driver ?? 'Unassigned'}</td>
+                    <td className={`pqt-driver${driver ? '' : ' muted'}`}>{driver ?? 'Unassigned'}</td>
 
-                    {/* Actions */}
+                    {/* Actions — always 4 fixed slots */}
                     <td className="pqt-act" onClick={e => e.stopPropagation()}>
                       <div className="pqt-act-inner">
                         {isPending ? (
                           <>
-                            <button className="btn primary sm" onClick={() => confirmAction(it)}>Confirm</button>
-                            <button className="btn sm" onClick={() => undo(id)}>Undo</button>
-                          </>
-                        ) : it.noDriver ? (
-                          // No driver — dispatch actions only
-                          <>
-                            <button className="btn primary sm pq-primary" title="Post this job to find a driver" onClick={() => { console.log('[TODO] Post job', id); addReceipt(id, 'Job posted') }}>
-                              Post job
-                            </button>
-                            <button className="btn sm pq-primary" title="View available driver options" onClick={() => { console.log('[TODO] View driver options', id) }}>
-                              Find driver
-                            </button>
-                            <button className="pq-icon" title="More actions" onClick={() => openKebab(id)}>⋯</button>
+                            <button className="btn primary sm pq-act-primary" onClick={() => confirmAction(it)}>Confirm</button>
+                            <button className="btn sm pq-act-sec" onClick={() => undo(id)}>Undo</button>
+                            <span className="pq-act-icon" />
+                            <span className="pq-act-icon" />
                           </>
                         ) : (
-                          // Driver assigned — stage-appropriate progress actions
                           <>
-                            {!it.isOnSite && (
-                              <button
-                                className="btn sm"
-                                title={it.stage === 'collect' ? 'Mark driver as arrived for collection' : 'Mark driver as arrived for delivery'}
-                                onClick={() => markOnSite(it)}
-                              >
-                                On site
-                              </button>
-                            )}
-                            <button className="btn primary sm pq-primary" onClick={() => markActioned(id)}>
-                              {it.stage === 'collect' ? 'Collected' : 'Delivered'}
+                            <button
+                              className="btn sm pq-act-sec"
+                              style={{ visibility: secondaryVisible ? 'visible' : 'hidden' }}
+                              onClick={secondaryAction}
+                            >
+                              {secondaryLabel}
                             </button>
-                            <button className="pq-icon" title={`Call ${driver}`} onClick={() => {
-                              console.log('[TODO] Aircall call', it.job.supplierName)
-                              addReceipt(id, `Called ${fmtTime(nowMin)}`)
-                            }}>
+                            <button className="btn primary sm pq-act-primary" onClick={primaryAction}>
+                              {primaryLabel}
+                            </button>
+                            <button
+                              className="pq-act-icon"
+                              disabled={it.noDriver}
+                              title={it.noDriver ? 'No driver assigned' : `Call ${driver}`}
+                              onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); console.log('[TODO] Aircall', driver) }}
+                            >
                               <Icon name="phone" size={14} />
                             </button>
-                            <button className="pq-icon" title="More actions" onClick={() => openKebab(id)}>⋯</button>
+                            <button
+                              className="pq-act-icon"
+                              title="More actions"
+                              onClick={(e) => { e.stopPropagation(); openKebab(id) }}
+                            >
+                              <Icon name="more" size={14} />
+                            </button>
                           </>
                         )}
                       </div>
                     </td>
                   </tr>
 
-                  {/* Kebab panel */}
+                  {/* Kebab row */}
                   {kebab === id && !isPending && (
                     <tr className="pqt-kebab-row">
                       <td colSpan={colSpan}>
                         <div className="pqt-kebab">
                           {kebabMode === 'note' ? (
-                            // ── Note + snooze form ──────────────────────
                             <div className="pqt-kebab-form">
                               <textarea
                                 ref={noteRef}
@@ -418,60 +430,42 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                               </div>
                             </div>
                           ) : kebabMode === 'eta' ? (
-                            // ── Update ETA form ─────────────────────────
                             <div className="pqt-kebab-form">
-                              <label className="pqt-kebab-label">
-                                {it.stage === 'collect' ? 'Collection' : 'Delivery'} ETA
-                              </label>
+                              <label className="pqt-kebab-label">{it.stage === 'collect' ? 'Collection' : 'Delivery'} ETA</label>
                               <div className="pqt-kebab-form-row">
                                 <input
-                                  ref={etaRef}
                                   type="time"
                                   className="pqt-eta-input"
                                   value={etaText}
                                   onChange={e => setEtaText(e.target.value)}
                                   autoFocus
                                 />
-                                <button className="btn primary sm" onClick={() => saveEta(it, etaText)} disabled={!etaText}>
-                                  Save ETA
-                                </button>
+                                <button className="btn primary sm" onClick={() => saveEta(it, etaText)} disabled={!etaText}>Save ETA</button>
                                 <button className="btn sm" onClick={() => { setKebabMode('menu'); setEtaText('') }}>Cancel</button>
                               </div>
                             </div>
                           ) : it.noDriver ? (
-                            // ── No driver: dispatch kebab ────────────────
                             <>
                               <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
-                              <KebabBtn icon="arrow-up-right" label="Post job" onClick={() => { console.log('[TODO] Post job', id); addReceipt(id, 'Job posted'); closeKebab() }} />
-                              <KebabBtn icon="users" label="Find driver" onClick={() => { console.log('[TODO] DriverBase', id); closeKebab() }} />
-                              <KebabBtn icon="mail" label="Update customer" onClick={() => { console.log('[TODO] Front draft', id); addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
-                              <KebabBtn icon="note" label="Add note &amp; snooze" onClick={() => setKebabMode('note')} />
+                              <KebabBtn icon="arrow-up-right" label="Post job" onClick={() => { addReceipt(id, 'Job posted'); closeKebab() }} />
+                              <KebabBtn icon="users" label="Find driver" onClick={() => closeKebab()} />
+                              <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
+                              <KebabBtn icon="note" label="Add note & snooze" onClick={() => setKebabMode('note')} />
                             </>
                           ) : (
-                            // ── Driver assigned: progress kebab ──────────
                             <>
                               <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
-                              {it.isOnSite ? (
-                                <KebabBtn
-                                  icon={it.stage === 'collect' ? 'arrow-up-right' : 'flag'}
-                                  label={it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'}
-                                  onClick={() => { markActioned(id); closeKebab() }}
-                                />
-                              ) : (
-                                <>
-                                  <KebabBtn icon="pin" label="On site" onClick={() => { markOnSite(it); closeKebab() }} />
-                                  <KebabBtn
-                                    icon={it.stage === 'collect' ? 'arrow-up-right' : 'flag'}
-                                    label={it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'}
-                                    onClick={() => { markActioned(id); closeKebab() }}
-                                  />
-                                </>
-                              )}
+                              {!it.isOnSite && <KebabBtn icon="pin" label="On site" onClick={() => { markOnSite(it); closeKebab() }} />}
+                              <KebabBtn
+                                icon={it.stage === 'collect' ? 'arrow-up-right' : 'flag'}
+                                label={it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'}
+                                onClick={() => { markActioned(id); closeKebab() }}
+                              />
                               <KebabBtn icon="clock" label="Update ETA" onClick={() => setKebabMode('eta')} />
-                              <KebabBtn icon="phone" label="Ring driver" onClick={() => { console.log('[TODO] Aircall call', it.job.supplierName); addReceipt(id, `Called ${fmtTime(nowMin)}`); closeKebab() }} />
-                              <KebabBtn icon="mail" label="Update customer" onClick={() => { console.log('[TODO] Front draft ETA', it.job.ref); addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
-                              <KebabBtn icon="truck" label="Reassign driver" onClick={() => { console.log('[TODO] Driver Base reassign', it.job.ref); closeKebab() }} />
-                              <KebabBtn icon="note" label="Add note &amp; snooze" onClick={() => setKebabMode('note')} />
+                              <KebabBtn icon="phone" label="Ring driver" onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); closeKebab() }} />
+                              <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
+                              <KebabBtn icon="truck" label="Reassign driver" onClick={() => closeKebab()} />
+                              <KebabBtn icon="note" label="Add note & snooze" onClick={() => setKebabMode('note')} />
                             </>
                           )}
                         </div>
@@ -488,7 +482,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
         </table>
       </div>
 
-      {/* ── Completed ── */}
+      {/* Completed */}
       <div className="pq-done-wrap">
         <div className="pq-done-h"><Icon name="check" size={13} /> Completed — {done.length} job{done.length === 1 ? '' : 's'}</div>
         {done.map(j => (
@@ -502,7 +496,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
         ))}
       </div>
 
-      {/* Detail popover */}
       {pop && (
         <>
           <div className="cc-pop-scrim" onClick={() => setPop(null)} />
