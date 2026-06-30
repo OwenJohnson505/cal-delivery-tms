@@ -45,7 +45,22 @@ function stageOf(progress: string): 'collect' | 'deliver' | 'done' {
 }
 
 type Role = 'danger' | 'warning' | 'neutral'
-type KebabMode = 'menu' | 'note'
+type KebabMode = 'menu' | 'note' | 'arrival' | 'pod' | 'find-driver' | 'post-job'
+type SnoozeDur = 5 | 10 | 30 | 'custom'
+
+interface SnoozeEntry {
+  until: number
+  label?: string   // manual status label — if set, shows "Manual" pill instead of "Snoozed"
+}
+
+// Mock driver list — will be replaced with live DriverBase query
+const MOCK_DRIVERS = [
+  { id: 'd1', name: 'Alex Turner',  vehicle: 'LWB Van', distance: '1.2 mi', avail: true  },
+  { id: 'd2', name: 'Maria Santos', vehicle: 'SWB Van', distance: '2.4 mi', avail: true  },
+  { id: 'd3', name: 'James Hill',   vehicle: 'Luton',   distance: '3.8 mi', avail: true  },
+  { id: 'd4', name: 'Priya Kapoor', vehicle: 'LWB Van', distance: '5.1 mi', avail: false },
+  { id: 'd5', name: 'Tom Baker',    vehicle: 'Luton',   distance: '6.2 mi', avail: false },
+]
 
 interface QItem {
   job: SavedJob; cust?: Customer
@@ -149,15 +164,37 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const cfg = usePriorityStore(s => s.config)
 
   const [nowMin, setNowMin] = useState(BASE_NOW)
-  const [pending, setPending] = useState<Record<string, string>>({})
   const [receipts, setReceipts] = useState<Record<string, string[]>>({})
-  const [snoozed, setSnoozed] = useState<Record<string, number>>({})
+  const [snoozed, setSnoozed] = useState<Record<string, SnoozeEntry>>({})
+
+  // Kebab panel
   const [kebab, setKebab] = useState<string | null>(null)
   const [kebabMode, setKebabMode] = useState<KebabMode>('menu')
+
+  // Note / snooze form state
   const [noteText, setNoteText] = useState('')
+  const [snoozeDur, setSnoozeDur] = useState<SnoozeDur>(5)
+  const [customSnoozeMins, setCustomSnoozeMins] = useState('')
+  const [showManualLabel, setShowManualLabel] = useState(false)
+  const [manualLabel, setManualLabel] = useState('')
+
+  // On-site arrival form
+  const [arrivalFormTime, setArrivalFormTime] = useState('')
+
+  // Collection / delivery POD form
+  const [podName, setPodName] = useState('')
+  const [podTime, setPodTime] = useState('')
+
+  // Post-job CX form
+  const [postJobNotes, setPostJobNotes] = useState('')
+
+  // ETA inline edit
   const [etaEdit, setEtaEdit] = useState<{ id: string; which: 'collect' | 'deliver' } | null>(null)
   const [etaEditVal, setEtaEditVal] = useState('')
+
+  // Address / contact / notes popover
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
+
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -172,36 +209,115 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const items = active
     .map(j => buildItem(j, custById(j.snapshot.book.cust), nowMin, cfg))
     .sort((a, b) => {
-      const aSn = !!(snoozed[a.job.id] && nowMin < snoozed[a.job.id])
-      const bSn = !!(snoozed[b.job.id] && nowMin < snoozed[b.job.id])
+      const aSnEntry = snoozed[a.job.id]
+      const bSnEntry = snoozed[b.job.id]
+      const aSn = !!(aSnEntry && nowMin < aSnEntry.until)
+      const bSn = !!(bSnEntry && nowMin < bSnEntry.until)
       if (aSn !== bSn) return aSn ? 1 : -1
       return a.sortKey - b.sortKey
     })
 
-  const addReceipt = (id: string, text: string) => setReceipts(r => ({ ...r, [id]: [...(r[id] ?? []), text] }))
-  const markActioned = (id: string) => setPending(p => ({ ...p, [id]: fmtTime(nowMin) }))
-  const undo = (id: string) => setPending(p => { const n = { ...p }; delete n[id]; return n })
-  const confirmAction = (it: QItem) => {
-    undo(it.job.id)
-    setProgress(it.job.id, it.stage === 'collect' ? 'Collected' : 'Delivered')
-  }
-  const markOnSite = (it: QItem) => {
-    setProgress(it.job.id, it.stage === 'collect' ? 'On site COL' : 'On site DEL')
-    addReceipt(it.job.id, `On site ${fmtTime(nowMin)}`)
+  const addReceipt = (id: string, text: string) =>
+    setReceipts(r => ({ ...r, [id]: [...(r[id] ?? []), text] }))
+
+  // ── Kebab helpers ─────────────────────────────────────────────────────────
+  const resetKebabForms = () => {
+    setNoteText('')
+    setSnoozeDur(5)
+    setCustomSnoozeMins('')
+    setShowManualLabel(false)
+    setManualLabel('')
+    setArrivalFormTime('')
+    setPodName('')
+    setPodTime('')
+    setPostJobNotes('')
   }
 
-  const closeKebab = () => { setKebab(null); setKebabMode('menu'); setNoteText('') }
-  const openKebab = (id: string) => {
-    if (kebab === id) { closeKebab(); return }
-    setKebab(id); setKebabMode('menu'); setNoteText('')
+  const closeKebab = () => {
+    setKebab(null)
+    setKebabMode('menu')
+    resetKebabForms()
   }
-  const snoozeJob = (id: string, note: string) => {
-    if (note.trim()) addReceipt(id, note.trim())
-    addReceipt(id, `Snoozed — retry ${fmtTime(nowMin + 5)}`)
-    setSnoozed(s => ({ ...s, [id]: nowMin + 5 }))
+
+  const openKebab = (id: string) => {
+    if (kebab === id && kebabMode === 'menu') { closeKebab(); return }
+    setKebab(id)
+    setKebabMode('menu')
+    resetKebabForms()
+  }
+
+  // ── Action openers (primary/secondary button clicks) ──────────────────────
+  const onSiteClick = (it: QItem) => {
+    setKebab(it.job.id)
+    setKebabMode('arrival')
+    setArrivalFormTime(fmtTime(nowMin))
+  }
+
+  const podClick = (it: QItem) => {
+    setKebab(it.job.id)
+    setKebabMode('pod')
+    setPodName('')
+    setPodTime(fmtTime(nowMin))
+  }
+
+  const findDriverClick = (id: string) => {
+    setKebab(id)
+    setKebabMode('find-driver')
+    resetKebabForms()
+  }
+
+  const postJobClick = (it: QItem) => {
+    setKebab(it.job.id)
+    setKebabMode('post-job')
+    setPostJobNotes(it.job.snapshot.cx.text || '')
+  }
+
+  // ── Action confirmations ──────────────────────────────────────────────────
+  const confirmArrival = (it: QItem) => {
+    const time = arrivalFormTime || fmtTime(nowMin)
+    setProgress(it.job.id, it.stage === 'collect' ? 'On site COL' : 'On site DEL')
+    addReceipt(it.job.id, `Arrived on site at ${time}`)
     closeKebab()
   }
 
+  const confirmPod = (it: QItem) => {
+    const time = podTime || fmtTime(nowMin)
+    const action = it.stage === 'collect' ? 'Collected' : 'Delivered'
+    setProgress(it.job.id, action)
+    const note = podName
+      ? `${action} · signed by ${podName} at ${time}`
+      : `${action} at ${time}`
+    addReceipt(it.job.id, note)
+    closeKebab()
+  }
+
+  const postJobToCx = (it: QItem) => {
+    addReceipt(it.job.id, `Posted to CX${postJobNotes ? ` — "${postJobNotes.slice(0, 60)}${postJobNotes.length > 60 ? '…' : ''}"` : ''}`)
+    console.log('[TODO] Post to CX platform', it.job.ref, postJobNotes)
+    closeKebab()
+  }
+
+  const assignDriver = (jobId: string, driverName: string) => {
+    addReceipt(jobId, `Driver booked: ${driverName}`)
+    console.log('[TODO] Assign driver to job', driverName, jobId)
+    closeKebab()
+  }
+
+  const handleSnooze = (id: string) => {
+    const mins: number = snoozeDur === 'custom'
+      ? Math.max(1, parseInt(customSnoozeMins || '5') || 5)
+      : snoozeDur
+    const label = showManualLabel ? manualLabel.trim() : undefined
+    if (noteText.trim()) addReceipt(id, noteText.trim())
+    const msg = label
+      ? `Manual: "${label}" · until ${fmtTime(nowMin + mins)}`
+      : `Snoozed ${mins} min · retry ${fmtTime(nowMin + mins)}`
+    addReceipt(id, msg)
+    setSnoozed(s => ({ ...s, [id]: { until: nowMin + mins, label: label || undefined } }))
+    closeKebab()
+  }
+
+  // ── ETA inline edit ───────────────────────────────────────────────────────
   const openInlineEta = (e: React.MouseEvent, id: string, which: 'collect' | 'deliver', current: string) => {
     e.stopPropagation()
     e.preventDefault()
@@ -219,7 +335,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const cancelInlineEta = () => { setEtaEdit(null); setEtaEditVal('') }
 
   const isExpanded = density === 'expanded'
-  // compact: 6 · expanded: 10
   const colSpan = isExpanded ? 10 : 6
 
   function openJob(job: SavedJob) {
@@ -265,10 +380,18 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     )
   }
 
-  /**
-   * Compact stop cell — postcode + Due row + ETA row (colour-coded + delta, double-click to edit).
-   * isActive = this is the leg we are currently chasing (ETA field is editable + highlighted if missing).
-   */
+  const noteListNode = (id: string) => {
+    const notes = receipts[id] ?? []
+    return (
+      <div className="cp-card">
+        <div className="cp-h">Activity · {notes.length}</div>
+        {notes.map((n, i) => (
+          <div key={i} className="cp-row"><span style={{ fontSize: 12 }}>{n}</span></div>
+        ))}
+      </div>
+    )
+  }
+
   const stopTimeCell = (
     stop: Stop | undefined,
     pc: string,
@@ -279,8 +402,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     isActive: boolean,
   ) => {
     const isEditing = etaEdit?.id === id && etaEdit?.which === which
-
-    // Colour-code ETA relative to booked time
     const etaMin = hhmmMin(driverEta)
     const dueMin = hhmmMin(bookedTime)
     const etaDelta = (etaMin != null && dueMin != null) ? etaMin - dueMin : null
@@ -365,41 +486,287 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
           <tbody>
             {items.map(it => {
               const id = it.job.id
-              const isPending = !!pending[id]
-              const isSnoozed = !!(snoozed[id] && nowMin < snoozed[id])
+              const snEntry = snoozed[id]
+              const isSnoozeActive = !!(snEntry && nowMin < snEntry.until)
+              const isManual = isSnoozeActive && !!snEntry.label
               const rcpts = receipts[id] ?? []
               const driver = it.job.supplierName || null
               const vehicle = it.job.vehicle || ''
               const isAlert = it.role !== 'neutral'
+
               const rowClass = [
-                isSnoozed ? 'pqt-snoozed' : '',
-                !isSnoozed && (isPending ? 'pending' : isAlert ? `alert role-${it.role}` : ''),
+                isSnoozeActive ? 'pqt-snoozed' : '',
+                !isSnoozeActive && isAlert ? `alert role-${it.role}` : '',
               ].filter(Boolean).join(' ')
 
+              // Action grid labels / handlers
               const secondaryLabel = it.noDriver ? 'Find driver' : 'On site'
               const secondaryVisible = it.noDriver || !it.isOnSite
               const primaryLabel = it.noDriver ? 'Post job'
                 : it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'
-              const primaryAction = it.noDriver
-                ? () => { console.log('[TODO] Post job', id); addReceipt(id, 'Job posted') }
-                : () => markActioned(id)
-              const secondaryAction = it.noDriver
-                ? () => { console.log('[TODO] Find driver', id) }
-                : () => markOnSite(it)
+              const secondaryAction = it.noDriver ? () => findDriverClick(id) : () => onSiteClick(it)
+              const primaryAction = it.noDriver ? () => postJobClick(it) : () => podClick(it)
 
-              // Shared status content (used in both compact combined-cell and expanded separate cell)
-              const pillNode = isSnoozed
-                ? <span className="pqt-pill role-snoozed"><Icon name="clock" size={11} /> Snoozed · {fmtTime(snoozed[id])}</span>
-                : isPending
-                  ? <span className="pqt-pill role-pending"><span className="pqt-dot" />{it.stage === 'collect' ? 'Collected' : 'Delivered'} {pending[id]}</span>
-                  : <span className={`pqt-pill role-${it.role}`}><span className="pqt-dot" />{it.pill}</span>
+              // Priority pill — no nested ternaries
+              let pillNode: ReactNode
+              if (isManual) {
+                pillNode = <span className="pqt-pill role-manual"><span className="pqt-dot" />Manual</span>
+              } else if (isSnoozeActive) {
+                pillNode = <span className="pqt-pill role-snoozed"><Icon name="clock" size={11} /> Snoozed · {fmtTime(snEntry.until)}</span>
+              } else {
+                pillNode = <span className={`pqt-pill role-${it.role}`}><span className="pqt-dot" />{it.pill}</span>
+              }
+
+              // Kebab panel content — function defined per-row, captures it/id in closure
+              const renderKebab = (): ReactNode => {
+                // ── Note + Snooze form ─────────────────────────────────────
+                if (kebabMode === 'note') {
+                  return (
+                    <div className="pqt-kebab-form">
+                      <textarea
+                        ref={noteRef}
+                        className="pqt-note-input"
+                        placeholder="Note (optional)…"
+                        rows={2}
+                        value={noteText}
+                        onChange={e => setNoteText(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="pq-manual-toggle">
+                        <label className="pq-manual-check-label">
+                          <input
+                            type="checkbox"
+                            checked={showManualLabel}
+                            onChange={e => setShowManualLabel(e.target.checked)}
+                          />
+                          Set as manual status
+                        </label>
+                        {showManualLabel && (
+                          <input
+                            type="text"
+                            className="pqt-note-input pq-manual-input"
+                            placeholder="e.g. Customer callback pending"
+                            value={manualLabel}
+                            onChange={e => setManualLabel(e.target.value)}
+                          />
+                        )}
+                      </div>
+                      <div className="pqt-kebab-label">Snooze for</div>
+                      <div className="pq-snooze-preset">
+                        {([5, 10, 30] as const).map(n => (
+                          <button
+                            key={n}
+                            className={`btn sm${snoozeDur === n ? ' primary' : ''}`}
+                            onClick={() => setSnoozeDur(n)}
+                          >
+                            {n} min
+                          </button>
+                        ))}
+                        <button
+                          className={`btn sm${snoozeDur === 'custom' ? ' primary' : ''}`}
+                          onClick={() => setSnoozeDur('custom')}
+                        >
+                          Custom
+                        </button>
+                      </div>
+                      {snoozeDur === 'custom' && (
+                        <div className="pq-snooze-custom">
+                          <input
+                            type="number"
+                            className="pqt-eta-input"
+                            placeholder="mins"
+                            min="1"
+                            max="480"
+                            value={customSnoozeMins}
+                            onChange={e => setCustomSnoozeMins(e.target.value)}
+                            style={{ width: 80 }}
+                          />
+                          <span className="pqt-kebab-label">minutes</span>
+                        </div>
+                      )}
+                      <div className="pqt-kebab-form-row">
+                        <button className="btn primary sm" onClick={() => handleSnooze(id)}>
+                          <Icon name="clock" size={13} /> Snooze
+                        </button>
+                        <button className="btn sm" onClick={() => { setKebabMode('menu'); resetKebabForms() }}>Cancel</button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // ── On-site arrival form ───────────────────────────────────
+                if (kebabMode === 'arrival') {
+                  return (
+                    <div className="pqt-kebab-form">
+                      <div className="pqt-kebab-label">Mark as on site — confirm arrival time</div>
+                      <div className="pq-form-row">
+                        <span className="pq-form-label">Arrival time</span>
+                        <input
+                          type="time"
+                          className="pqt-eta-input"
+                          value={arrivalFormTime}
+                          onChange={e => setArrivalFormTime(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="pqt-kebab-form-row">
+                        <button className="btn primary sm" onClick={() => confirmArrival(it)}>
+                          Confirm arrival
+                        </button>
+                        <button className="btn sm" onClick={() => setKebabMode('menu')}>Cancel</button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // ── Collection / delivery POD form ────────────────────────
+                if (kebabMode === 'pod') {
+                  const podLabel = it.stage === 'collect' ? 'Confirm collection' : 'Confirm delivery'
+                  const podBtn = it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'
+                  return (
+                    <div className="pqt-kebab-form">
+                      <div className="pqt-kebab-label">{podLabel}</div>
+                      <div className="pq-pod-form">
+                        <span className="pq-form-label">Received by</span>
+                        <input
+                          type="text"
+                          className="pqt-note-input"
+                          placeholder="Person's name (optional)"
+                          value={podName}
+                          onChange={e => setPodName(e.target.value)}
+                          autoFocus
+                        />
+                        <span className="pq-form-label" style={{ marginTop: 4 }}>Time</span>
+                        <input
+                          type="time"
+                          className="pqt-eta-input"
+                          value={podTime}
+                          onChange={e => setPodTime(e.target.value)}
+                        />
+                      </div>
+                      <div className="pqt-kebab-form-row">
+                        <button className="btn primary sm" onClick={() => confirmPod(it)}>{podBtn}</button>
+                        <button className="btn sm" onClick={() => setKebabMode('menu')}>Cancel</button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // ── Find / assign driver ───────────────────────────────────
+                if (kebabMode === 'find-driver') {
+                  return (
+                    <div className="pqt-kebab-form pq-find-driver-form">
+                      <div className="pqt-kebab-label">Available drivers{vehicle ? ` — ${vehicle}` : ''}</div>
+                      <div className="pq-driver-list">
+                        {MOCK_DRIVERS.map(d => (
+                          <div key={d.id} className="pq-driver-row">
+                            <div className="pq-driver-info">
+                              <span className="pq-driver-name">{d.name}</span>
+                              <span className="pq-driver-sub">{d.vehicle} · {d.distance}</span>
+                            </div>
+                            <span className={`pq-driver-badge${d.avail ? ' avail' : ''}`}>
+                              {d.avail ? 'Available' : 'Finishing'}
+                            </span>
+                            <button
+                              className="btn primary sm"
+                              disabled={!d.avail}
+                              onClick={() => assignDriver(id, d.name)}
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pqt-kebab-form-row" style={{ marginTop: 4 }}>
+                        <button className="btn sm" onClick={() => { openJob(it.job); closeKebab() }}>
+                          Open in booking
+                        </button>
+                        <button className="btn sm" onClick={() => setKebabMode('menu')}>Cancel</button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // ── Post to CX form ───────────────────────────────────────
+                if (kebabMode === 'post-job') {
+                  return (
+                    <div className="pqt-kebab-form pq-post-job-form">
+                      <div className="pqt-kebab-label">Post to CX platform</div>
+                      <div className="pq-post-summary">
+                        <div className="pq-post-row">
+                          <span>Job</span>
+                          <span>{it.job.ref} · {it.cust?.displayName || it.job.customer}</span>
+                        </div>
+                        <div className="pq-post-row">
+                          <span>Collect</span>
+                          <span>{it.collPc} · {it.collDue}</span>
+                        </div>
+                        <div className="pq-post-row">
+                          <span>Deliver</span>
+                          <span>{it.delPc} · {it.delDue}</span>
+                        </div>
+                        {vehicle && (
+                          <div className="pq-post-row">
+                            <span>Vehicle</span>
+                            <span>{vehicle}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="pqt-kebab-label" style={{ marginTop: 6 }}>Posting notes</div>
+                      <textarea
+                        className="pqt-note-input"
+                        rows={4}
+                        value={postJobNotes}
+                        onChange={e => setPostJobNotes(e.target.value)}
+                        placeholder="Notes for the courier exchange posting…"
+                      />
+                      <div className="pqt-kebab-form-row">
+                        <button className="btn primary sm" onClick={() => postJobToCx(it)}>
+                          <Icon name="arrow-up-right" size={13} /> Post to CX
+                        </button>
+                        <button className="btn sm" onClick={() => setKebabMode('menu')}>Cancel</button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // ── Default: action menu ───────────────────────────────────
+                if (it.noDriver) {
+                  return (
+                    <>
+                      <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
+                      <KebabBtn icon="users" label="Find driver" onClick={() => { setKebabMode('find-driver'); resetKebabForms() }} />
+                      <KebabBtn icon="arrow-up-right" label="Post job" onClick={() => { setKebabMode('post-job'); setPostJobNotes(it.job.snapshot.cx.text || '') }} />
+                      <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
+                      <KebabBtn icon="note" label="Add note & snooze" onClick={() => setKebabMode('note')} />
+                    </>
+                  )
+                }
+                return (
+                  <>
+                    <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
+                    {!it.isOnSite && (
+                      <KebabBtn icon="pin" label="On site" onClick={() => { setKebabMode('arrival'); setArrivalFormTime(fmtTime(nowMin)) }} />
+                    )}
+                    <KebabBtn
+                      icon={it.stage === 'collect' ? 'arrow-up-right' : 'flag'}
+                      label={it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'}
+                      onClick={() => { setKebabMode('pod'); setPodName(''); setPodTime(fmtTime(nowMin)) }}
+                    />
+                    <KebabBtn icon="truck" label="Reassign driver" onClick={() => { setKebabMode('find-driver'); resetKebabForms() }} />
+                    <KebabBtn icon="phone" label="Ring driver" onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); closeKebab() }} />
+                    <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
+                    <KebabBtn icon="note" label="Add note & snooze" onClick={() => setKebabMode('note')} />
+                  </>
+                )
+              }
 
               return (
                 <Fragment key={id}>
                   <tr className={rowClass} onDoubleClick={() => openJob(it.job)} style={{ cursor: 'pointer' }}>
 
                     {isExpanded ? (
-                      /* Expanded: separate Due + Status + Job + stop columns */
+                      /* ── Expanded columns ─────────────────────────────── */
                       <>
                         <td className="pqt-due">
                           <b>{it.num}</b>
@@ -407,11 +774,22 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                         </td>
                         <td className="pqt-status">
                           {pillNode}
-                          {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
-                          {it.isOnSite && !isPending && (
+                          {isManual && snEntry.label && (
+                            <div className="pqt-manual-label">{snEntry.label}</div>
+                          )}
+                          {!isSnoozeActive && it.cue && <div className="pqt-cue">{it.cue}</div>}
+                          {isSnoozeActive && (
+                            <div className="pqt-cue"><Icon name="clock" size={11} /> Retry {fmtTime(snEntry.until)}</div>
+                          )}
+                          {it.isOnSite && !isSnoozeActive && (
                             <div className="pqt-onsite-dur"><Icon name="clock" size={11} /> {it.onSiteMin} min on site</div>
                           )}
                           {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
+                          {rcpts.length > 0 && (
+                            <button className="pq-note-badge" onClick={(e) => { e.stopPropagation(); openPop(e, noteListNode(id)) }}>
+                              <Icon name="note" size={11} />{rcpts.length}
+                            </button>
+                          )}
                         </td>
                         <td>
                           <div className="pqt-job">
@@ -445,20 +823,30 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                         <td className="pqt-veh">{vehicle || <span className="muted">—</span>}</td>
                       </>
                     ) : (
-                      /* Compact: combined Status+Due · Customer · COL · DEL */
+                      /* ── Compact columns ──────────────────────────────── */
                       <>
-                        {/* Col 1: combined priority number + pill + cue */}
+                        {/* Col 1: combined priority + pill + cue + note badge */}
                         <td className="pqt-due-status">
                           <div className="pqt-due-num">
                             <b>{it.num}</b>
                             <span>{it.qual}</span>
                           </div>
                           {pillNode}
-                          {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
-                          {it.isOnSite && !isPending && (
+                          {isManual && snEntry.label && (
+                            <div className="pqt-manual-label">{snEntry.label}</div>
+                          )}
+                          {!isSnoozeActive && it.cue && <div className="pqt-cue">{it.cue}</div>}
+                          {isSnoozeActive && (
+                            <div className="pqt-cue"><Icon name="clock" size={11} /> Retry {fmtTime(snEntry.until)}</div>
+                          )}
+                          {it.isOnSite && !isSnoozeActive && (
                             <div className="pqt-onsite-dur"><Icon name="clock" size={11} /> {it.onSiteMin} min on site</div>
                           )}
-                          {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
+                          {rcpts.length > 0 && (
+                            <button className="pq-note-badge" onClick={(e) => { e.stopPropagation(); openPop(e, noteListNode(id)) }}>
+                              <Icon name="note" size={11} />{rcpts.length}
+                            </button>
+                          )}
                         </td>
 
                         {/* Col 2: customer + ref + progress */}
@@ -473,10 +861,10 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                           </div>
                         </td>
 
-                        {/* Col 3: COL stop — booked + ETA */}
+                        {/* Col 3: COL stop */}
                         {stopTimeCell(it.collStop, it.collPc, it.collDue, it.driverCollEta, id, 'collect', it.stage === 'collect')}
 
-                        {/* Col 4: DEL stop — booked + ETA */}
+                        {/* Col 4: DEL stop */}
                         {stopTimeCell(it.delStop, it.delPc, it.delDue, it.driverDelEta, id, 'deliver', it.stage === 'deliver')}
                       </>
                     )}
@@ -493,89 +881,42 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
 
                     {/* Actions — 2×2 grid: [secondary][📞] / [primary][⋯] */}
                     <td className="pqt-act" onClick={e => e.stopPropagation()}>
-                      {isPending ? (
-                        <div className="pqt-act-pending">
-                          <button className="btn primary sm" onClick={() => confirmAction(it)}>Confirm</button>
-                          <button className="btn sm" onClick={() => undo(id)}>Undo</button>
-                        </div>
-                      ) : (
-                        <div className="pqt-act-grid">
-                          <button
-                            className="btn sm pq-act-sec"
-                            style={{ visibility: secondaryVisible ? 'visible' : 'hidden' }}
-                            onClick={secondaryAction}
-                          >
-                            {secondaryLabel}
-                          </button>
-                          <button
-                            className="pq-act-icon"
-                            disabled={it.noDriver}
-                            title={it.noDriver ? 'No driver assigned' : `Call ${driver}`}
-                            onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); console.log('[TODO] Aircall', driver) }}
-                          >
-                            <Icon name="phone" size={14} />
-                          </button>
-                          <button className="btn primary sm pq-act-primary" onClick={primaryAction}>
-                            {primaryLabel}
-                          </button>
-                          <button
-                            className="pq-act-icon"
-                            title="More actions"
-                            onClick={(e) => { e.stopPropagation(); openKebab(id) }}
-                          >
-                            <Icon name="more" size={14} />
-                          </button>
-                        </div>
-                      )}
+                      <div className="pqt-act-grid">
+                        <button
+                          className="btn sm pq-act-sec"
+                          style={{ visibility: secondaryVisible ? 'visible' : 'hidden' }}
+                          onClick={secondaryAction}
+                        >
+                          {secondaryLabel}
+                        </button>
+                        <button
+                          className="pq-act-icon"
+                          disabled={it.noDriver}
+                          title={it.noDriver ? 'No driver assigned' : `Call ${driver}`}
+                          onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); console.log('[TODO] Aircall', driver) }}
+                        >
+                          <Icon name="phone" size={14} />
+                        </button>
+                        <button className="btn primary sm pq-act-primary" onClick={primaryAction}>
+                          {primaryLabel}
+                        </button>
+                        <button
+                          className="pq-act-icon"
+                          title="More actions"
+                          onClick={(e) => { e.stopPropagation(); openKebab(id) }}
+                        >
+                          <Icon name="more" size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
 
                   {/* Kebab panel */}
-                  {kebab === id && !isPending && (
+                  {kebab === id && (
                     <tr className="pqt-kebab-row">
                       <td colSpan={colSpan}>
                         <div className="pqt-kebab">
-                          {kebabMode === 'note' ? (
-                            <div className="pqt-kebab-form">
-                              <textarea
-                                ref={noteRef}
-                                className="pqt-note-input"
-                                placeholder="Add a note before snoozing…"
-                                rows={2}
-                                value={noteText}
-                                onChange={e => setNoteText(e.target.value)}
-                                autoFocus
-                              />
-                              <div className="pqt-kebab-form-row">
-                                <button className="btn primary sm" onClick={() => snoozeJob(id, noteText)}>
-                                  <Icon name="clock" size={13} /> Snooze 5 min
-                                </button>
-                                <button className="btn sm" onClick={() => { setKebabMode('menu'); setNoteText('') }}>Cancel</button>
-                              </div>
-                            </div>
-                          ) : it.noDriver ? (
-                            <>
-                              <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
-                              <KebabBtn icon="arrow-up-right" label="Post job" onClick={() => { addReceipt(id, 'Job posted'); closeKebab() }} />
-                              <KebabBtn icon="users" label="Find driver" onClick={() => closeKebab()} />
-                              <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
-                              <KebabBtn icon="note" label="Add note & snooze" onClick={() => setKebabMode('note')} />
-                            </>
-                          ) : (
-                            <>
-                              <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
-                              {!it.isOnSite && <KebabBtn icon="pin" label="On site" onClick={() => { markOnSite(it); closeKebab() }} />}
-                              <KebabBtn
-                                icon={it.stage === 'collect' ? 'arrow-up-right' : 'flag'}
-                                label={it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'}
-                                onClick={() => { markActioned(id); closeKebab() }}
-                              />
-                              <KebabBtn icon="phone" label="Ring driver" onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); closeKebab() }} />
-                              <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
-                              <KebabBtn icon="truck" label="Reassign driver" onClick={() => closeKebab()} />
-                              <KebabBtn icon="note" label="Add note & snooze" onClick={() => setKebabMode('note')} />
-                            </>
-                          )}
+                          {renderKebab()}
                         </div>
                       </td>
                     </tr>

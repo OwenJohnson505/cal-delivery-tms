@@ -2485,6 +2485,50 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt.pqt-cmp .pqt-job { min-width: 120px; }
 .pqt.pqt-cmp .pqt-stop { min-width: 80px; }
 
+/* ── PQ new quick-action elements ─────────────────────────────────────────────────── */
+
+/* Manual status pill (blue, shown when snoozed with a label) */
+.pqt-pill.role-manual { color: #1d4ed8; background: #dbeafe; }
+.pqt-pill.role-manual .pqt-dot { background: #2563eb; }
+.pqt-manual-label { font-size: 11.5px; color: #1d4ed8; font-weight: 600; margin-top: 3px; }
+
+/* Note count badge — shown in the status column when receipts exist */
+.pq-note-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; border: 1px solid var(--line); background: var(--field); border-radius: 99px; padding: 1px 7px 1px 5px; font: inherit; font-size: 11px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.pq-note-badge:hover { background: var(--panel); border-color: var(--accent); color: var(--accent); }
+
+/* Snooze preset duration buttons */
+.pq-snooze-preset { display: flex; gap: 6px; flex-wrap: wrap; }
+.pq-snooze-preset .btn { flex: none; }
+.pq-snooze-custom { display: flex; align-items: center; gap: 8px; }
+
+/* Manual status toggle row in note form */
+.pq-manual-toggle { display: flex; flex-direction: column; gap: 6px; }
+.pq-manual-check-label { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink); cursor: pointer; user-select: none; }
+.pq-manual-input { margin-top: 0; }
+
+/* POD form: two rows (label + input) */
+.pq-pod-form { display: flex; flex-direction: column; gap: 5px; }
+.pq-form-row { display: flex; align-items: center; gap: 10px; }
+.pq-form-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; flex: none; }
+
+/* Find driver panel */
+.pq-find-driver-form { min-width: 340px; }
+.pq-driver-list { display: flex; flex-direction: column; gap: 4px; }
+.pq-driver-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--field); }
+.pq-driver-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pq-driver-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+.pq-driver-sub { font-size: 11px; color: var(--muted); }
+.pq-driver-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--field); color: var(--muted); border: 1px solid var(--line); flex: none; }
+.pq-driver-badge.avail { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+
+/* Post-to-CX review panel */
+.pq-post-job-form { min-width: 320px; }
+.pq-post-summary { border: 1px solid var(--line); border-radius: 9px; background: var(--field); overflow: hidden; margin-bottom: 4px; }
+.pq-post-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; border-top: 1px solid var(--line); font-size: 12.5px; }
+.pq-post-row:first-child { border-top: none; }
+.pq-post-row > span:first-child { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+.pq-post-row > span:last-child { font-weight: 600; color: var(--ink); text-align: right; }
+
 /* ── Priority List settings (Settings → Priority List) ────────────────────────────── */
 .pl-head { display: flex; align-items: center; margin-bottom: 6px; }
 .pl-title { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
