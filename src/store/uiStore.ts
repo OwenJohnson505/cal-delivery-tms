@@ -25,6 +25,8 @@ interface UiState {
   /** Bookings table density: 'compact' groups related data into a few dense columns;
    * 'expanded' gives every data point its own column (the configured view). */
   tableDensity: 'compact' | 'expanded'
+  /** Admin priority queue density (independent from the standard table). */
+  pqDensity: 'compact' | 'expanded'
 
   openDrawer(d: DrawerName): void
   closeDrawers(): void
@@ -38,6 +40,7 @@ interface UiState {
   toggleNav(): void
   toggleSettings(): void
   setTableDensity(v: 'compact' | 'expanded'): void
+  setPqDensity(v: 'compact' | 'expanded'): void
 }
 
 const DENSITY_KEY = 'cd-table-density'
@@ -55,6 +58,7 @@ export const useUiStore = create<UiState>((set) => ({
   navOpen: false,
   settingsOpen: false,
   tableDensity: loadDensity(),
+  pqDensity: 'compact',
 
   openDrawer: (d) => set({ drawer: d }),
   closeDrawers: () => set({ drawer: null }),
@@ -67,4 +71,5 @@ export const useUiStore = create<UiState>((set) => ({
   toggleNav: () => set((s) => ({ navOpen: !s.navOpen })),
   toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
   setTableDensity: (v) => { try { localStorage.setItem(DENSITY_KEY, v) } catch { /* ignore */ } ; set({ tableDensity: v }) },
+  setPqDensity: (v) => set({ pqDensity: v }),
 }))

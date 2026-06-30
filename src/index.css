@@ -2294,13 +2294,6 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* ── Admin priority queue view (the "Admins" saved view) ──────────────────────────── */
 /* Shared: header, live indicator, action buttons, completed section */
 .pq { display: flex; flex-direction: column; gap: 0; }
-.pq-head { display: flex; align-items: center; gap: 12px; padding: 2px 2px 12px; }
-.pq-toolbar { padding: 0 2px 10px; }
-.pq-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.pq-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 0 rgba(22,163,74,.5); animation: agw-pulse 1.6s infinite; }
-.pq-confirmall { border: 1px solid #bfe6cb; background: #f0faf3; color: #15803d; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-.pq-settings { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: #fff; border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; color: var(--ink); }
-.pq-settings:hover { background: var(--field); }
 .pq-primary { white-space: nowrap; }
 .pq-icon { width: 32px; height: 32px; border: 1px solid var(--line-strong); background: #fff; border-radius: 8px; cursor: pointer; display: grid; place-items: center; color: var(--muted); }
 .pq-icon:hover { background: var(--field); color: var(--ink); }

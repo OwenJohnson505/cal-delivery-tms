@@ -135,6 +135,8 @@ export function ListScreen() {
   const emailFull = useEmailsStore((s) => s.panelState === 'full')
   const density = useUiStore((s) => s.tableDensity)
   const setTableDensity = useUiStore((s) => s.setTableDensity)
+  const pqDensity = useUiStore((s) => s.pqDensity)
+  const setPqDensity = useUiStore((s) => s.setPqDensity)
   // Click-to-open detail popover (address contact/ref, supplier, ETA audit/edit…).
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const openPop = (e: React.MouseEvent, node: ReactNode) => {
@@ -683,18 +685,25 @@ export function ListScreen() {
             onToggleExtra={toggleCf}
             extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
           />
-          {!isPriorityView && (
-            <div className="viewtoggle" role="group" aria-label="Table density">
-              <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into a few columns">Compact</button>
-              <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
-            </div>
-          )}
+          <div className="viewtoggle" role="group" aria-label="Table density">
+            {isPriorityView ? (
+              <>
+                <button className={'vt-btn vt-wide' + (pqDensity === 'compact' ? ' on' : '')} onClick={() => setPqDensity('compact')}>Compact</button>
+                <button className={'vt-btn vt-wide' + (pqDensity === 'expanded' ? ' on' : '')} onClick={() => setPqDensity('expanded')}>Expanded</button>
+              </>
+            ) : (
+              <>
+                <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into a few columns">Compact</button>
+                <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
+              </>
+            )}
+          </div>
         </div>
 
         {isPriorityView ? (
           // Admin oversight: the priority queue spans every active booking, not just the
           // signed-in user's team scope.
-          <PriorityQueue jobs={jobs.filter((j) => j.status === 'Booking')} />
+          <PriorityQueue jobs={jobs.filter((j) => j.status === 'Booking')} density={pqDensity} />
         ) : (
         <div className="list-tablewrap">
           <table className={'list-table jobs-table' + (density === 'compact' ? ' compact' : '')}>

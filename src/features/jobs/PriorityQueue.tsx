@@ -9,7 +9,6 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
-import { useViewStore } from '@/store/viewStore.ts'
 import { usePriorityStore, type PriorityConfig } from '@/store/priorityStore.ts'
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -120,14 +119,12 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
+export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'compact' | 'expanded' }) {
   const customers = useCustomersStore(s => s.customers)
   const setProgress = useJobsStore(s => s.setProgress)
   const cfg = usePriorityStore(s => s.config)
-  const go = useViewStore(s => s.go)
 
   const [nowMin, setNowMin] = useState(BASE_NOW)
-  const [density, setDensity] = useState<'compact' | 'expanded'>('compact')
   const [pending, setPending] = useState<Record<string, string>>({})
   const [receipts, setReceipts] = useState<Record<string, string[]>>({})
   const [kebab, setKebab] = useState<string | null>(null)
@@ -156,28 +153,6 @@ export function PriorityQueue({ jobs }: { jobs: SavedJob[] }) {
 
   return (
     <div className={`pq${isExpanded ? '' : ' pq-cmp'}`}>
-
-      {/* ── Header ── */}
-      <div className="pq-head">
-        <span className="db-spacer" />
-        {pendingIds.length > 0 && (
-          <button className="pq-confirmall" onClick={() => items.filter(it => pending[it.job.id]).forEach(confirm)}>
-            Confirm all actioned ({pendingIds.length})
-          </button>
-        )}
-        <button className="pq-settings" title="Priority list settings" onClick={() => go('priority')}>
-          <Icon name="sliders" size={14} /> Priority list
-        </button>
-        <span className="pq-live"><span className="pq-live-dot" /> Live · now {fmtTime(nowMin)}</span>
-      </div>
-
-      {/* ── Density toolbar ── */}
-      <div className="pq-toolbar">
-        <div className="viewtoggle" role="group" aria-label="Table density">
-          <button className={'vt-btn vt-wide' + (!isExpanded ? ' on' : '')} onClick={() => setDensity('compact')}>Compact</button>
-          <button className={'vt-btn vt-wide' + (isExpanded ? ' on' : '')} onClick={() => setDensity('expanded')}>Expanded</button>
-        </div>
-      </div>
 
       {/* ── Table ── */}
       <div className="pqt-scroll">
