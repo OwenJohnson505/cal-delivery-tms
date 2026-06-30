@@ -2403,7 +2403,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* Inline kebab — expands as a full-width row beneath the action row */
 .pqt-kebab-row > td { padding: 0; border-bottom: 0.5px solid var(--line); }
-.pqt-kebab { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: var(--field); }
+.pqt-kebab { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); }
 
 /* Compact PQ density — tighter cells, pill-only status, narrower columns, hugs content */
 .pqt.pqt-cmp { width: auto; }

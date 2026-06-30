@@ -5,11 +5,14 @@
  *   Expanded (8 cols): Due · Status · Job (+ route) · Collection · Delivery · Vehicle · Driver · Actions
  * Priority order: 1. No driver  2. Overdue collect  3. Overdue deliver  4. Stalled  5. Upcoming
  */
-import { Fragment, useEffect, useState, type ReactNode } from 'react'
+import React, { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { usePriorityStore, type PriorityConfig } from '@/store/priorityStore.ts'
+import { useBookingStore } from '@/store/bookingStore.ts'
+import { useViewStore } from '@/store/viewStore.ts'
+import type { Stop } from '@/types/index.ts'
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const MISSING_ETA_RANK = 999
@@ -41,6 +44,7 @@ interface QItem {
   due: string; delta: number; pc: string
   collPc: string; collDue: string
   delPc: string; delDue: string
+  collStop?: Stop; delStop?: Stop
   role: Role; legIcon: string; pill: string; cue?: string
   num: string; qual: string; sortKey: number
 }
@@ -115,7 +119,7 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
     sortKey = delta > 0 ? delta + tie : MISSING_ETA_RANK
   }
 
-  return { job, cust, stage, verb, due, delta, pc, collPc, collDue, delPc, delDue, role, legIcon, pill, cue, num, qual, sortKey }
+  return { job, cust, stage, verb, due, delta, pc, collPc, collDue, delPc, delDue, collStop, delStop, role, legIcon, pill, cue, num, qual, sortKey }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -128,6 +132,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const [pending, setPending] = useState<Record<string, string>>({})
   const [receipts, setReceipts] = useState<Record<string, string[]>>({})
   const [kebab, setKebab] = useState<string | null>(null)
+  const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
 
   useEffect(() => {
     const t = window.setInterval(() => setNowMin(n => n + 1), Math.max(5, cfg.refreshSec) * 1000)
@@ -147,9 +152,55 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     // TODO: write-back to TMS/DMS
     setProgress(it.job.id, it.stage === 'collect' ? 'Collected' : 'Delivered')
   }
-  const pendingIds = Object.keys(pending)
   const isExpanded = density === 'expanded'
   const colSpan = isExpanded ? 8 : 6
+
+  function openJob(job: SavedJob) {
+    useBookingStore.getState().loadSnapshot(job.snapshot)
+    useViewStore.getState().openWizard(job.id)
+  }
+
+  const openPop = (e: React.MouseEvent, node: ReactNode) => {
+    e.stopPropagation()
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setPop({ x: Math.min(r.left, window.innerWidth - 280), y: r.bottom + 6, node })
+  }
+
+  const addressNode = (s: Stop) => (
+    <div className="cp-card">
+      <div className="cp-h">{s.type} · {s.addr.co || s.addr.pc}</div>
+      <div className="cp-row"><span className="cp-k">Postcode</span><span>{s.addr.pc || '—'}</span></div>
+      <div className="cp-row"><span className="cp-k">Reference</span><span>{s.reference || '—'}</span></div>
+      <div className="cp-row"><span className="cp-k">Contact</span><span>{s.contact?.name || '—'}</span></div>
+      {s.contact?.tel && <a className="cp-link" href={`tel:${s.contact.tel}`}><Icon name="phone" size={13} /> {s.contact.tel}</a>}
+      {s.contact?.email && <a className="cp-link" href={`mailto:${s.contact.email}`}><Icon name="mail" size={13} /> {s.contact.email}</a>}
+    </div>
+  )
+
+  const contactNode = (it: QItem) => {
+    const cust = it.cust
+    const booked = it.job.snapshot.book.contact
+    const main = cust?.contacts.find(c => c.isMain) ?? cust?.contacts[0]
+    const c = booked ?? (main ? { name: main.name, email: main.email, tel: main.phone } : null)
+    return (
+      <div className="cp-card">
+        <div className="cp-h">{cust?.displayName || it.job.customer} · contact</div>
+        {c ? (
+          <>
+            <div className="cp-row"><span className="cp-k">Name</span><span>{c.name || '—'}</span></div>
+            {c.email
+              ? <a className="cp-link" href={`mailto:${c.email}`}><Icon name="mail" size={13} /> {c.email}</a>
+              : <div className="cp-row"><span className="cp-k">Email</span><span>—</span></div>}
+            {c.tel
+              ? <a className="cp-link" href={`tel:${c.tel}`}><Icon name="phone" size={13} /> {c.tel}</a>
+              : <div className="cp-row"><span className="cp-k">Phone</span><span>—</span></div>}
+          </>
+        ) : (
+          <div className="cp-row"><span>No contact on file</span></div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={`pq${isExpanded ? '' : ' pq-cmp'}`}>
@@ -185,10 +236,11 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
               const driver = it.job.supplierName || null
               const isAlert = it.role !== 'neutral'
               const rowClass = isPending ? 'pending' : isAlert ? `alert role-${it.role}` : ''
+              const currentStop = it.stage === 'collect' ? it.collStop : it.delStop
 
               return (
                 <Fragment key={id}>
-                  <tr className={rowClass}>
+                  <tr className={rowClass} onDoubleClick={() => openJob(it.job)} style={{ cursor: 'pointer' }}>
 
                     {/* Col 1: Due — primary scan target */}
                     <td className="pqt-due">
@@ -205,12 +257,14 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                       {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts.join(' · ')}</div>}
                     </td>
 
-                    {/* Col 3: Job — leg icon + customer + ref */}
+                    {/* Col 3: Job — leg icon + customer (clickable) + ref */}
                     <td>
                       <div className="pqt-job">
                         <span className={`pqt-leg leg-${it.stage}`}><Icon name={it.legIcon} size={13} /></span>
                         <div className="pqt-job-main">
-                          <b>{it.cust?.displayName || it.job.customer}</b>
+                          <button className="cell-link" onClick={(e) => openPop(e, contactNode(it))}>
+                            {it.cust?.displayName || it.job.customer}
+                          </button>
                           <span className="pqt-ref">{it.job.ref}</span>
                         </div>
                       </div>
@@ -219,15 +273,25 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                     {/* Cols 4–7 (expanded) or Col 4 (compact: current stop) */}
                     {isExpanded ? (
                       <>
-                        <td className="pqt-stop"><span className="pc">{it.collPc}</span></td>
+                        <td className="pqt-stop">
+                          {it.collStop
+                            ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(it.collStop!))}>{it.collPc}</button>
+                            : <span className="pc muted">{it.collPc}</span>}
+                        </td>
                         <td className="pqt-stop-time"><b>{it.collDue}</b></td>
-                        <td className="pqt-stop"><span className="pc">{it.delPc}</span></td>
+                        <td className="pqt-stop">
+                          {it.delStop
+                            ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(it.delStop!))}>{it.delPc}</button>
+                            : <span className="pc muted">{it.delPc}</span>}
+                        </td>
                         <td className="pqt-stop-time"><b>{it.delDue}</b></td>
                         <td className="pqt-veh">{it.job.vehicle || <span className="muted">—</span>}</td>
                       </>
                     ) : (
                       <td className="pqt-stop">
-                        <span className="pc">{it.pc}</span>
+                        {currentStop
+                          ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(currentStop))}>{it.pc}</button>
+                          : <span className="pc muted">{it.pc}</span>}
                         <div className="pqt-stop-eta">{it.due}</div>
                       </td>
                     )}
@@ -255,7 +319,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                             }}>
                               <Icon name="phone" size={14} />
                             </button>
-                            <button className="pq-icon" title="More actions" onClick={() => setKebab(kebab === id ? null : id)}>⋯</button>
+                            <button className="pq-icon" title="More actions" onClick={(e) => { e.stopPropagation(); setKebab(kebab === id ? null : id) }}>⋯</button>
                           </>
                         )}
                       </div>
@@ -267,6 +331,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                     <tr className="pqt-kebab-row">
                       <td colSpan={colSpan}>
                         <div className="pqt-kebab">
+                          <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); setKebab(null) }} />
                           <KebabBtn icon="phone" label="Ring driver" onClick={() => {
                             // TODO: Aircall click-to-call
                             console.log('[TODO] Aircall call', it.job.supplierName)
@@ -305,7 +370,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
       <div className="pq-done-wrap">
         <div className="pq-done-h"><Icon name="check" size={13} /> Completed — {done.length} job{done.length === 1 ? '' : 's'}</div>
         {done.map(j => (
-          <div key={j.id} className="pq-done-row">
+          <div key={j.id} className="pq-done-row" onDoubleClick={() => openJob(j)} style={{ cursor: 'pointer' }}>
             <Icon name="check-circle" size={15} />
             <span className="pq-done-cust">{custById(j.snapshot.book.cust)?.displayName || j.customer}</span>
             <span className="pc pq-done-ref">{j.ref}</span>
@@ -314,6 +379,14 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
           </div>
         ))}
       </div>
+
+      {/* Detail popover */}
+      {pop && (
+        <>
+          <div className="cc-pop-scrim" onClick={() => setPop(null)} />
+          <div className="cell-pop" style={{ left: pop.x, top: pop.y }}>{pop.node}</div>
+        </>
+      )}
     </div>
   )
 }
