@@ -2401,9 +2401,21 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pqt-act-inner { display: flex; align-items: center; gap: 5px; }
 .pqt-empty { text-align: center; color: var(--muted); padding: 36px; }
 
+/* Snoozed row — de-emphasised until snooze expires */
+.pqt tbody tr.pqt-snoozed > td { opacity: 0.45; }
+.pqt-pill.role-snoozed { background: var(--field); color: var(--muted); }
+
 /* Inline kebab — expands as a full-width row beneath the action row */
 .pqt-kebab-row > td { padding: 0; border-bottom: 0.5px solid var(--line); }
-.pqt-kebab { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); }
+.pqt-kebab { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); }
+/* Inline form (note or ETA) inside the kebab row */
+.pqt-kebab-form { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 280px; }
+.pqt-kebab-form-row { display: flex; align-items: center; gap: 8px; }
+.pqt-kebab-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.pqt-note-input { width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; font: inherit; font-size: 12.5px; resize: vertical; background: var(--field); }
+.pqt-note-input:focus { outline: none; border-color: var(--accent); background: #fff; }
+.pqt-eta-input { border: 1px solid var(--line); border-radius: 7px; padding: 4px 9px; font: inherit; font-size: 13px; height: 32px; background: var(--field); }
+.pqt-eta-input:focus { outline: none; border-color: var(--accent); background: #fff; }
 
 /* Compact PQ density — tighter cells, pill-only status, narrower columns, hugs content */
 .pqt.pqt-cmp { width: auto; }
