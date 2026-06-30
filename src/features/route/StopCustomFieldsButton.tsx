@@ -25,12 +25,12 @@ export function StopCustomFieldsButton({ stopId, size = 'sm' }: { stopId: number
   return (
     <button
       type="button"
-      className={'cf-btn' + (size === 'sm' ? ' sm' : '') + (missingRequired ? ' warn' : '')}
-      title={missingRequired ? 'Required custom fields are missing' : 'Custom fields for this stop'}
+      className={'btn sm iconbtn cf-icon-btn' + (missingRequired ? ' warn' : '')}
+      title={`Custom fields ${filled}/${stopFields.length}${missingRequired ? ' — required fields missing' : ''}`}
       onClick={() => openCustomFields(stopId)}
     >
-      <Icon name="list" size={13} /> Custom fields
-      <span className="cf-btn-badge">{filled}/{stopFields.length}</span>
+      <Icon name="list" size={13} />
+      <span className="cf-icon-badge">{filled}/{stopFields.length}</span>
     </button>
   )
 }

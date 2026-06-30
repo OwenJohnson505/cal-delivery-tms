@@ -2,6 +2,7 @@
  * Header bar (prototype lines 491-494): customer/contact box, customer ref, route tools
  * (docs / map / print / delivery notes), clear-all. Tools open the relevant modal/window.
  */
+import { useState } from 'react'
 import { Icon } from './Icon.tsx'
 import { StatusPill } from './StatusPill.tsx'
 import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
@@ -32,6 +33,8 @@ export function Header() {
   const jobFields = fields.filter((f) => f.scope === 'job')
   const cf = jobFieldStatus(jobFields, customJob)
 
+  const [toolsOpen, setToolsOpen] = useState(false)
+
   // Quick Quote is a create-time shortcut only — hide it once the job is a booking.
   const isBooked = editingJobId != null && jobStatus === 'Booking'
 
@@ -43,23 +46,33 @@ export function Header() {
         </div>
         {custId && <span className="bar-status"><StatusPill status={jobStatus} /></span>}
         <span className="db-spacer" />
-        <div className="bar-tools" id="routeTools">
-          <button className="btn sm iconbtn" title="Documents" onClick={() => openModal('docs')}>
-            <Icon name="file" size={16} />
+        <div className="bar-tools" id="routeTools" style={{ position: 'relative' }}>
+          <button className="btn sm iconbtn" title="More actions" onClick={() => setToolsOpen(o => !o)}>
+            <Icon name="list2" size={16} />
           </button>
-          <button className="btn sm iconbtn" title="Audit trail" onClick={() => openModal('audit')}>
-            <Icon name="list" size={16} />
-          </button>
-          <button className="btn sm iconbtn" title="Route map" onClick={() => window.alert('Route map opens Google Maps directions (mock).')}>
-            <Icon name="map" size={16} />
-          </button>
-          <button className="btn sm iconbtn" title="Print delivery notes" onClick={() => window.alert('Delivery notes print doc (mock).')}>
-            <Icon name="printer" size={16} />
-          </button>
+          {toolsOpen && (
+            <>
+              <div className="bar-tools-scrim" onClick={() => setToolsOpen(false)} />
+              <div className="bar-tools-menu">
+                <button onClick={() => { openModal('docs'); setToolsOpen(false) }}>
+                  <Icon name="file" size={14} /> Documents
+                </button>
+                <button onClick={() => { openModal('audit'); setToolsOpen(false) }}>
+                  <Icon name="list" size={14} /> Audit trail
+                </button>
+                <button onClick={() => { window.alert('Route map (mock).'); setToolsOpen(false) }}>
+                  <Icon name="map" size={14} /> Route map
+                </button>
+                <button onClick={() => { window.alert('Print delivery notes (mock).'); setToolsOpen(false) }}>
+                  <Icon name="printer" size={14} /> Print delivery notes
+                </button>
+              </div>
+            </>
+          )}
         </div>
         <div className="bar-sep" />
-        <button className="btn" onClick={() => { if (confirm('Clear the whole booking?')) reset() }}>
-          Clear all
+        <button className="btn sm iconbtn" title="Clear booking" onClick={() => { if (confirm('Clear the whole booking?')) reset() }}>
+          <Icon name="trash" size={15} />
         </button>
         <button className="winx" title="Close — back to list" onClick={() => goToList()}>
           <Icon name="close" size={16} />
@@ -80,12 +93,12 @@ export function Header() {
           )}
           {jobFields.length > 0 && (
             <button
-              className={'cf-btn' + (cf.missingRequired ? ' warn' : '')}
-              title={cf.missingRequired ? 'Required job fields are missing' : 'Job custom fields'}
+              className={'btn sm iconbtn cf-icon-btn' + (cf.missingRequired ? ' warn' : '')}
+              title={`Job custom fields ${cf.filled}/${cf.total}${cf.missingRequired ? ' — required fields missing' : ''}`}
               onClick={() => openCustomFields(null)}
             >
-              <Icon name="list" size={14} /> Custom fields
-              <span className="cf-btn-badge">{cf.filled}/{cf.total}</span>
+              <Icon name="list" size={14} />
+              <span className="cf-icon-badge">{cf.filled}/{cf.total}</span>
             </button>
           )}
         </div>

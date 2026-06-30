@@ -13,7 +13,7 @@ export function EditableCell({
   children,
   editable = true,
 }: {
-  label: string
+  label: ReactNode
   value: ReactNode
   title: string
   /** The field editor(s) shown in the popover. */

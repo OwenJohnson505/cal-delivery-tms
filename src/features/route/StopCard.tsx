@@ -71,8 +71,8 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
             </button>
           )}
           <StopCustomFieldsButton stopId={stop.id} />
-          <button className="btn sm" title="Edit stop" onClick={onEdit}>
-            <Icon name="edit" size={13} /> Edit
+          <button className="btn sm iconbtn" title="Edit stop" onClick={onEdit}>
+            <Icon name="edit" size={13} />
           </button>
           {stops.length > 1 && (
             <button className="btn sm iconbtn danger" title="Remove stop" onClick={() => removeStop(stop.id)}>
@@ -87,7 +87,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
           const addrLine = [a.address, a.city].filter(Boolean).join(', ')
           const hasLoc = !!(a.co || addrLine || a.pc)
           return (
-            <EditableCell label="📍" title="Collection / delivery address"
+            <EditableCell label={<Icon name="pin" size={13} />} title="Collection / delivery address"
               value={hasLoc ? (
                 <span className="stop-loc">
                   <span className="stop-loc-co">{a.co || 'Unnamed site'}</span>
@@ -104,14 +104,14 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
           )
         })()}
 
-        <EditableCell label="👤" title="Site contact"
+        <EditableCell label={<Icon name="user" size={13} />} title="Site contact"
           value={c && (c.name || c.tel) ? <b>{c.name}{c.tel ? ` · ${c.tel}` : ''}</b> : add('add contact')}>
           <div className="fld"><label>Name</label><input value={c?.name || ''} onChange={(e) => setContact({ name: e.target.value })} /></div>
           <div className="fld"><label>Phone</label><input value={c?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
           <div className="fld"><label>Email</label><input value={c?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
         </EditableCell>
 
-        <EditableCell label="🕒" title="Timing" value={<span className="stop-when"><b>{whenLabel(stop.time)}</b> · {whenValue(stop.time)}</span>}>
+        <EditableCell label={<Icon name="clock" size={13} />} title="Timing" value={<span className="stop-when"><b>{whenLabel(stop.time)}</b> · {whenValue(stop.time)}</span>}>
           <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
             {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
               <button key={m} className={'stepdot' + (stop.time.mode === m ? ' on' : '')} onClick={() => setTime(m)}>
@@ -134,7 +134,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
         </EditableCell>
 
         {isColl && (
-          <EditableCell label="📦" title="Goods" editable={isColl} value={goods ? goods : add('add goods')}>
+          <EditableCell label={<Icon name="box" size={13} />} title="Goods" editable={isColl} value={goods ? goods : add('add goods')}>
             <div className="fld">
               <label>Goods — type or paste</label>
               <textarea autoFocus rows={3} placeholder="e.g. 2 pallets at 400kg total, 1 box" value={stop.goods} onChange={(e) => set({ goods: e.target.value, goodsTouched: true })} />
@@ -151,7 +151,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
         )}
 
         {stop.note && (
-          <EditableCell label="📝" title="Note" value={stop.note}>
+          <EditableCell label={<Icon name="note" size={13} />} title="Note" value={stop.note}>
             <div className="fld"><label>Driver instruction</label><textarea autoFocus rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} /></div>
           </EditableCell>
         )}
