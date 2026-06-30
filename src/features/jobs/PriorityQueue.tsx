@@ -532,25 +532,30 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                         onChange={e => setNoteText(e.target.value)}
                         autoFocus
                       />
-                      <div className="pq-manual-toggle">
-                        <label className="pq-manual-check-label">
+                      <div className="pq-manual-row">
+                        <div className="pq-manual-row-text">
+                          <span className="pq-manual-row-title">Manual status</span>
+                          <span className="pq-manual-row-hint">Pins a visible label to the job while snoozed</span>
+                        </div>
+                        <label className="cm-toggle">
                           <input
                             type="checkbox"
                             checked={showManualLabel}
                             onChange={e => setShowManualLabel(e.target.checked)}
                           />
-                          Set as manual status
+                          <span className="cm-track"><span className="cm-knob" /></span>
                         </label>
-                        {showManualLabel && (
-                          <input
-                            type="text"
-                            className="pqt-note-input pq-manual-input"
-                            placeholder="e.g. Customer callback pending"
-                            value={manualLabel}
-                            onChange={e => setManualLabel(e.target.value)}
-                          />
-                        )}
                       </div>
+                      {showManualLabel && (
+                        <input
+                          type="text"
+                          className="pqt-note-input"
+                          placeholder="e.g. Customer callback pending"
+                          value={manualLabel}
+                          onChange={e => setManualLabel(e.target.value)}
+                          autoFocus
+                        />
+                      )}
                       <div className="pqt-kebab-label">Snooze for</div>
                       <div className="pq-snooze-preset">
                         {([5, 10, 30] as const).map(n => (

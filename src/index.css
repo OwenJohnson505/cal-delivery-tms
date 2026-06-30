@@ -2502,9 +2502,10 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pq-snooze-custom { display: flex; align-items: center; gap: 8px; }
 
 /* Manual status toggle row in note form */
-.pq-manual-toggle { display: flex; flex-direction: column; gap: 6px; }
-.pq-manual-check-label { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink); cursor: pointer; user-select: none; }
-.pq-manual-input { margin-top: 0; }
+.pq-manual-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; background: var(--field); border: 1px solid var(--line); border-radius: 9px; }
+.pq-manual-row-text { display: flex; flex-direction: column; gap: 2px; }
+.pq-manual-row-title { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.pq-manual-row-hint { font-size: 11px; color: var(--muted); line-height: 1.35; }
 
 /* POD form: two rows (label + input) */
 .pq-pod-form { display: flex; flex-direction: column; gap: 5px; }
