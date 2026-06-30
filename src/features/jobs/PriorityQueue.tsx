@@ -14,17 +14,30 @@ import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
 import type { Stop } from '@/types/index.ts'
 
-// ── Config ───────────────────────────────────────────────────────────────────
+// ── Time helpers ──────────────────────────────────────────────────────────────
+/** Extract "HH:MM" from "DD-MM-YY HH:MM" (or bare "HH:MM") */
+function timeOf(dt: string): string {
+  const s = (dt || '').trim()
+  if (/^\d{1,2}:\d{2}$/.test(s)) return s
+  const parts = s.split(' ')
+  return parts.length === 2 ? parts[1] : ''
+}
+/** "HH:MM" → minutes from midnight, or null if unparseable */
+function hhmmMin(t: string): number | null {
+  const m = (t || '').match(/^(\d{1,2}):(\d{2})$/)
+  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null
+}
+const fmtTime = (min: number): string =>
+  `${String(Math.floor(((min % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(((min % 60) + 60) % 60).padStart(2, '0')}`
+const hashRef = (s: string): number => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h }
+const BASE_NOW = 9 * 60 + 20
+
+// ── Priority config ───────────────────────────────────────────────────────────
 const MISSING_ETA_RANK = 999
 const BAND_NODRIVER   = -100000
 const BAND_OV_COLLECT =  -10000
 const BAND_OV_DELIVER =   -5000
 const BAND_STALLED    =   -2000
-
-const fmtTime = (min: number): string =>
-  `${String(Math.floor(((min % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(((min % 60) + 60) % 60).padStart(2, '0')}`
-const hashRef = (s: string): number => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h }
-const BASE_NOW = 9 * 60 + 20
 
 const DELIVER_STAGES = new Set(['Collected', 'Part COL', 'En route DEL', 'On site DEL', 'Part DEL'])
 function stageOf(progress: string): 'collect' | 'deliver' | 'done' {
@@ -34,16 +47,17 @@ function stageOf(progress: string): 'collect' | 'deliver' | 'done' {
 }
 
 type Role = 'danger' | 'warning' | 'neutral'
-type KebabMode = 'menu' | 'note' | 'eta'
+type KebabMode = 'menu' | 'note'
 
 interface QItem {
   job: SavedJob; cust?: Customer
   stage: 'collect' | 'deliver'; verb: 'Collect' | 'Deliver'
-  due: string; delta: number; pc: string
-  collPc: string; collDue: string
-  delPc: string; delDue: string
+  delta: number
+  collPc: string; collBookedTime: string; collDue: string
+  delPc: string; delBookedTime: string; delDue: string
+  driverCollEta: string; driverDelEta: string
   collStop?: Stop; delStop?: Stop
-  noDriver: boolean; isOnSite: boolean
+  noDriver: boolean; isOnSite: boolean; onSiteMin: number
   role: Role; legIcon: string; pill: string; cue?: string
   num: string; qual: string; sortKey: number
 }
@@ -57,64 +71,79 @@ function buildItem(job: SavedJob, cust: Customer | undefined, nowMin: number, cf
   const delStop = [...stops].reverse().find(s => s.type === 'Delivery' || s.type === 'Both')
   const collPc = collStop?.addr.pc || '—'
   const delPc = delStop?.addr.pc || '—'
-  const pc = stage === 'collect' ? collPc : delPc
 
-  const collDueMin = BASE_NOW + ((hashRef(job.ref + 'collect') % 190) - 90)
-  const delDueMin = BASE_NOW + ((hashRef(job.ref + 'deliver') % 190) - 90)
-  const collDue = fmtTime(collDueMin)
-  const delDue = fmtTime(delDueMin)
+  // Booked times from real job data; fall back to hashRef for mock/ASAP jobs
+  const collBookedTime = timeOf(job.collectAt)
+  const delBookedTime = timeOf(job.deliverAt)
+  const collDueMin = hhmmMin(collBookedTime) ?? BASE_NOW + ((hashRef(job.ref + 'collect') % 190) - 90)
+  const delDueMin = hhmmMin(delBookedTime) ?? BASE_NOW + ((hashRef(job.ref + 'deliver') % 190) - 90)
+  const collDue = collBookedTime || fmtTime(collDueMin)
+  const delDue = delBookedTime || fmtTime(delDueMin)
+
+  // Driver ETAs from the job store
+  const driverCollEta = job.collectEta || ''
+  const driverDelEta = job.deliverEta || ''
+
   const dueMin = stage === 'collect' ? collDueMin : delDueMin
-  const due = stage === 'collect' ? collDue : delDue
   const delta = dueMin - nowMin
 
   const onSite = (stage === 'collect' && job.progress === 'On site COL') ||
                  (stage === 'deliver' && job.progress === 'On site DEL')
-  const onSiteMin = onSite ? 22 + (hashRef(job.ref) % 30) : 0
+  const onSiteMinVal = onSite ? 22 + (hashRef(job.ref) % 30) : 0
   const noDriver = !job.supplierName
-  const stalled = onSite && onSiteMin >= cfg.stallMin
+  const stalled = onSite && onSiteMinVal >= cfg.stallMin
   const legIcon = stage === 'collect' ? 'arrow-up-right' : 'flag'
   const tie = (stage === 'deliver' && cfg.collectionsFirst) ? 0.4 : 0
 
   let role: Role, pill: string, num: string, qual: string, sortKey: number
   let cue: string | undefined
 
+  const driverEta = stage === 'collect' ? driverCollEta : driverDelEta
+
   if (noDriver && cfg.unassignedDanger) {
     const absMin = Math.abs(delta)
-    const timeDesc = delta < 0 ? `${absMin} min ago` : `in ${absMin} min`
     role = 'danger'; pill = 'No driver'
-    cue = `${verb} due ${fmtTime(dueMin)} — ${timeDesc}`
+    cue = delta < 0
+      ? `${verb} was due ${fmtTime(dueMin)} · ${absMin} min ago`
+      : `${verb} due ${fmtTime(dueMin)} · in ${absMin} min`
     num = `${absMin}m`; qual = delta < 0 ? 'overdue' : 'to collect'
     sortKey = BAND_NODRIVER + delta
   } else if (delta < 0 && stage === 'collect') {
     role = 'danger'; pill = 'Collect overdue'
-    cue = `Was due ${fmtTime(dueMin)} · ${-delta} min ago`
+    cue = `Due ${fmtTime(dueMin)} · ${-delta} min ago` + (driverEta ? ` · Driver ETA ${driverEta}` : ' · No ETA set')
     num = `${-delta}m`; qual = 'late'; sortKey = BAND_OV_COLLECT + delta
   } else if (delta < 0) {
     role = 'danger'; pill = 'Deliver overdue'
-    cue = `Was due ${fmtTime(dueMin)} · ${-delta} min ago`
+    cue = `Due ${fmtTime(dueMin)} · ${-delta} min ago` + (driverEta ? ` · Driver ETA ${driverEta}` : ' · No ETA set')
     num = `${-delta}m`; qual = 'late'; sortKey = BAND_OV_DELIVER + delta
   } else if (stalled) {
-    const arrivedAt = fmtTime(BASE_NOW - onSiteMin)
-    role = 'danger'; pill = 'Stalled'
-    cue = `Arrived ~${arrivedAt} · on site ${onSiteMin} min`
-    num = `${onSiteMin}m`; qual = 'on site'
-    sortKey = BAND_STALLED - (cfg.longestStallFirst ? onSiteMin : 0)
+    const arrivedAt = fmtTime(BASE_NOW - onSiteMinVal)
+    role = 'danger'; pill = 'Stalled on site'
+    cue = `On site since ${arrivedAt} · ${onSiteMinVal} min waiting`
+    num = `${onSiteMinVal}m`; qual = 'on site'
+    sortKey = BAND_STALLED - (cfg.longestStallFirst ? onSiteMinVal : 0)
   } else if (delta <= cfg.dueNowMin) {
     role = 'warning'; pill = `${verb} due now`
+    cue = `Due ${fmtTime(dueMin)}` + (driverEta ? ` · Driver ETA ${driverEta}` : ' · No ETA set')
     num = `${delta}m`; qual = 'to go'; sortKey = delta + tie
   } else if (delta <= cfg.dueSoonMin) {
     role = 'warning'; pill = `${verb} due soon`
+    cue = `Due ${fmtTime(dueMin)} · in ${delta} min` + (driverEta ? ` · ETA ${driverEta}` : '')
     num = `${delta}m`; qual = 'to go'; sortKey = delta + tie
   } else {
     role = 'neutral'; pill = 'Upcoming'
+    cue = undefined
     num = `${delta}m`; qual = 'to go'
     sortKey = delta > 0 ? delta + tie : MISSING_ETA_RANK
   }
 
   return {
-    job, cust, stage, verb, due, delta, pc,
-    collPc, collDue, delPc, delDue, collStop, delStop,
-    noDriver, isOnSite: onSite,
+    job, cust, stage, verb, delta,
+    collPc, collBookedTime, collDue,
+    delPc, delBookedTime, delDue,
+    driverCollEta, driverDelEta,
+    collStop, delStop,
+    noDriver, isOnSite: onSite, onSiteMin: onSiteMinVal,
     role, legIcon, pill, cue, num, qual, sortKey,
   }
 }
@@ -132,7 +161,8 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
   const [kebab, setKebab] = useState<string | null>(null)
   const [kebabMode, setKebabMode] = useState<KebabMode>('menu')
   const [noteText, setNoteText] = useState('')
-  const [etaText, setEtaText] = useState('')
+  const [etaEdit, setEtaEdit] = useState<{ id: string; which: 'collect' | 'deliver' } | null>(null)
+  const [etaEditVal, setEtaEditVal] = useState('')
   const [pop, setPop] = useState<{ x: number; y: number; node: ReactNode } | null>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
@@ -165,24 +195,37 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     setProgress(it.job.id, it.stage === 'collect' ? 'On site COL' : 'On site DEL')
     addReceipt(it.job.id, `On site ${fmtTime(nowMin)}`)
   }
-  const closeKebab = () => { setKebab(null); setKebabMode('menu'); setNoteText(''); setEtaText('') }
+
+  const closeKebab = () => { setKebab(null); setKebabMode('menu'); setNoteText('') }
   const openKebab = (id: string) => {
     if (kebab === id) { closeKebab(); return }
-    setKebab(id); setKebabMode('menu'); setNoteText(''); setEtaText('')
+    setKebab(id); setKebabMode('menu'); setNoteText('')
   }
+
   const snoozeJob = (id: string, note: string) => {
     if (note.trim()) addReceipt(id, note.trim())
     addReceipt(id, `Snoozed — retry ${fmtTime(nowMin + 5)}`)
     setSnoozed(s => ({ ...s, [id]: nowMin + 5 }))
     closeKebab()
   }
-  const saveEta = (it: QItem, eta: string) => {
-    if (eta) { setEta(it.job.id, it.stage, eta); addReceipt(it.job.id, `ETA → ${eta}`) }
-    closeKebab()
+
+  const openInlineEta = (e: React.MouseEvent, id: string, which: 'collect' | 'deliver', current: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setEtaEdit({ id, which })
+    setEtaEditVal(current)
   }
+  const saveInlineEta = () => {
+    if (etaEdit && etaEditVal) {
+      setEta(etaEdit.id, etaEdit.which, etaEditVal)
+      addReceipt(etaEdit.id, `ETA updated → ${etaEditVal}`)
+    }
+    setEtaEdit(null)
+    setEtaEditVal('')
+  }
+  const cancelInlineEta = () => { setEtaEdit(null); setEtaEditVal('') }
 
   const isExpanded = density === 'expanded'
-  // compact: 7 cols · expanded: 10 cols
   const colSpan = isExpanded ? 10 : 7
 
   function openJob(job: SavedJob) {
@@ -228,6 +271,56 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
     )
   }
 
+  /** Compact stop cell — postcode + Due row + ETA row (double-click ETA to edit inline) */
+  const stopTimeCell = (
+    stop: Stop | undefined,
+    pc: string,
+    bookedTime: string,
+    driverEta: string,
+    id: string,
+    which: 'collect' | 'deliver',
+    isActive: boolean,
+  ) => {
+    const isEditing = etaEdit?.id === id && etaEdit?.which === which
+    const hasEta = !!driverEta
+    return (
+      <td className="pq-cmp-stop">
+        {stop
+          ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(stop))}>{pc}</button>
+          : <span className="pc muted">{pc}</span>}
+        <div className="pq-time-grid">
+          <span className="pq-time-label">Due</span>
+          <span className="pq-time-val">{bookedTime || 'ASAP'}</span>
+          <span className="pq-time-label">ETA</span>
+          {isEditing ? (
+            <input
+              type="time"
+              className="pq-eta-input-inline"
+              value={etaEditVal}
+              autoFocus
+              onChange={e => setEtaEditVal(e.target.value)}
+              onBlur={saveInlineEta}
+              onKeyDown={e => {
+                if (e.key === 'Enter') saveInlineEta()
+                if (e.key === 'Escape') cancelInlineEta()
+                e.stopPropagation()
+              }}
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <span
+              className={`pq-time-val pq-eta-val${hasEta ? '' : isActive ? ' pq-eta-missing' : ' pq-eta-na'}`}
+              title={isActive ? 'Double-click to update ETA' : undefined}
+              onDoubleClick={isActive ? (e) => openInlineEta(e, id, which, driverEta) : undefined}
+            >
+              {driverEta || (isActive ? '— set ETA' : '—')}
+            </span>
+          )}
+        </div>
+      </td>
+    )
+  }
+
   return (
     <div className={`pq${isExpanded ? '' : ' pq-cmp'}`}>
       <div className="pqt-scroll">
@@ -269,11 +362,9 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                 !isSnoozed && (isPending ? 'pending' : isAlert ? `alert role-${it.role}` : ''),
               ].filter(Boolean).join(' ')
 
-              // Derive consistent 4-slot action buttons
               const secondaryLabel = it.noDriver ? 'Find driver' : 'On site'
               const secondaryVisible = it.noDriver || !it.isOnSite
-              const primaryLabel = it.noDriver
-                ? 'Post job'
+              const primaryLabel = it.noDriver ? 'Post job'
                 : it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'
               const primaryAction = it.noDriver
                 ? () => { console.log('[TODO] Post job', id); addReceipt(id, 'Job posted') }
@@ -281,15 +372,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
               const secondaryAction = it.noDriver
                 ? () => { console.log('[TODO] Find driver', id) }
                 : () => markOnSite(it)
-
-              const stopCell = (stop: Stop | undefined, pc: string, due: string) => (
-                <td className="pq-cmp-stop">
-                  {stop
-                    ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(stop))}>{pc}</button>
-                    : <span className="pc muted">{pc}</span>}
-                  <span className="pq-eta">{due}</span>
-                </td>
-              )
 
               return (
                 <Fragment key={id}>
@@ -301,7 +383,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                       <span>{it.qual}</span>
                     </td>
 
-                    {/* Status */}
+                    {/* Status — pill + context cue */}
                     <td className="pqt-status">
                       {isSnoozed
                         ? <span className="pqt-pill role-snoozed"><Icon name="clock" size={11} /> Snoozed · {fmtTime(snoozed[id])}</span>
@@ -309,12 +391,16 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                           ? <span className="pqt-pill role-pending"><span className="pqt-dot" />{it.stage === 'collect' ? 'Collected' : 'Delivered'} {pending[id]}</span>
                           : <span className={`pqt-pill role-${it.role}`}><span className="pqt-dot" />{it.pill}</span>}
                       {!isPending && !isSnoozed && it.cue && <div className="pqt-cue">{it.cue}</div>}
+                      {it.isOnSite && !isPending && (
+                        <div className="pqt-cue pqt-onsite-dur">
+                          <Icon name="clock" size={11} /> {it.onSiteMin} min on site
+                        </div>
+                      )}
                       {rcpts.length > 0 && <div className="pqt-rcpt">{rcpts[rcpts.length - 1]}</div>}
                     </td>
 
                     {isExpanded ? (
                       <>
-                        {/* Job */}
                         <td>
                           <div className="pqt-job">
                             <span className={`pqt-leg leg-${it.stage}`}><Icon name={it.legIcon} size={13} /></span>
@@ -331,18 +417,24 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                             ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(it.collStop!))}>{it.collPc}</button>
                             : <span className="pc muted">{it.collPc}</span>}
                         </td>
-                        <td className="pqt-stop-time"><b>{it.collDue}</b></td>
+                        <td className="pqt-stop-time">
+                          <b>{it.collDue}</b>
+                          {it.driverCollEta && <div className="pqt-driver-eta">ETA {it.driverCollEta}</div>}
+                        </td>
                         <td className="pqt-stop">
                           {it.delStop
                             ? <button className="route-pt pc" onClick={(e) => openPop(e, addressNode(it.delStop!))}>{it.delPc}</button>
                             : <span className="pc muted">{it.delPc}</span>}
                         </td>
-                        <td className="pqt-stop-time"><b>{it.delDue}</b></td>
+                        <td className="pqt-stop-time">
+                          <b>{it.delDue}</b>
+                          {it.driverDelEta && <div className="pqt-driver-eta">ETA {it.driverDelEta}</div>}
+                        </td>
                         <td className="pqt-veh">{it.job.vehicle || <span className="muted">—</span>}</td>
                       </>
                     ) : (
                       <>
-                        {/* Compact: customer cell — mirrors standard cmp-cust */}
+                        {/* Compact customer cell */}
                         <td className="pq-cmp-cust">
                           <button className="cell-link cmp-co" onClick={(e) => openPop(e, contactNode(it))}>
                             {it.cust?.displayName || it.job.customer}
@@ -353,17 +445,17 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                             <StatusPill status={it.job.progress} />
                           </div>
                         </td>
-                        {/* COL stop */}
-                        {stopCell(it.collStop, it.collPc, it.collDue)}
-                        {/* DEL stop */}
-                        {stopCell(it.delStop, it.delPc, it.delDue)}
+                        {/* COL stop — due + ETA */}
+                        {stopTimeCell(it.collStop, it.collPc, it.collDue, it.driverCollEta, id, 'collect', it.stage === 'collect')}
+                        {/* DEL stop — due + ETA */}
+                        {stopTimeCell(it.delStop, it.delPc, it.delDue, it.driverDelEta, id, 'deliver', it.stage === 'deliver')}
                       </>
                     )}
 
                     {/* Driver */}
                     <td className={`pqt-driver${driver ? '' : ' muted'}`}>{driver ?? 'Unassigned'}</td>
 
-                    {/* Actions — always 4 fixed slots */}
+                    {/* Actions — 4 fixed slots */}
                     <td className="pqt-act" onClick={e => e.stopPropagation()}>
                       <div className="pqt-act-inner">
                         {isPending ? (
@@ -406,7 +498,7 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                     </td>
                   </tr>
 
-                  {/* Kebab row */}
+                  {/* Kebab panel */}
                   {kebab === id && !isPending && (
                     <tr className="pqt-kebab-row">
                       <td colSpan={colSpan}>
@@ -429,21 +521,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                                 <button className="btn sm" onClick={() => { setKebabMode('menu'); setNoteText('') }}>Cancel</button>
                               </div>
                             </div>
-                          ) : kebabMode === 'eta' ? (
-                            <div className="pqt-kebab-form">
-                              <label className="pqt-kebab-label">{it.stage === 'collect' ? 'Collection' : 'Delivery'} ETA</label>
-                              <div className="pqt-kebab-form-row">
-                                <input
-                                  type="time"
-                                  className="pqt-eta-input"
-                                  value={etaText}
-                                  onChange={e => setEtaText(e.target.value)}
-                                  autoFocus
-                                />
-                                <button className="btn primary sm" onClick={() => saveEta(it, etaText)} disabled={!etaText}>Save ETA</button>
-                                <button className="btn sm" onClick={() => { setKebabMode('menu'); setEtaText('') }}>Cancel</button>
-                              </div>
-                            </div>
                           ) : it.noDriver ? (
                             <>
                               <KebabBtn icon="eye" label="Open job" onClick={() => { openJob(it.job); closeKebab() }} />
@@ -461,7 +538,6 @@ export function PriorityQueue({ jobs, density }: { jobs: SavedJob[]; density: 'c
                                 label={it.stage === 'collect' ? 'Mark collected' : 'Mark delivered'}
                                 onClick={() => { markActioned(id); closeKebab() }}
                               />
-                              <KebabBtn icon="clock" label="Update ETA" onClick={() => setKebabMode('eta')} />
                               <KebabBtn icon="phone" label="Ring driver" onClick={() => { addReceipt(id, `Called ${fmtTime(nowMin)}`); closeKebab() }} />
                               <KebabBtn icon="mail" label="Update customer" onClick={() => { addReceipt(id, `Customer updated ${fmtTime(nowMin)}`); closeKebab() }} />
                               <KebabBtn icon="truck" label="Reassign driver" onClick={() => closeKebab()} />

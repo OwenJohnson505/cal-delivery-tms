@@ -2408,11 +2408,30 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* Compact PQ cells — mirroring standard compact view layout */
 .pq-cmp-cust { min-width: 140px; vertical-align: top !important; }
-.pq-cmp-stop { min-width: 88px; vertical-align: top !important; white-space: nowrap; }
-.pq-cmp-stop .pc { font-size: 13px; font-weight: 600; color: var(--ink); display: inline-block; margin-bottom: 3px; }
-.pq-eta { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.pq-cmp-stop { min-width: 105px; vertical-align: top !important; white-space: nowrap; }
+.pq-cmp-stop .pc { font-size: 13px; font-weight: 600; color: var(--ink); display: inline-block; margin-bottom: 4px; }
 /* Leg-direction badge inline with the progress pill in compact customer cell */
 .pq-leg-inline { width: 15px; height: 15px; border-radius: 4px; display: inline-grid; place-items: center; vertical-align: middle; margin-right: 3px; margin-top: -1px; }
+
+/* Time grid — Due / ETA two-row layout inside each compact stop cell */
+.pq-time-grid { display: grid; grid-template-columns: 26px 1fr; row-gap: 3px; column-gap: 5px; margin-top: 2px; }
+.pq-time-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); line-height: 20px; }
+.pq-time-val { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 20px; white-space: nowrap; }
+/* ETA value — double-click to edit when it's the active leg */
+.pq-eta-val { cursor: default; }
+.pq-cmp-stop td:has(.pq-eta-missing) .pq-time-label:last-of-type,
+.pq-eta-missing { color: #d97706; cursor: pointer; }
+.pq-eta-missing:hover { text-decoration: underline; }
+.pq-eta-val:not(.pq-eta-missing):not(.pq-eta-na) { cursor: pointer; }
+.pq-eta-val:not(.pq-eta-missing):not(.pq-eta-na):hover { text-decoration: underline; }
+.pq-eta-na { color: var(--muted); font-weight: 400; }
+/* Inline time input that replaces the ETA value when editing */
+.pq-eta-input-inline { border: 1px solid var(--accent); border-radius: 5px; font: inherit; font-size: 12px; font-weight: 600; padding: 1px 5px; height: 22px; background: #fff; outline: none; }
+
+/* Driver ETA line inside expanded stop-time cell */
+.pqt-driver-eta { font-size: 11px; color: var(--accent); margin-top: 2px; font-weight: 600; }
+/* On-site duration shown below the cue in status column */
+.pqt-onsite-dur { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11.5px; color: #b45309; font-weight: 600; }
 
 /* Snoozed row — de-emphasised until snooze expires */
 .pqt tbody tr.pqt-snoozed > td { opacity: 0.45; }
