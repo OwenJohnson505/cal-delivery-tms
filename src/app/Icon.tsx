@@ -57,6 +57,7 @@ const ICONS: Record<string, string> = {
   headset: '<path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="2.5" y="13" width="4" height="6" rx="1.6"/><rect x="17.5" y="13" width="4" height="6" rx="1.6"/><path d="M19.5 19v.5a3 3 0 0 1-3 3H13"/>',
   'phone-in': '<path d="M16 3h5v5"/><path d="M21 3l-6 6"/><path d="M5 5h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 7a2 2 0 0 1 2-2"/>',
   'phone-out': '<path d="M20 8V3h-5"/><path d="M14 9l6-6"/><path d="M5 5h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 7a2 2 0 0 1 2-2"/>',
+  more: '<circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>',
 }
 
 export type IconName = keyof typeof ICONS | string

@@ -634,7 +634,9 @@
  * layout, which clipped the requirements list here) */
 .shell.panel-open .botrow,
 .shell.panel-open .left .botrow { display: flex; flex-direction: column; gap: 10px; flex: none; height: auto; min-height: 0; }
-.shell.panel-open .rail { overflow: visible; flex: none; }
+.shell.panel-open .rail { overflow: visible; flex: none; background: transparent; border: none; display: flex; flex-direction: column; gap: 10px; }
+.shell.panel-open .rsec { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.shell.panel-open .rsec:last-child { border-bottom: 1px solid var(--line); }
 /* inner reflow: stacked controls wrap / multi-col field grids collapse to one column
  * so nothing overflows the narrow column */
 .shell.panel-open .stop-head { flex-wrap: wrap; }
@@ -2101,7 +2103,7 @@
 .shell.panel-open .email-panel { border-right: none; }
 .shell.panel-open .shell-main {
   margin: 0; border-radius: 0; border: none; border-left: 1px solid var(--line-strong);
-  box-shadow: -12px 0 24px -14px rgba(16, 24, 40, .22); background: var(--panel); overflow: hidden;
+  box-shadow: -12px 0 24px -14px rgba(16, 24, 40, .22); background: var(--bg); overflow: hidden;
 }
 .shell.panel-open .shell-main .app,
 .shell.panel-open .shell-main .list-app { height: 100%; }

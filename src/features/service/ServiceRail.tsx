@@ -5,6 +5,7 @@
  * the full wizard. Selections write to the store, driving the requirements rollup + CX.
  */
 import { useState } from 'react'
+import { Icon } from '@/app/Icon.tsx'
 import { Combobox } from './Combobox.tsx'
 import { VehicleSpecifics } from './VehicleSpecifics.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
@@ -33,7 +34,9 @@ export function ServiceRail() {
       <div className="svc-head">
         <h3>Service &amp; vehicle</h3>
         <span className="db-spacer" />
-        <button className="btn sm" onClick={() => setOpen((o) => !o)}>{open ? 'Done' : 'Edit'}</button>
+        <button className="btn sm iconbtn" title={open ? 'Done' : 'Edit service & vehicle'} onClick={() => setOpen((o) => !o)}>
+          <Icon name={open ? 'check' : 'edit'} size={13} />
+        </button>
       </div>
       {open ? (
         <>

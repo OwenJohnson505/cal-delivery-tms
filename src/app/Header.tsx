@@ -45,10 +45,20 @@ export function Header() {
           <CustomerHeader />
         </div>
         {custId && <span className="bar-status"><StatusPill status={jobStatus} /></span>}
+        {jobFields.length > 0 && (
+          <button
+            className={'btn sm iconbtn cf-icon-btn' + (cf.missingRequired ? ' warn' : '')}
+            title={`Job custom fields ${cf.filled}/${cf.total}${cf.missingRequired ? ' — required fields missing' : ''}`}
+            onClick={() => openCustomFields(null)}
+          >
+            <Icon name="list" size={14} />
+            <span className="cf-icon-badge">{cf.filled}/{cf.total}</span>
+          </button>
+        )}
         <span className="db-spacer" />
         <div className="bar-tools" id="routeTools" style={{ position: 'relative' }}>
           <button className="btn sm iconbtn" title="More actions" onClick={() => setToolsOpen(o => !o)}>
-            <Icon name="list2" size={16} />
+            <Icon name="more" size={16} />
           </button>
           {toolsOpen && (
             <>
@@ -71,36 +81,26 @@ export function Header() {
           )}
         </div>
         <div className="bar-sep" />
-        <button className="btn sm iconbtn" title="Clear booking" onClick={() => { if (confirm('Clear the whole booking?')) reset() }}>
-          <Icon name="trash" size={15} />
-        </button>
+        {editingJobId == null && (
+          <button className="btn sm iconbtn" title="Discard booking" onClick={() => { if (confirm('Clear the whole booking?')) reset() }}>
+            <Icon name="trash" size={15} />
+          </button>
+        )}
         <button className="winx" title="Close — back to list" onClick={() => goToList()}>
           <Icon name="close" size={16} />
         </button>
       </div>
 
-      {(!isBooked || jobFields.length > 0) && (
+      {!isBooked && (
         <div className="bar-sub">
-          {!isBooked && (
-            <button
-              className={'qq-toggle' + (quickQuote ? ' on' : '')}
-              title="Quick Quote — only collection postcode + vehicle type"
-              onClick={() => setQuickQuote(!quickQuote)}
-            >
-              <span className="qq-dot" />
-              Quick Quote
-            </button>
-          )}
-          {jobFields.length > 0 && (
-            <button
-              className={'btn sm iconbtn cf-icon-btn' + (cf.missingRequired ? ' warn' : '')}
-              title={`Job custom fields ${cf.filled}/${cf.total}${cf.missingRequired ? ' — required fields missing' : ''}`}
-              onClick={() => openCustomFields(null)}
-            >
-              <Icon name="list" size={14} />
-              <span className="cf-icon-badge">{cf.filled}/{cf.total}</span>
-            </button>
-          )}
+          <button
+            className={'qq-toggle' + (quickQuote ? ' on' : '')}
+            title="Quick Quote — only collection postcode + vehicle type"
+            onClick={() => setQuickQuote(!quickQuote)}
+          >
+            <span className="qq-dot" />
+            Quick Quote
+          </button>
         </div>
       )}
     </div>

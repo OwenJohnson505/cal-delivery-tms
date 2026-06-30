@@ -54,8 +54,8 @@ export function OtherCharges({ grow = false }: { grow?: boolean }) {
             onChange={(e) => setRate(e.target.value)}
           />
         </div>
-        <button className="btn primary sm" style={{ marginBottom: 1 }} onClick={add} disabled={!label}>
-          Add
+        <button className="btn primary sm iconbtn" style={{ marginBottom: 1 }} title="Add charge" onClick={add} disabled={!label}>
+          <Icon name="plus" size={14} />
         </button>
       </div>
       <table>
