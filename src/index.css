@@ -340,6 +340,20 @@ body {
 .main-stack .stop-form .btn.primary { background: var(--blue); color: #fff; }
 .main-stack .stop-form .btn.sm:not(.primary) { background: var(--fill); color: var(--ink); }
 
+/* focused stop editing — only this stop shows, full width, no rail */
+.main-stack .stop.stop-focus { padding: 8px 14px 12px; }
+.main-stack .stop.stop-focus .stop-content { flex: 1 1 auto; min-width: 0; }
+.main-stack .dot-inline { width: 18px; height: 18px; font-size: 10px; margin-right: 6px; flex: 0 0 18px; }
+
+/* address finder — a single search-icon button (no text, no postcode button) */
+.main-stack .af-search {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 8px; border: none;
+  background: var(--fill); color: var(--ink-2); cursor: pointer;
+}
+.main-stack .af-search:hover { background: var(--fill-2); color: var(--blue); }
+.main-stack .af-search svg { width: 16px; height: 16px; }
+
 /* KV + chip stacks */
 .main-stack .kv { display: flex; align-items: flex-start; gap: 12px; padding: 11px 14px; min-height: 44px; }
 .main-stack .kv .k { font-size: 13px; color: var(--ink-2); flex: 0 0 78px; padding-top: 3px; }

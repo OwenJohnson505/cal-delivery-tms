@@ -82,11 +82,12 @@ export function AddressFind({
           value={q}
           onChange={(e) => onType(e.target.value)}
         />
-        <button className="btn sm" onClick={doPlaces} title="Google Places (billed per session)">
-          <Icon name="search" size={14} /> Search
-        </button>
-        <button className="btn sm" onClick={doPostcode} disabled={!isFullPostcode(q)} title="Postcode lookup">
-          <Icon name="pin" size={14} /> Postcode
+        <button
+          className="af-search"
+          onClick={() => { if (isFullPostcode(q)) doPostcode(); else doPlaces() }}
+          title="Search — Google Places, or postcode lookup for a full postcode"
+        >
+          <Icon name="search" size={16} />
         </button>
       </div>
 

@@ -28,9 +28,10 @@ function fromLocal(v: string): string {
 }
 
 type Section = 'addr' | 'contact' | 'goods' | null
-const incomplete = (s: Stop) => !s.addr.co && !s.addr.pc && !s.addr.address
 
-export function StopCard({ stop, index, last }: { stop: Stop; index: number; last: boolean }) {
+export function StopCard({ stop, index, last, onEditingChange }: {
+  stop: Stop; index: number; last: boolean; onEditingChange?: (on: boolean) => void
+}) {
   const stops = useBookingStore((s) => s.stops)
   const updateStop = useBookingStore((s) => s.updateStop)
   const removeStop = useBookingStore((s) => s.removeStop)
@@ -42,8 +43,10 @@ export function StopCard({ stop, index, last }: { stop: Stop; index: number; las
   const assignAllTo = useBookingStore((s) => s.assignAllTo)
   const clearStopAssign = useBookingStore((s) => s.clearStopAssign)
 
-  const [edit, setEdit] = useState<Section>(() => (incomplete(stop) ? 'addr' : null))
+  const [edit, setEditState] = useState<Section>(null)
+  const setEdit = (s: Section) => { setEditState(s); onEditingChange?.(s !== null) }
   const [draft, setDraft] = useState('')
+  const focused = edit !== null
 
   const a = stop.addr
   const c = stop.contact
@@ -69,16 +72,19 @@ export function StopCard({ stop, index, last }: { stop: Stop; index: number; las
     set({ goods: segs.join('\n'), goodsTouched: true })
   }
 
-  const toggle = (s: Section) => setEdit((cur) => (cur === s ? null : s))
+  const toggle = (s: Section) => setEdit(edit === s ? null : s)
 
   return (
-    <div className="stop">
-      <div className="rail">
-        <div className={'dot ' + (isColl ? 'pickup' : 'drop')}>{index + 1}</div>
-        {!last && <div className="stem" />}
-      </div>
+    <div className={'stop' + (focused ? ' stop-focus' : '')}>
+      {!focused && (
+        <div className="rail">
+          <div className={'dot ' + (isColl ? 'pickup' : 'drop')}>{index + 1}</div>
+          {!last && <div className="stem" />}
+        </div>
+      )}
       <div className="stop-content">
         <div className="stop-top">
+          {focused && <span className={'dot dot-inline ' + (isColl ? 'pickup' : 'drop')}>{index + 1}</span>}
           <select className="kind-sel" value={stop.type} onChange={(e) => set({ type: e.target.value as StopType })}>
             <option>Collection</option>
             <option>Delivery</option>
