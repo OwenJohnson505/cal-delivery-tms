@@ -90,7 +90,7 @@ export function QuickQuotePanel() {
             </div>
           </div>
 
-          <OtherCharges grow />
+          <OtherCharges />
 
           <div className="rsec">
             <h3>Requirements</h3>

@@ -1,84 +1,64 @@
 /**
- * Other charges (prototype lines 539-547) — additional line-item charges such as
- * handballing or waiting time. Wired to the store; used in both the full rail and the
- * Quick Quote panel.
+ * Charges section — matches the redesign reference: a "+ Add charge" menu of common
+ * charges (with default rates) and inline-editable amount rows. No dropdown box.
  */
 import { useState } from 'react'
-import { Icon } from './Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 
-const CHARGE_TYPES = [
-  'Handballing',
-  'Waiting time',
-  'Congestion charge',
-  'Tail-lift surcharge',
-  'Out-of-hours',
-  'Additional drop',
+const CHARGE_CAT: [string, number][] = [
+  ['Handballing', 35], ['Waiting time', 45], ['Congestion charge', 15], ['Ferry crossing', 120],
+  ['Timed delivery', 25], ['Out of hours', 60], ['Pallet exchange', 12], ['ADR surcharge', 50], ['Storage', 20],
 ]
 
-export function OtherCharges({ grow = false }: { grow?: boolean }) {
+export function OtherCharges() {
   const charges = useBookingStore((s) => s.charges)
   const addCharge = useBookingStore((s) => s.addCharge)
+  const setChargeRate = useBookingStore((s) => s.setChargeRate)
   const removeCharge = useBookingStore((s) => s.removeCharge)
-
-  const [label, setLabel] = useState('')
-  const [rate, setRate] = useState('')
-
-  function add() {
-    if (!label) return
-    addCharge(label, parseFloat(rate) || 0)
-    setLabel('')
-    setRate('')
-  }
+  const [menu, setMenu] = useState(false)
 
   return (
-    <div className={'rsec' + (grow ? ' qq-grow' : '')}>
-      <h3>Other charges</h3>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}>
-        <div className="fld" style={{ flex: 1 }}>
-          <label>Charge</label>
-          <select value={label} onChange={(e) => setLabel(e.target.value)}>
-            <option value="">— Select —</option>
-            {CHARGE_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <div className="fld" style={{ width: 64 }}>
-          <label>Rate £</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="0.00"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-          />
-        </div>
-        <button className="btn primary sm iconbtn" style={{ marginBottom: 1 }} title="Add charge" onClick={add} disabled={!label}>
-          <Icon name="plus" size={14} />
-        </button>
+    <div className="section">
+      <div className="sec-head">
+        <span className="sec-title">Charges</span>
+        <div className="spacer" />
+        <span className="sec-action" onClick={() => setMenu((o) => !o)}>+ Add charge</span>
       </div>
-      <table>
-        <tbody>
-          {charges.length === 0 ? (
-            <tr>
-              <td className="empty">No charges added</td>
-            </tr>
-          ) : (
-            charges.map((c) => (
-              <tr key={c.id}>
-                <td>{c.label}</td>
-                <td className="num">£{c.rate.toFixed(2)}</td>
-                <td style={{ width: 28, textAlign: 'right' }}>
-                  <button className="btn sm iconbtn danger" title="Remove charge" onClick={() => removeCharge(c.id)}>
-                    <Icon name="trash" size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+
+      {menu && (
+        <div className="picker open">
+          <div className="picker-inner">
+            <div className="picker-title">Add a charge</div>
+            <div className="menu">
+              {CHARGE_CAT.map(([name, rate]) => (
+                <div key={name} className="menu-item" onClick={() => { addCharge(name, rate); setMenu(false) }}>
+                  <span>{name}</span>
+                  <span className="mrate">£{rate.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {charges.length === 0 ? (
+        <div className="charges-empty">No charges yet — add one above.</div>
+      ) : (
+        charges.map((c) => (
+          <div key={c.id} className="charge">
+            <span className="cname">{c.label}</span>
+            <span className="cfield">
+              <span className="cur">£</span>
+              <input
+                inputMode="decimal"
+                value={c.rate.toFixed(2)}
+                onChange={(e) => setChargeRate(c.id, parseFloat(e.target.value) || 0)}
+              />
+            </span>
+            <span className="del" title="Remove" onClick={() => removeCharge(c.id)}>×</span>
+          </div>
+        ))
+      )}
     </div>
   )
 }

@@ -1,63 +1,109 @@
 /**
- * Service & vehicle rail (prototype lines 526-532): tariff combobox + body/equipment/
- * service multi-selects. Shown as a SUMMARISED box (read-only chips) with an Edit toggle
- * that reveals the controls — collapsed by default in the narrow email-job view, open in
- * the full wizard. Selections write to the store, driving the requirements rollup + CX.
+ * Service & Vehicle section — matches the redesign reference: a Vehicle KV row
+ * (tariff · body) plus full-width Equipment / Service chip stacks. Chips carry an
+ * × to remove; "+ Add" opens an inline picker of options. No dropdown boxes.
+ * Selections write to the store, driving the requirements rollup + CX.
  */
 import { useState } from 'react'
-import { Icon } from '@/app/Icon.tsx'
-import { Combobox } from './Combobox.tsx'
-import { VehicleSpecifics } from './VehicleSpecifics.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
-import { useEmailsStore } from '@/store/emailsStore.ts'
 
 const TARIFFS = ['Small van', 'SWB van', 'LWB van', 'Luton', '7.5t', '18t', 'Artic']
+const AMBER = new Set(['ADR', 'Hazardous'])
+
+type Group = 'equip' | 'service'
+type Picker = 'vehicle' | Group | null
 
 export function ServiceRail() {
   const tariff = useBookingStore((s) => s.tariff)
   const setTariff = useBookingStore((s) => s.setTariff)
   const ms = useBookingStore((s) => s.ms)
-  const emailFull = useEmailsStore((s) => s.panelState === 'full')
-  const [open, setOpen] = useState(!emailFull)
+  const setMsSelection = useBookingStore((s) => s.setMsSelection)
+  const [picker, setPicker] = useState<Picker>(null)
 
-  const summaryRow = (k: string, sel: string[]) =>
-    sel.length > 0 && (
-      <div className="svc-sum-row" key={k}>
-        <span className="svc-sum-k">{k}</span>
-        <span className="svc-sum-v">{sel.map((x) => <span key={x} className="svc-chip">{x}</span>)}</span>
-      </div>
-    )
-  const nothing = ms.body.sel.length + ms.equip.sel.length + ms.service.sel.length === 0
+  const toggleIn = (list: string[], v: string) =>
+    list.includes(v) ? list.filter((x) => x !== v) : [...list, v]
 
-  return (
-    <div className="rsec svc-box">
-      <div className="svc-head">
-        <h3>Service &amp; vehicle</h3>
-        <span className="db-spacer" />
-        <button className="btn sm iconbtn" title={open ? 'Done' : 'Edit service & vehicle'} onClick={() => setOpen((o) => !o)}>
-          <Icon name={open ? 'check' : 'edit'} size={13} />
-        </button>
+  const tagCls = (g: Group, v: string) =>
+    AMBER.has(v) ? ' amber' : g === 'service' ? ' blue' : ''
+
+  const vehVal = [tariff.q, ...ms.body.sel].filter(Boolean).join(' · ')
+
+  const stack = (g: Group, label: string) => (
+    <>
+      <div className="stack">
+        <div className="stack-head"><span className="stack-label">{label}</span></div>
+        <div className="chips">
+          {ms[g].sel.map((v) => (
+            <span key={v} className={'tag' + tagCls(g, v)}>
+              {v}
+              <span className="x" onClick={() => setMsSelection(g, ms[g].sel.filter((x) => x !== v))}>×</span>
+            </span>
+          ))}
+          <button className="add-pill" onClick={() => setPicker(picker === g ? null : g)}>+ Add</button>
+        </div>
       </div>
-      {open ? (
-        <>
-          <div className="fld">
-            <label>Vehicle type / tariff</label>
-            <Combobox value={tariff.q} options={TARIFFS} placeholder="Select a vehicle / rate card…" onChange={setTariff} />
+      {picker === g && (
+        <div className="picker open">
+          <div className="picker-inner">
+            <div className="picker-title">Select {label.toLowerCase()}</div>
+            <div className="opts">
+              {ms[g].o.map((v) => {
+                const on = ms[g].sel.includes(v)
+                return (
+                  <button
+                    key={v}
+                    className={'opt' + (on ? ' selected' : '') + (on && AMBER.has(v) ? ' amber' : '')}
+                    onClick={() => setMsSelection(g, toggleIn(ms[g].sel, v))}
+                  >
+                    {on && <span className="ck">✓</span>}{v}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="picker-foot"><span className="picker-done" onClick={() => setPicker(null)}>Done</span></div>
           </div>
-          <VehicleSpecifics />
-        </>
-      ) : (
-        <div className="svc-summary">
-          <div className="svc-sum-row">
-            <span className="svc-sum-k">Vehicle</span>
-            <span className="svc-sum-v">{tariff.q || <span className="svc-sum-empty">—</span>}</span>
-          </div>
-          {summaryRow('Body', ms.body.sel)}
-          {summaryRow('Equipment', ms.equip.sel)}
-          {summaryRow('Service', ms.service.sel)}
-          {nothing && <div className="svc-sum-empty">No body / equipment / service selected.</div>}
         </div>
       )}
+    </>
+  )
+
+  return (
+    <div className="section">
+      <div className="sec-head"><span className="sec-title">Service &amp; Vehicle</span></div>
+
+      <div className="kv kv-tap" onClick={() => setPicker(picker === 'vehicle' ? null : 'vehicle')}>
+        <span className="k">Vehicle</span>
+        <span className={'v' + (vehVal ? '' : ' muted')}>{vehVal || 'Select a vehicle'}</span>
+      </div>
+      {picker === 'vehicle' && (
+        <div className="picker open">
+          <div className="picker-inner">
+            <div className="picker-title">Vehicle / tariff</div>
+            <div className="opts">
+              {TARIFFS.map((v) => (
+                <button key={v} className={'opt' + (tariff.q === v ? ' selected' : '')} onClick={() => setTariff(v)}>
+                  {tariff.q === v && <span className="ck">✓</span>}{v}
+                </button>
+              ))}
+            </div>
+            <div className="picker-title" style={{ marginTop: 10 }}>Body type</div>
+            <div className="opts">
+              {ms.body.o.map((v) => {
+                const on = ms.body.sel.includes(v)
+                return (
+                  <button key={v} className={'opt' + (on ? ' selected' : '')} onClick={() => setMsSelection('body', toggleIn(ms.body.sel, v))}>
+                    {on && <span className="ck">✓</span>}{v}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="picker-foot"><span className="picker-done" onClick={() => setPicker(null)}>Done</span></div>
+          </div>
+        </div>
+      )}
+
+      {stack('equip', 'Equipment')}
+      {stack('service', 'Service')}
     </div>
   )
 }

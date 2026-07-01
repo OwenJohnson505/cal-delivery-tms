@@ -158,6 +158,12 @@ export const useBookingStore = create<BookingStore>()(
         s.charges.push({ id: crypto.randomUUID(), label, rate })
       }),
 
+    setChargeRate: (id, rate) =>
+      set((s) => {
+        const c = s.charges.find((x) => x.id === id)
+        if (c) c.rate = rate
+      }),
+
     removeCharge: (id) =>
       set((s) => {
         s.charges = s.charges.filter((c) => c.id !== id)

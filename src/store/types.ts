@@ -92,6 +92,7 @@ export interface BookingActions {
 
   // --- Other charges ---
   addCharge(label: string, rate: number): void
+  setChargeRate(id: string, rate: number): void
   removeCharge(id: string): void
 
   reset(): void

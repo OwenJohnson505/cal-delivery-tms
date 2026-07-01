@@ -1,10 +1,9 @@
 /**
- * Footer — booked-by / our-ref meta, total revenue, and the save actions. Saving persists
- * the current booking to the jobs list (as Draft / Quote / Quick Quote / Booking) and
- * returns to the matching list screen. In a full booking all three saves are available;
- * Quick Quote offers Draft / Quick Quote only.
+ * Footer — booked-by, customer reference, total revenue + save actions. Matches the
+ * redesign reference order: Booked-by line, full-width customer-ref input, then the
+ * total revenue on the same row as Cancel / save actions. (Our ref lives in the header.)
  */
-import { RefHistory } from '@/features/customer/RefHistory.tsx'
+import { useState } from 'react'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useJobsStore, captureSnapshot } from '@/store/jobsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
@@ -29,61 +28,60 @@ export function Footer() {
   const saveJob = useJobsStore((s) => s.saveJob)
   const editingJobId = useViewStore((s) => s.editingJobId)
   const goToList = useViewStore((s) => s.goToList)
+  const revenue = useBookingStore((s) => s.charges.reduce((t, c) => t + (c.rate || 0), 0))
+  const [custRef, setCustRef] = useState('')
 
   function save(status: JobStatus) {
     const snapshot = captureSnapshot()
     const job = saveJob({ id: editingJobId, status, snapshot, createdAt: stamp() })
-    // If this booking was started from an email, link the whole thread to the new
-    // job ref (and tag it with the ref) so it's searchable by booking reference.
     useEmailsStore.getState().commitPendingJobLink(job.ref)
     goToList(tabFor(status))
   }
 
-  const revenue = useBookingStore((s) => s.charges.reduce((t, c) => t + (c.rate || 0), 0))
-
-  // A confirmed, existing booking (not a new draft) — locked to update/cancel only.
   const isBooked = editingJobId != null && jobStatus === 'Booking'
 
+  let actions
+  if (isBooked) {
+    actions = (
+      <>
+        <button className="btn ghost" onClick={() => goToList()}>Cancel</button>
+        <button className="btn primary" onClick={() => save('Booking')}>Update</button>
+      </>
+    )
+  } else if (quickQuote) {
+    actions = (
+      <>
+        <button className="btn ghost" onClick={() => save('Draft')}>Draft</button>
+        <button className="btn primary" onClick={() => save('Quick Quote')}>Save quote</button>
+      </>
+    )
+  } else {
+    actions = (
+      <>
+        <button className="btn ghost" onClick={() => save('Draft')}>Draft</button>
+        <button className="btn ghost" onClick={() => save('Quote')}>Quote</button>
+        <button className="btn primary" onClick={() => save('Booking')}>Save</button>
+      </>
+    )
+  }
+
   return (
-    <div className="footer">
-      <div className="foot-meta">
-        <div className="foot-field">
-          <span className="foot-lbl">Booked by</span>
-          <span className="foot-val">Owen Johnson · 06-06-26 18:53</span>
-        </div>
-        <div className="foot-field">
-          <span className="foot-lbl">Our ref</span>
-          <span className="foot-val cpx" title="Click to copy">BK-2026-100482</span>
-        </div>
+    <div className="footer bk-footer">
+      <div className="booked">Booked by <b>Owen Johnson</b> · 6 Jun 2026, 18:53</div>
+      <div className="custref">
+        <input
+          placeholder="Customer reference / PO number…"
+          value={custRef}
+          onChange={(e) => setCustRef(e.target.value)}
+        />
       </div>
-      <div className="foot-actions">
-        <div className="foot-rev">
-          <span className="foot-lbl">Total revenue</span>
-          <span className="foot-amt">£{revenue.toFixed(2)}</span>
+      <div className="pay">
+        <div className="foot-meta">
+          <span className="lbl">Total revenue</span>
+          <span className="total">£{revenue.toFixed(2)}</span>
         </div>
-        <RefHistory />
-        <div id="footActions" className="saveas">
-          <div className="saveas-btns">
-            {isBooked ? (
-              // already a booking → can only update or cancel (no draft/quote)
-              <>
-                <button className="btn" onClick={() => goToList()}>Cancel</button>
-                <button className="btn primary" onClick={() => save('Booking')}>Update booking</button>
-              </>
-            ) : quickQuote ? (
-              <>
-                <button className="btn" onClick={() => save('Draft')}>Save as draft</button>
-                <button className="btn primary" onClick={() => save('Quick Quote')}>Save as Quick Quote</button>
-              </>
-            ) : (
-              <>
-                <button className="btn" onClick={() => save('Draft')}>Save draft</button>
-                <button className="btn" onClick={() => save('Quote')}>Save as quote</button>
-                <button className="btn primary" onClick={() => save('Booking')}>Save as booking</button>
-              </>
-            )}
-          </div>
-        </div>
+        <div className="db-spacer" />
+        {actions}
       </div>
     </div>
   )

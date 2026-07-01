@@ -5,7 +5,6 @@
  * stop (then collapses everything); "Edit" opens a collapsed stop.
  */
 import { useEffect, useRef, useState } from 'react'
-import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { StopCard } from './StopCard.tsx'
 import { StopEditor } from './StopEditor.tsx'
@@ -47,29 +46,27 @@ export function RoutePanel() {
   }
 
   return (
-    <div className="route">
-      <div className="route-scroll" ref={scrollRef}>
-        <div className="rtitle">Route · stops</div>
-        <div className="stops-list">
-          {stops.map((s, i) =>
-            s.id === editingId ? (
-              <StopEditor key={s.id} stopId={s.id} index={i} onDone={() => done(s.id)} />
-            ) : (
-              <StopCard key={s.id} stop={s} index={i} onEdit={() => setEditingId(s.id)} />
-            ),
-          )}
-        </div>
-        <button
-          className="btn add-stop"
-          onClick={() => {
-            const s = newStop(stops)
-            addStop(s)
-            setEditingId(s.id)
-          }}
-        >
-          <Icon name="plus" size={15} /> Add another address
-        </button>
+    <div className="section route-section">
+      <div className="sec-head"><span className="sec-title">Route · {stops.length} stops</span></div>
+      <div className="stops" ref={scrollRef}>
+        {stops.map((s, i) =>
+          s.id === editingId ? (
+            <StopEditor key={s.id} stopId={s.id} index={i} onDone={() => done(s.id)} />
+          ) : (
+            <StopCard key={s.id} stop={s} index={i} last={i === stops.length - 1} onEdit={() => setEditingId(s.id)} />
+          ),
+        )}
       </div>
+      <button
+        className="add-row"
+        onClick={() => {
+          const s = newStop(stops)
+          addStop(s)
+          setEditingId(s.id)
+        }}
+      >
+        + Add stop
+      </button>
     </div>
   )
 }
