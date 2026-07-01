@@ -8,6 +8,30 @@
 }
 
 /* ============================================================
+ * APPLE-STYLE PALETTE (site-wide) — overrides the prototype :root tokens.
+ * Softer neutral greys, Apple system blue, tighter tracking. Because the app
+ * styles almost everything through these tokens, this re-skins the whole site.
+ * ============================================================ */
+:root {
+  --bg: #e8e8ed;
+  --panel: #ffffff;
+  --ink: #1d1d1f;
+  --muted: #6e6e73;
+  --line: #e4e4e9;
+  --line-strong: #d3d3d8;
+  --field: #f5f5f7;
+  --accent: #0071e3;
+  --accent-soft: rgba(0, 113, 227, .10);
+  --collect: #1a7f37;
+  --revenue: #1a7f37;
+  --deliver: #9a6700;
+}
+body {
+  letter-spacing: -0.01em;
+  font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* ============================================================
  * CALM PASS — pill language + lighter borders + ghost icon buttons
  * Intentional, documented deviation from the verbatim prototype to reduce
  * visual busyness. Booking-essential buttons (primary) stay solid; secondary,
