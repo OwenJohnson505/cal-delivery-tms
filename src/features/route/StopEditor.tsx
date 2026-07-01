@@ -288,9 +288,7 @@ export function GoodsPreview({
                 )
               })}
             </span>
-            <button type="button" className="pdel" title="Remove item" onClick={() => onRemove(ix)}>
-              <Icon name="trash" size={12} />
-            </button>
+            <button type="button" className="pdel" title="Remove item" onClick={() => onRemove(ix)}>×</button>
           </div>
         )
       })}

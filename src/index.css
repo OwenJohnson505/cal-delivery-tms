@@ -356,6 +356,23 @@ body {
 .main-stack .af-search:hover { background: var(--fill-2); color: var(--blue); }
 .main-stack .af-search svg { width: 16px; height: 16px; }
 
+/* remove buttons use × (not a bin) */
+.main-stack .stop-del { font-size: 16px; line-height: 1; }
+/* goods: no nested white box — the itemised list sits on the section */
+.main-stack .stop-form .parsed { background: transparent; border: none; border-radius: 0; padding: 4px 0 0; box-shadow: none; }
+.main-stack .stop-form .pdel {
+  background: none; border: none; color: var(--ink-3); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 5px; border-radius: 6px;
+}
+.main-stack .stop-form .pdel:hover { color: #d70015; background: rgba(215, 0, 21, .08); }
+
+/* customer editor in the narrow header: stack it so it never widens the column */
+.topbar .cc-edit-inline { flex-direction: column; align-items: stretch; gap: 6px; width: 100%; min-width: 0; }
+.topbar .cc-edit-inline .cc-edit-co { flex: none; min-width: 0; width: 100%; }
+.topbar .cc-edit-inline .cc-edit-contact { max-width: none; width: 100%; }
+.topbar .cc-edit-inline input, .topbar .cc-edit-inline select { width: 100%; }
+.topbar .cc-edit-inline .btn { align-self: flex-end; width: auto; }
+
 /* KV + chip stacks */
 .main-stack .kv { display: flex; align-items: flex-start; gap: 12px; padding: 11px 14px; min-height: 44px; }
 .main-stack .kv .k { font-size: 13px; color: var(--ink-2); flex: 0 0 78px; padding-top: 3px; }

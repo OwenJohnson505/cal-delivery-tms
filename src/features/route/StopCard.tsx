@@ -7,7 +7,6 @@
  * Edits write straight to the store; "Done" just closes the open form.
  */
 import { useState } from 'react'
-import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useEffectiveAssign } from '@/store/selectors.ts'
 import { AddressFind } from '@/features/address/AddressFind.tsx'
@@ -93,9 +92,7 @@ export function StopCard({ stop, index, last, onEditingChange }: {
           <div className="spacer" />
           {stop.reference && <span className="chip">{stop.reference}</span>}
           {stops.length > 1 && (
-            <button className="stop-del" title="Remove stop" onClick={() => removeStop(stop.id)}>
-              <Icon name="trash" size={13} />
-            </button>
+            <button className="stop-del" title="Remove stop" onClick={() => removeStop(stop.id)}>×</button>
           )}
         </div>
 
