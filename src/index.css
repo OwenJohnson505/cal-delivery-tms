@@ -219,16 +219,19 @@ body {
  * then the remaining panels form a 2-col grid that auto-collapses to 1 col when
  * the slice is narrow (e.g. beside an open email) — same markup, every mode. */
 /* The whole booking form is one white "sheet" — a lifted, bordered card — so it
- * reads as a single unit alongside email / phone panels. Each section inside is a
- * grey container (see below). */
-.shell.wiz:not(.panel-open):not(.email-side) .work {
+ * reads as a single unit alongside email / phone panels. IDENTICAL in every mode
+ * (standalone or with email open beside it). Each section inside is a grey
+ * container (see below). */
+.shell.wiz .work {
   overflow: auto;
+  display: flex; flex-direction: column; gap: 0;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 16px 38px rgba(16, 24, 40, .07);
   margin: 6px 8px 10px 4px;
   padding: 0;
+  min-width: var(--wizard-max);
 }
 
 /* Section containers: grey rounded blocks on the white sheet. */
@@ -477,9 +480,14 @@ body {
 .topbar .pill.pill-booking { background: var(--green-tint); color: var(--green); }
 .topbar .pill.pill-quote, .topbar .pill.pill-quickquote { background: var(--blue-tint); color: var(--blue); }
 .topbar .hdr-ref { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* close sits on row 1, in line with the customer name — a clean ghost × (no box) */
-.topbar .tb-row1 > .tb-close { flex: 0 0 auto; align-self: flex-start; background: none; color: var(--ink-3); }
-.topbar .tb-row1 > .tb-close:hover { background: var(--fill); color: var(--ink); }
+/* close sits on row 1, in line with the customer name — a clean ghost × (no box,
+ * no border), turns red on hover */
+.topbar .tb-row1 > .tb-close {
+  flex: 0 0 auto; align-self: flex-start; width: 28px; height: 28px;
+  background: none; border: none; border-radius: 8px; color: var(--ink-3);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.topbar .tb-row1 > .tb-close:hover { background: none; color: #d70015; }
 .topbar .actions { display: flex; align-items: center; gap: 5px; }
 .topbar .actions .iconbtn {
   height: 28px; min-width: 28px; padding: 0 6px; border-radius: 8px; border: none;
@@ -1068,8 +1076,10 @@ body {
 /* An open booking inside the narrow column → a VERTICAL, scrolling form (the wide
  * two-column wizard doesn't fit). Reflow every section into one stacked column. */
 .shell.panel-open .app { min-width: 0; width: 100%; padding-right: 0; }
-.shell.panel-open .work { overflow: auto; padding: 10px; gap: 10px; display: block; }
-.shell.panel-open .main { display: flex; flex-direction: column; gap: 10px; flex: none; min-height: 0; margin-bottom: 10px; }
+/* .work / .main styling now comes from the self-contained booking sheet (identical
+ * in every mode) — the old wide→narrow reflow below only touched now-removed
+ * elements (.route/.rail/.botrow/.rsec). */
+.shell.panel-open .work { overflow: auto; }
 .shell.panel-open .route { height: auto; max-height: none; flex: none; background: var(--bg); border: none; }
 .shell.panel-open .route-scroll { overflow: visible; }
 /* requirements/notes row sizes to content (it has a fixed 128px height in the wide
