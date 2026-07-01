@@ -239,7 +239,7 @@ export function StopEditor({ stopId, index, onDone }: { stopId: number; index: n
   )
 }
 
-function GoodsPreview({
+export function GoodsPreview({
   stop,
   eq,
   onToggleEq,
@@ -298,7 +298,7 @@ function GoodsPreview({
   )
 }
 
-function Allocation({
+export function Allocation({
   stop,
   stops,
   assign,

@@ -298,6 +298,48 @@ body {
 .main-stack .add-row { width: calc(100% - 20px); margin: 2px 10px 10px; padding: 7px; border-radius: 9px; border: 1px dashed var(--hair-strong); background: transparent; color: var(--blue); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; height: auto; }
 .main-stack .add-row:hover { background: var(--blue-tint); border-color: transparent; }
 
+/* stop-top: type as a subtle inline select, remove button */
+.main-stack .stop-top .kind-sel {
+  font: inherit; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-3); background: none; border: none; padding: 0; cursor: pointer; width: auto; height: auto;
+  -webkit-appearance: none; appearance: none;
+}
+.main-stack .stop-del { background: none; border: none; color: var(--ink-3); cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.main-stack .stop-del:hover { color: #d70015; background: rgba(215, 0, 21, .08); }
+.main-stack .stop-tap { cursor: pointer; }
+.main-stack .place-add { color: var(--blue); cursor: pointer; }
+
+/* inline stop edit forms — compact, single column, fit the narrow column */
+.main-stack .stop-form {
+  margin: 6px 0 4px; padding: 10px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--hair);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.main-stack .stop-form .sf-title { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.main-stack .sf-field { display: flex; flex-direction: column; gap: 3px; }
+.main-stack .sf-field > label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+.main-stack .stop-form input,
+.main-stack .stop-form select,
+.main-stack .stop-form textarea {
+  width: 100%; font: inherit; font-size: 13px; padding: 8px 10px; height: auto;
+  border-radius: 8px; border: 1px solid var(--hair-strong); background: var(--panel); color: var(--ink); outline: none;
+}
+.main-stack .stop-form input:focus,
+.main-stack .stop-form select:focus,
+.main-stack .stop-form textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-tint); }
+.main-stack .sf-two { display: flex; gap: 8px; }
+.main-stack .sf-two > * { flex: 1; min-width: 0; }
+.main-stack .sf-two .sf-pc { flex: 0 0 108px; }
+.main-stack .sf-when { display: flex; flex-wrap: wrap; gap: 5px; }
+.main-stack .sf-when .opt { font-size: 12px; padding: 4px 12px; border-radius: 100px; background: var(--fill); border: 1px solid transparent; color: var(--ink); cursor: pointer; height: auto; width: auto; }
+.main-stack .sf-when .opt.selected { background: var(--blue); color: #fff; }
+.main-stack .sf-goods-add { display: flex; gap: 6px; }
+.main-stack .sf-goods-add input { flex: 1; }
+.main-stack .sf-actions { display: flex; justify-content: flex-end; }
+.main-stack .stop-form .btn { border: none; border-radius: 8px; padding: 6px 14px; font-size: 12.5px; font-weight: 600; height: auto; width: auto; cursor: pointer; }
+.main-stack .stop-form .btn.primary { background: var(--blue); color: #fff; }
+.main-stack .stop-form .btn.sm:not(.primary) { background: var(--fill); color: var(--ink); }
+
 /* KV + chip stacks */
 .main-stack .kv { display: flex; align-items: flex-start; gap: 12px; padding: 11px 14px; min-height: 44px; }
 .main-stack .kv .k { font-size: 13px; color: var(--ink-2); flex: 0 0 78px; padding-top: 3px; }
@@ -402,8 +444,9 @@ body {
 .topbar .pill.pill-booking { background: var(--green-tint); color: var(--green); }
 .topbar .pill.pill-quote, .topbar .pill.pill-quickquote { background: var(--blue-tint); color: var(--blue); }
 .topbar .hdr-ref { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* close sits on row 1, in line with the customer name */
-.topbar .tb-row1 > .tb-close { flex: 0 0 auto; align-self: flex-start; }
+/* close sits on row 1, in line with the customer name — a clean ghost × (no box) */
+.topbar .tb-row1 > .tb-close { flex: 0 0 auto; align-self: flex-start; background: none; color: var(--ink-3); }
+.topbar .tb-row1 > .tb-close:hover { background: var(--fill); color: var(--ink); }
 .topbar .actions { display: flex; align-items: center; gap: 5px; }
 .topbar .actions .iconbtn {
   height: 28px; min-width: 28px; padding: 0 6px; border-radius: 8px; border: none;
