@@ -34,6 +34,11 @@ export function Header() {
   // provider total = internal drivers + CX bids (static in the mock)
   const provBadge = Math.max(0, 5 + 3 - provSeen)
 
+  // Internal job notes — moved off the form body into a header button + popover.
+  const jobNotes = useBookingStore((s) => s.jobNotes)
+  const setJobNotes = useBookingStore((s) => s.setJobNotes)
+  const [notesOpen, setNotesOpen] = useState(false)
+
   // Selected customer's JOB-level custom fields drive the header button.
   // (Stop-level fields live on a button inside each stop instead.)
   const custId = useBookingStore((s) => s.book.cust)
@@ -64,6 +69,32 @@ export function Header() {
             <Icon name="list" size={14} />
             <span className="cf-icon-badge">{cf.filled}/{cf.total}</span>
           </button>
+        )}
+        {!emailFull && (
+          <div className="bar-notes" style={{ position: 'relative' }}>
+            <button
+              className={'btn sm iconbtn' + (jobNotes.trim() ? ' has-notes' : '')}
+              title="Job notes (internal)"
+              onClick={() => setNotesOpen((o) => !o)}
+            >
+              <Icon name="note" size={15} />
+            </button>
+            {notesOpen && (
+              <>
+                <div className="bar-tools-scrim" onClick={() => setNotesOpen(false)} />
+                <div className="bar-notes-pop">
+                  <div className="bar-notes-h"><Icon name="note" size={13} /> Job notes · internal</div>
+                  <textarea
+                    autoFocus
+                    rows={4}
+                    placeholder="Internal notes about this job…"
+                    value={jobNotes}
+                    onChange={(e) => setJobNotes(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         )}
         {!emailFull && (
           <div className="bar-jobnav" role="group" aria-label="Job panels">

@@ -180,45 +180,60 @@
  * whole slice scrolls; Route · stops caps its height so ~3 compact stops show,
  * then the remaining panels form a 2-col grid that auto-collapses to 1 col when
  * the slice is narrow (e.g. beside an open email) — same markup, every mode. */
-/* Frame the whole booking form as one lifted, bordered sheet so it reads as a
- * single unit — important once email / phone panels sit alongside it. */
+/* The whole booking form is one white "sheet" — a lifted, bordered card — so it
+ * reads as a single unit alongside email / phone panels. Each section inside is a
+ * grey container (see below). */
 .shell.wiz:not(.panel-open):not(.email-side) .work {
   overflow: auto;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 14px 34px rgba(16, 24, 40, .06);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 16px 38px rgba(16, 24, 40, .07);
   margin: 6px 8px 10px 4px;
+  padding: 10px;
+}
+
+/* Section containers: grey rounded blocks on the white sheet. */
+.main-stack > .route,
+.main-stack > .rsec,
+.main-stack > .panelbox {
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
 
 /* click-away scrim behind the fixed-position edit popover */
 .ce-scrim { position: fixed; inset: 0; z-index: 479; }
 
+/* Job notes — header button + popover (moved off the form body) */
+.bar-notes { flex: none; }
+.bar-notes .btn.has-notes { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.bar-notes-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 491;
+  width: 300px; background: #fff; border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: 0 12px 32px rgba(16, 24, 40, .16); padding: 10px;
+}
+.bar-notes-h {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 7px;
+}
+.bar-notes-pop textarea { width: 100%; resize: vertical; min-height: 80px; }
+
 .main.main-stack {
   display: flex; flex-direction: column; gap: 11px; flex: 1 1 auto; min-height: 0;
 }
-/* Route · stops: tall enough to hold ~3 stops as standard; scrolls beyond. */
-.main-stack > .route { flex: 0 0 auto; height: auto; min-height: 430px; max-height: 56vh; }
+/* Single-column stack: Route · Service&Vehicle · Charges · Requirements · footer. */
+.main-stack > .route { flex: 0 0 auto; height: auto; min-height: 300px; max-height: 48vh; }
+.main-stack > .rsec,
+.main-stack > .panelbox { flex: 0 0 auto; }
 
-/* narrow / email fallback: single-column stack */
-.main-stack > .lowergrid { display: flex; flex-direction: column; gap: 11px; }
-/* standalone slice: 2×2 squared grid — row 1 sizes to content (Service&Vehicle |
- * Other charges), row 2 grows to fill the slice ((Driver + Job notes) |
- * Requirements). align-items:stretch makes the cards line up; flex:1 absorbs the
- * dead space that used to sit above the bottom bar. */
-.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .lowergrid {
-  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr;
-  gap: 11px; flex: 1 1 auto; min-height: 0; align-items: stretch;
+/* Requirements: 2 columns, capped height with internal scroll + "+N more" hint,
+ * so it stays compact and gives Charges room. */
+.main-stack .panelbox #reqBox {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px;
+  max-height: 170px; overflow-y: auto;
 }
-.main-stack > .lowergrid > * { min-width: 0; }
-/* row-2 left cell: driver on top, job notes filling the remaining height */
-.lg-stack { display: flex; flex-direction: column; gap: 11px; min-width: 0; min-height: 0; }
-.lg-stack > .panelbox { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.lg-stack > .panelbox textarea { flex: 1 1 auto; min-height: 90px; resize: none; }
-/* the .rsec panels stand alone in the grid now → give each its own card chrome */
-.lowergrid .rsec {
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-}
+.main-stack .panelbox #reqBox .req-line:nth-child(3) { border-top: 1px solid #f0f3f7; }
 
 /* ── Stop card: two columns so three fit in the shorter route panel ──────────
  * Col 1 = postcode / company / contact, Col 2 = timing / goods. Collapses to a
@@ -674,7 +689,7 @@
  * on the outside rather than down the middle. The reflow states (panel-open /
  * drawer-open / email-side) run in a column narrower than this cap, so they're
  * unaffected. Tune via --wizard-max. */
-:root { --wizard-max: 810px; } /* thin "slice" so several wizards stack on an ultrawide; tune to taste */
+:root { --wizard-max: 480px; } /* thin single-column "slice" so several wizards stack on an ultrawide; tune to taste */
 .work { max-width: var(--wizard-max); }
 
 /* The History / Providers drawers belong to the JOB, so anchor them to the right

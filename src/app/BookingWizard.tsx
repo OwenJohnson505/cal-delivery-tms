@@ -7,12 +7,10 @@ import { LeftRail } from './Rails.tsx'
 import { Header } from './Header.tsx'
 import { JobTabs } from './JobTabs.tsx'
 import { Footer } from './Footer.tsx'
-import { JobNotes } from './JobNotes.tsx'
 import { RoutePanel } from '@/features/route/RoutePanel.tsx'
 import { QuickQuotePanel } from '@/features/route/QuickQuotePanel.tsx'
 import { RequirementsPanel } from '@/features/service/RequirementsPanel.tsx'
 import { ServiceRail } from '@/features/service/ServiceRail.tsx'
-import { DriverSection } from '@/features/driver/DriverSection.tsx'
 import { OtherCharges } from './OtherCharges.tsx'
 import { HistoryDrawer } from '@/features/audit/HistoryDrawer.tsx'
 import { ProvidersDrawer } from '@/features/driver/ProvidersDrawer.tsx'
@@ -49,20 +47,12 @@ export function BookingWizard() {
             // col when the slice is narrow, e.g. beside an open email).
             <div className="main main-stack">
               <RoutePanel />
-              {/* 2×2 squared grid: row 1 = Service&Vehicle | Other charges,
-                  row 2 = (Driver + Job notes) | Requirements. Row 2 grows to fill
-                  the slice, so the cards line up and the dead space is absorbed. */}
-              <div className="lowergrid">
-                <ServiceRail />
-                <OtherCharges />
-                <div className="lg-stack">
-                  <DriverSection />
-                  <JobNotes />
-                </div>
-                <RequirementsPanel />
-              </div>
-              {/* Full-width bottom section: booked-by / our ref / customer ref /
-                  total revenue / save actions — spans the whole slice. */}
+              {/* Thin single-column stack of grey section containers. Driver moved
+                  into Service Providers; internal Job notes moved to a header button. */}
+              <ServiceRail />
+              <OtherCharges />
+              <RequirementsPanel />
+              {/* Bottom section: booked-by / customer ref / total revenue / actions. */}
               <Footer />
             </div>
           )}
