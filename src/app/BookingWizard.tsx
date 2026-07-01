@@ -5,7 +5,6 @@
  */
 import { LeftRail } from './Rails.tsx'
 import { Header } from './Header.tsx'
-import { JobTabs } from './JobTabs.tsx'
 import { Footer } from './Footer.tsx'
 import { RoutePanel } from '@/features/route/RoutePanel.tsx'
 import { QuickQuotePanel } from '@/features/route/QuickQuotePanel.tsx'
@@ -17,21 +16,16 @@ import { ProvidersDrawer } from '@/features/driver/ProvidersDrawer.tsx'
 import { Modals } from './Modals.tsx'
 import { useUiStore } from '@/store/uiStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
-import { useEmailsStore } from '@/store/emailsStore.ts'
 
 export function BookingWizard() {
   const drawerOpen = useUiStore((s) => s.drawer !== null)
   const closeDrawers = useUiStore((s) => s.closeDrawers)
   const quickQuote = useBookingStore((s) => s.quickQuote)
-  // In immersive (full) email mode the fixed right rail is hidden, so History /
-  // Providers are reached via the JobTabs bar instead.
-  const emailFull = useEmailsStore((s) => s.panelState === 'full')
 
   return (
     <>
       <LeftRail />
       <div className="app">
-        {emailFull && <JobTabs />}
         <div className="work">
           <Header />
           {quickQuote ? (

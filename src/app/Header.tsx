@@ -8,7 +8,6 @@ import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
-import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.ts'
 
 // Stable empty reference so the Zustand selector doesn't return a new [] each render
@@ -29,7 +28,6 @@ export function Header() {
   const openDrawer = useUiStore((s) => s.openDrawer)
   const allocated = useBookingStore((s) => s.allocatedDriver)
   const provSeen = useUiStore((s) => s.provSeen)
-  const emailFull = useEmailsStore((s) => s.panelState === 'full')
   // provider total = internal drivers + CX bids (static in the mock)
   const provBadge = Math.max(0, 5 + 3 - provSeen)
 
@@ -71,47 +69,41 @@ export function Header() {
         <span className="hdr-ref">{ourRef}</span>
         <span className="db-spacer" />
         <div className="actions">
-          {!emailFull && (
-            <div className="bar-notes" style={{ position: 'relative' }}>
-              <button
-                className={'iconbtn' + (notesOpen ? ' active' : '')}
-                title="Job notes (internal)"
-                onClick={() => setNotesOpen((o) => !o)}
-              >
-                <Icon name="file" size={16} />
-              </button>
-              {notesOpen && (
-                <>
-                  <div className="bar-tools-scrim" onClick={() => setNotesOpen(false)} />
-                  <div className="bar-notes-pop">
-                    <div className="bar-notes-h"><Icon name="file" size={13} /> Job notes · internal</div>
-                    <textarea
-                      autoFocus
-                      rows={4}
-                      placeholder="Internal notes about this job…"
-                      value={jobNotes}
-                      onChange={(e) => setJobNotes(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          {!emailFull && (
-            <button className="iconbtn" title="Job history" onClick={() => openDrawer('history')}>
-              <Icon name="clock" size={16} />
-            </button>
-          )}
-          {!emailFull && (
+          <div className="bar-notes" style={{ position: 'relative' }}>
             <button
-              className={'iconbtn' + (allocated ? ' active' : '')}
-              title="Service providers"
-              onClick={() => openDrawer('providers')}
+              className={'iconbtn' + (notesOpen ? ' active' : '')}
+              title="Job notes (internal)"
+              onClick={() => setNotesOpen((o) => !o)}
             >
-              <Icon name="truck" size={16} />
-              {!allocated && provBadge > 0 && <span className="badge">{provBadge > 99 ? '99+' : provBadge}</span>}
+              <Icon name="file" size={16} />
             </button>
-          )}
+            {notesOpen && (
+              <>
+                <div className="bar-tools-scrim" onClick={() => setNotesOpen(false)} />
+                <div className="bar-notes-pop">
+                  <div className="bar-notes-h"><Icon name="file" size={13} /> Job notes · internal</div>
+                  <textarea
+                    autoFocus
+                    rows={4}
+                    placeholder="Internal notes about this job…"
+                    value={jobNotes}
+                    onChange={(e) => setJobNotes(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <button className="iconbtn" title="Job history" onClick={() => openDrawer('history')}>
+            <Icon name="clock" size={16} />
+          </button>
+          <button
+            className={'iconbtn' + (allocated ? ' active' : '')}
+            title="Service providers"
+            onClick={() => openDrawer('providers')}
+          >
+            <Icon name="truck" size={16} />
+            {!allocated && provBadge > 0 && <span className="badge">{provBadge > 99 ? '99+' : provBadge}</span>}
+          </button>
           <div className="bar-tools" id="routeTools" style={{ position: 'relative' }}>
             <button className="iconbtn" title="More actions" onClick={() => setToolsOpen((o) => !o)}>
               <Icon name="more" size={16} />
