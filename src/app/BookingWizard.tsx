@@ -3,7 +3,7 @@
  * composing the feature subsystems. Reached from the list screens via "Add new booking"
  * or by opening a saved job.
  */
-import { LeftRail, RightRail } from './Rails.tsx'
+import { LeftRail } from './Rails.tsx'
 import { Header } from './Header.tsx'
 import { JobTabs } from './JobTabs.tsx'
 import { Footer } from './Footer.tsx'
@@ -37,28 +37,37 @@ export function BookingWizard() {
         <div className="work">
           <Header />
           {quickQuote ? (
-            // Quick Quote: a purpose-built condensed middle (top bar / rails / footer stay)
-            <QuickQuotePanel />
+            // Quick Quote: a purpose-built condensed middle — footer stays a bar below it.
+            <>
+              <QuickQuotePanel />
+              <Footer />
+            </>
           ) : (
-            <div className="main">
-              <div className="left">
-                <RoutePanel />
-                <div className="botrow">
-                  <JobNotes />
-                  <RequirementsPanel />
-                </div>
-              </div>
-              <div className="rail">
+            // Ultrawide "thin slice": one narrow top-to-bottom column (no side rail),
+            // so several wizards can stack across a wide monitor. Route · stops sits
+            // full-width; the remaining panels form a 2-col grid (auto-collapsing to 1
+            // col when the slice is narrow, e.g. beside an open email).
+            <div className="main main-stack">
+              <RoutePanel />
+              {/* 2×2 squared grid: row 1 = Service&Vehicle | Other charges,
+                  row 2 = (Driver + Job notes) | Requirements. Row 2 grows to fill
+                  the slice, so the cards line up and the dead space is absorbed. */}
+              <div className="lowergrid">
                 <ServiceRail />
-                <DriverSection />
                 <OtherCharges />
+                <div className="lg-stack">
+                  <DriverSection />
+                  <JobNotes />
+                </div>
+                <RequirementsPanel />
               </div>
+              {/* Full-width bottom section: booked-by / our ref / customer ref /
+                  total revenue / save actions — spans the whole slice. */}
+              <Footer />
             </div>
           )}
-          <Footer />
         </div>
       </div>
-      <RightRail />
       <div
         className={'drawer-overlay' + (drawerOpen ? ' open' : '')}
         onClick={closeDrawers}

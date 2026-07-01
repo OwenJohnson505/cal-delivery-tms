@@ -10,7 +10,7 @@ import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.t
 
 const NO_FIELDS: CustomFieldDef[] = []
 
-export function StopCustomFieldsButton({ stopId, size = 'sm' }: { stopId: number; size?: 'sm' | '' }) {
+export function StopCustomFieldsButton({ stopId }: { stopId: number }) {
   const custId = useBookingStore((s) => s.book.cust)
   const stop = useBookingStore((s) => s.stops.find((st) => st.id === stopId))
   const fields = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.customFields) ?? NO_FIELDS

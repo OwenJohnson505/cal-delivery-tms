@@ -3,7 +3,7 @@
  * rows from the three scopes, deduped via lib/requirements (with the §5.3 casing fix, so
  * product equipment such as Straps now appears).
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useRequirements } from '@/store/selectors.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
@@ -14,6 +14,28 @@ export function RequirementsPanel() {
   const emailFull = useEmailsStore((s) => s.panelState === 'full')
   const [open, setOpen] = useState(!emailFull)
 
+  // Count how many requirement rows sit below the visible area, so we can show a
+  // "+N more" hint. The box scrolls internally; the rest of the page stays put.
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [hidden, setHidden] = useState(0)
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box) return
+    const update = () => {
+      const bb = box.getBoundingClientRect()
+      let visible = 0
+      box.querySelectorAll('.req-line').forEach((l) => {
+        if (l.getBoundingClientRect().bottom <= bb.bottom + 1) visible += 1
+      })
+      setHidden(Math.max(0, box.querySelectorAll('.req-line').length - visible))
+    }
+    update()
+    box.addEventListener('scroll', update)
+    const ro = new ResizeObserver(update)
+    ro.observe(box)
+    return () => { box.removeEventListener('scroll', update); ro.disconnect() }
+  }, [rows.length, open])
+
   return (
     <div className={'panelbox' + (open ? '' : ' collapsed')}>
       <button className="sechead sechead-toggle" onClick={() => setOpen((o) => !o)}>
@@ -22,17 +44,20 @@ export function RequirementsPanel() {
         {rows.length > 0 && <span className="sh-count">{rows.length}</span>}
       </button>
       {open && (
-        <div id="reqBox">
-          {rows.length === 0 ? (
-            <div className="hint">No special requirements.</div>
-          ) : (
-            rows.map((r, i) => (
-              <div className="req-line" key={r.label + i}>
-                <span className="req-l">{r.label}</span>
-                <span className="req-s">{r.scope}</span>
-              </div>
-            ))
-          )}
+        <div className="reqbox-wrap">
+          <div id="reqBox" ref={boxRef}>
+            {rows.length === 0 ? (
+              <div className="hint">No special requirements.</div>
+            ) : (
+              rows.map((r, i) => (
+                <div className="req-line" key={r.label + i}>
+                  <span className="req-l">{r.label}</span>
+                  <span className="req-s">{r.scope}</span>
+                </div>
+              ))
+            )}
+          </div>
+          {hidden > 0 && <div className="req-more">+{hidden} more · scroll</div>}
         </div>
       )}
     </div>

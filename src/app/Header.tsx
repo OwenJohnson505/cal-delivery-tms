@@ -9,6 +9,7 @@ import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
+import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useCustomersStore, type CustomFieldDef } from '@/store/customersStore.ts'
 
 // Stable empty reference so the Zustand selector doesn't return a new [] each render
@@ -23,6 +24,15 @@ export function Header() {
   const openModal = useUiStore((s) => s.openModal)
   const goToList = useViewStore((s) => s.goToList)
   const editingJobId = useViewStore((s) => s.editingJobId)
+
+  // History / Providers — formerly the floating right sidebar, now header controls.
+  // Hidden in full-email mode, where JobTabs surfaces those panels instead.
+  const openDrawer = useUiStore((s) => s.openDrawer)
+  const allocated = useBookingStore((s) => s.allocatedDriver)
+  const provSeen = useUiStore((s) => s.provSeen)
+  const emailFull = useEmailsStore((s) => s.panelState === 'full')
+  // provider total = internal drivers + CX bids (static in the mock)
+  const provBadge = Math.max(0, 5 + 3 - provSeen)
 
   // Selected customer's JOB-level custom fields drive the header button.
   // (Stop-level fields live on a button inside each stop instead.)
@@ -54,6 +64,26 @@ export function Header() {
             <Icon name="list" size={14} />
             <span className="cf-icon-badge">{cf.filled}/{cf.total}</span>
           </button>
+        )}
+        {!emailFull && (
+          <div className="bar-jobnav" role="group" aria-label="Job panels">
+            <button className="bar-jobnav-btn" title="Job history" onClick={() => openDrawer('history')}>
+              <Icon name="clock" size={15} />
+              History
+            </button>
+            <span className="bar-jobnav-div" />
+            <button
+              className={'bar-jobnav-btn' + (allocated ? ' allocated' : '')}
+              title="Service providers"
+              onClick={() => openDrawer('providers')}
+            >
+              <Icon name="truck" size={15} />
+              Providers
+              {allocated
+                ? <span className="bar-jobnav-tick"><Icon name="check" size={11} /></span>
+                : provBadge > 0 && <span className="bar-jobnav-badge">{provBadge > 99 ? '99+' : provBadge}</span>}
+            </button>
+          </div>
         )}
         <span className="db-spacer" />
         <div className="bar-tools" id="routeTools" style={{ position: 'relative' }}>

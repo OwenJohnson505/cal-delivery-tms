@@ -83,6 +83,8 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
       </div>
 
       <div className="stop-facts">
+        {/* Column 1 — postcode / company / contact (and any driver note) */}
+        <div className="sf-col sf-main">
         {(() => {
           const addrLine = [a.address, a.city].filter(Boolean).join(', ')
           const hasLoc = !!(a.co || addrLine || a.pc)
@@ -110,7 +112,10 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
           <div className="fld"><label>Phone</label><input value={c?.tel || ''} onChange={(e) => setContact({ tel: e.target.value })} /></div>
           <div className="fld"><label>Email</label><input value={c?.email || ''} onChange={(e) => setContact({ email: e.target.value })} /></div>
         </EditableCell>
+        </div>
 
+        {/* Column 2 — timing and goods */}
+        <div className="sf-col sf-side">
         <EditableCell label={<Icon name="clock" size={13} />} title="Timing" value={<span className="stop-when"><b>{whenLabel(stop.time)}</b> · {whenValue(stop.time)}</span>}>
           <div className="svc-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
             {(['asap', 'at', 'between', 'by'] as TimeMode[]).map((m) => (
@@ -155,6 +160,7 @@ export function StopCard({ stop, index, onEdit }: { stop: Stop; index: number; o
             <div className="fld"><label>Driver instruction</label><textarea autoFocus rows={2} value={stop.note} onChange={(e) => set({ note: e.target.value })} /></div>
           </EditableCell>
         )}
+        </div>
       </div>
     </div>
   )

@@ -142,6 +142,86 @@
 /* the ref-history dropdown must open upward in the footer (page bottom). */
 .footer .bar-ref .cb-menu { top: auto; bottom: calc(100% + 4px); }
 
+/* ── Full-width bottom section (the footer, spanning the whole slice) ─────────
+ * Booked-by · our ref · customer ref · total revenue · save actions in one bar
+ * across the foot of the slice — sits where the dead space under the columns was.
+ * margin-top:auto pins it to the bottom; wrap keeps it tidy if it can't fit on
+ * one line. Scoped out of the email reflow modes (they keep their own footer). */
+.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .footer {
+  flex: none; flex-direction: column; align-items: stretch; gap: 9px;
+}
+/* row 1: booked-by (left) · our ref (right) */
+.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .footer .foot-meta {
+  flex-direction: row; justify-content: space-between; align-items: baseline; gap: 16px; width: 100%;
+}
+/* row 2: total revenue (left) · customer ref (centre) · save actions (right) */
+.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .footer .foot-actions {
+  margin: 0; width: 100%; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .footer .foot-rev { margin-right: auto; }
+.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .footer .saveas { margin-left: auto; }
+
+/* ── Requirements: 2 columns, fills its cell, scrolls internally (~6 visible) ── */
+.main-stack .lowergrid > .panelbox { display: flex; flex-direction: column; min-height: 0; }
+.main-stack .reqbox-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.main-stack .lowergrid #reqBox {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+/* with 2 columns the top row is the first two cells */
+.main-stack .lowergrid #reqBox .req-line:nth-child(3) { border-top: 1px solid #f0f3f7; }
+.req-more {
+  flex: none; text-align: center; font-size: 11px; font-weight: 700; color: var(--accent);
+  padding: 5px; border-top: 1px solid var(--line); background: var(--panel);
+}
+
+/* ── Ultrawide thin-slice layout: vertical stack + 2-col lower grid ──────────
+ * The wizard body flows top-to-bottom in one narrow column (--wizard-max). The
+ * whole slice scrolls; Route · stops caps its height so ~3 compact stops show,
+ * then the remaining panels form a 2-col grid that auto-collapses to 1 col when
+ * the slice is narrow (e.g. beside an open email) — same markup, every mode. */
+.shell.wiz:not(.panel-open):not(.email-side) .work { overflow: auto; }
+.main.main-stack {
+  display: flex; flex-direction: column; gap: 11px; flex: 1 1 auto; min-height: 0;
+}
+/* Route · stops: tall enough to hold ~3 stops as standard; scrolls beyond. */
+.main-stack > .route { flex: 0 0 auto; height: auto; min-height: 430px; max-height: 56vh; }
+
+/* narrow / email fallback: single-column stack */
+.main-stack > .lowergrid { display: flex; flex-direction: column; gap: 11px; }
+/* standalone slice: 2×2 squared grid — row 1 sizes to content (Service&Vehicle |
+ * Other charges), row 2 grows to fill the slice ((Driver + Job notes) |
+ * Requirements). align-items:stretch makes the cards line up; flex:1 absorbs the
+ * dead space that used to sit above the bottom bar. */
+.shell.wiz:not(.panel-open):not(.email-side) .main-stack > .lowergrid {
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr;
+  gap: 11px; flex: 1 1 auto; min-height: 0; align-items: stretch;
+}
+.main-stack > .lowergrid > * { min-width: 0; }
+/* row-2 left cell: driver on top, job notes filling the remaining height */
+.lg-stack { display: flex; flex-direction: column; gap: 11px; min-width: 0; min-height: 0; }
+.lg-stack > .panelbox { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.lg-stack > .panelbox textarea { flex: 1 1 auto; min-height: 90px; resize: none; }
+/* the .rsec panels stand alone in the grid now → give each its own card chrome */
+.lowergrid .rsec {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+}
+
+/* ── Stop card: two columns so three fit in the shorter route panel ──────────
+ * Col 1 = postcode / company / contact, Col 2 = timing / goods. Collapses to a
+ * single column when the card itself is narrow. */
+.stop-card2 .stop-facts {
+  display: grid; grid-template-columns: 1.3fr 1fr;
+  grid-template-rows: auto auto auto; column-gap: 16px;
+}
+/* subgrid: both columns share the parent's row lines, so the address→contact
+ * divider (left) lines up with the time→goods divider (right). */
+.stop-card2 .sf-col {
+  display: grid; grid-row: 1 / span 3; grid-template-rows: subgrid; min-width: 0;
+}
+/* the first fact in each column shouldn't carry the inter-row divider */
+.stop-card2 .sf-col > .f:first-child { border-top: none; }
+
 /* Let the route panel take the available height (so the editor fits + several
  * collapsed stops show at once); the job-notes/requirements row is kept thin. */
 .left .route { flex: 1 1 auto; height: auto; min-height: 240px; }
@@ -572,6 +652,57 @@
 /* bookings list uses the full width (no centred max-width) so columns fit */
 .list-work.wide { max-width: none; }
 
+/* ── Booking wizard: cap the working width ──────────────────────────────────
+ * The wizard's .main is a grid (1fr | 372px rail). On an ultrawide the 1fr left
+ * column (route / stops) balloons into dead space and the header + footer (incl.
+ * the Save buttons) drift to the far-right edge, away from the content. Capping
+ * .work maxes the whole wizard at a comfortable width and — because .app is a
+ * stretch column — leaves it left-aligned beside the nav, so the dead space sits
+ * on the outside rather than down the middle. The reflow states (panel-open /
+ * drawer-open / email-side) run in a column narrower than this cap, so they're
+ * unaffected. Tune via --wizard-max. */
+:root { --wizard-max: 810px; } /* thin "slice" so several wizards stack on an ultrawide; tune to taste */
+.work { max-width: var(--wizard-max); }
+
+/* The History / Providers drawers belong to the JOB, so anchor them to the right
+ * edge of the capped .work (44px nav + --wizard-max) rather than the screen edge —
+ * they slide out beside the booking, not at the far right of an ultrawide. min()
+ * clamps them back to the viewport edge when the screen is too narrow for the
+ * booking to be capped (no dead space to sit in), so on smaller screens behaviour
+ * is unchanged. The email reflow modes re-anchor / absolutely-place them below. */
+.drawer {
+  left: min(calc(44px + var(--wizard-max)), calc(100vw - 380px));
+  right: auto;
+}
+
+/* ── Job panels control (History / Providers) ───────────────────────────────
+ * Replaces the old floating right sidebar. A segmented pill in the header so the
+ * two job panels read as a deliberate control grouped with the job context, not a
+ * bar marooned mid-screen. Clicking still opens the side drawer. */
+.bar-jobnav {
+  display: inline-flex; align-items: center; flex: none;
+  height: var(--control-h); border: 1px solid var(--line-strong);
+  border-radius: 8px; background: var(--panel); overflow: hidden;
+}
+.bar-jobnav-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 100%;
+  padding: 0 11px; border: none; background: transparent; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink); white-space: nowrap;
+}
+.bar-jobnav-btn svg { color: var(--muted); }
+.bar-jobnav-btn:hover { background: var(--field); color: var(--accent); }
+.bar-jobnav-btn:hover svg { color: var(--accent); }
+.bar-jobnav-div { width: 1px; align-self: stretch; background: var(--line-strong); flex: none; }
+.bar-jobnav-badge {
+  font-size: 10px; font-weight: 800; line-height: 16px; min-width: 16px; text-align: center;
+  padding: 0 4px; border-radius: 99px; background: var(--accent); color: #fff;
+}
+.bar-jobnav-tick {
+  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 99px;
+  background: var(--collect); color: #fff;
+}
+.bar-jobnav-btn.allocated svg { color: var(--collect); }
+
 /* customer names size their column — don't wrap */
 .cust-stack .cust-name { white-space: nowrap; }
 
@@ -597,8 +728,8 @@
 .shell.email-side .ep-listcol { width: 100%; max-height: none; border-right: none; flex: 1; }
 .shell.email-side .ep-list { flex: 1; max-height: none; }
 /* wizard (normal, horizontal): shift the fixed right rail + drawers left of the email */
-.shell.email-side .siderail:not(.siderail-left) { right: var(--email-side-w); }
-.shell.email-side .drawer { right: var(--email-side-w); }
+.shell.email-side .siderail:not(.siderail-left) { right: var(--email-side-w); left: auto; }
+.shell.email-side .drawer { right: var(--email-side-w); left: auto; }
 .shell.email-side .drawer-overlay { right: var(--email-side-w); }
 .shell.email-side .app { min-width: 1000px; }
 .shell.email-side .footer { flex-wrap: wrap; row-gap: 8px; }
@@ -1623,7 +1754,7 @@
 
 /* the wizard's right rail + drawers stay at the right edge (email is no longer there) */
 .shell.email-left.email-side .siderail:not(.siderail-left),
-.shell.email-left.email-side .drawer,
+.shell.email-left.email-side .drawer { right: 0; left: auto; }
 .shell.email-left.email-side .drawer-overlay { right: 0; }
 /* full-mode in-column drawer no longer needs to clear a left nav gap */
 .shell.email-left.panel-open .drawer,
