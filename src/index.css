@@ -277,7 +277,7 @@ body {
 /* route stops */
 .main-stack .stops { padding: 4px 0 2px; display: block; }
 .main-stack .stop { display: flex; gap: 12px; padding: 8px 14px 10px; border: none; border-radius: 0; background: none; }
-.main-stack .stop .rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 22px; padding-top: 1px; background: none; border: none; width: auto; height: auto; }
+.main-stack .stop .rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 22px; padding-top: 1px; background: none; border: none; border-radius: 0; width: auto; height: auto; overflow: visible; }
 .main-stack .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; color: #fff; flex: 0 0 22px; }
 .main-stack .dot.pickup { background: #34785b; }
 .main-stack .dot.drop { background: #0071e3; }
@@ -398,8 +398,12 @@ body {
 .topbar .cust-contact .cc-contact-link:hover { color: var(--blue); }
 .topbar .cust-contact .cc-contact-link.add { color: var(--blue); }
 .topbar .tb-row2 { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
-.topbar .pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; background: var(--green-tint); color: var(--green); white-space: nowrap; }
-.topbar .hdr-ref { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.topbar .pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; background: var(--fill-2); color: var(--ink-2); white-space: nowrap; }
+.topbar .pill.pill-booking { background: var(--green-tint); color: var(--green); }
+.topbar .pill.pill-quote, .topbar .pill.pill-quickquote { background: var(--blue-tint); color: var(--blue); }
+.topbar .hdr-ref { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* close sits on row 1, in line with the customer name */
+.topbar .tb-row1 > .tb-close { flex: 0 0 auto; align-self: flex-start; }
 .topbar .actions { display: flex; align-items: center; gap: 5px; }
 .topbar .actions .iconbtn {
   height: 28px; min-width: 28px; padding: 0 6px; border-radius: 8px; border: none;

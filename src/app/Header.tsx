@@ -61,23 +61,16 @@ export function Header() {
       <div className="tb-row1">
         <div className="glyph">{glyphInitial}</div>
         <div className="cust"><CustomerHeader /></div>
+        <button className="iconbtn close tb-close" title="Close — back to list" onClick={() => goToList()}>
+          <Icon name="close" size={16} />
+        </button>
       </div>
 
       <div className="tb-row2">
-        {custId && <span className="pill">{jobStatus}</span>}
+        {custId && <span className={'pill pill-' + jobStatus.toLowerCase().replace(/[^a-z]/g, '')}>{jobStatus}</span>}
         <span className="hdr-ref">{ourRef}</span>
         <span className="db-spacer" />
         <div className="actions">
-          {jobFields.length > 0 && (
-            <button
-              className={'iconbtn cf-icon-btn' + (cf.missingRequired ? ' warn' : '')}
-              title={`Job custom fields ${cf.filled}/${cf.total}${cf.missingRequired ? ' — required fields missing' : ''}`}
-              onClick={() => openCustomFields(null)}
-            >
-              <Icon name="list" size={16} />
-              <span className="badge">{cf.filled}/{cf.total}</span>
-            </button>
-          )}
           {!emailFull && (
             <div className="bar-notes" style={{ position: 'relative' }}>
               <button
@@ -127,6 +120,11 @@ export function Header() {
               <>
                 <div className="bar-tools-scrim" onClick={() => setToolsOpen(false)} />
                 <div className="bar-tools-menu">
+                  {jobFields.length > 0 && (
+                    <button className={cf.missingRequired ? 'warn' : ''} onClick={() => { openCustomFields(null); setToolsOpen(false) }}>
+                      <Icon name="list" size={14} /> Custom fields ({cf.filled}/{cf.total})
+                    </button>
+                  )}
                   <button onClick={() => { openModal('docs'); setToolsOpen(false) }}><Icon name="file" size={14} /> Documents</button>
                   <button onClick={() => { openModal('audit'); setToolsOpen(false) }}><Icon name="list" size={14} /> Audit trail</button>
                   {!quickQuote && !isBooked && (
@@ -139,9 +137,6 @@ export function Header() {
               </>
             )}
           </div>
-          <button className="iconbtn close" title="Close — back to list" onClick={() => goToList()}>
-            <Icon name="close" size={16} />
-          </button>
         </div>
       </div>
     </div>
