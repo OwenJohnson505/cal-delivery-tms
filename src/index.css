@@ -180,7 +180,20 @@
  * whole slice scrolls; Route · stops caps its height so ~3 compact stops show,
  * then the remaining panels form a 2-col grid that auto-collapses to 1 col when
  * the slice is narrow (e.g. beside an open email) — same markup, every mode. */
-.shell.wiz:not(.panel-open):not(.email-side) .work { overflow: auto; }
+/* Frame the whole booking form as one lifted, bordered sheet so it reads as a
+ * single unit — important once email / phone panels sit alongside it. */
+.shell.wiz:not(.panel-open):not(.email-side) .work {
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 14px 34px rgba(16, 24, 40, .06);
+  margin: 6px 8px 10px 4px;
+}
+
+/* click-away scrim behind the fixed-position edit popover */
+.ce-scrim { position: fixed; inset: 0; z-index: 479; }
+
 .main.main-stack {
   display: flex; flex-direction: column; gap: 11px; flex: 1 1 auto; min-height: 0;
 }
@@ -1479,7 +1492,8 @@
 /* header is two rows: customer name + tools/clear/exit on top, Quick Quote +
  * Custom fields below */
 .bar { flex-direction: column; align-items: stretch; gap: 8px; }
-.bar-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* wrap rather than overlap when the customer editor (wide) is open in a thin slice */
+.bar-top { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; row-gap: 8px; }
 .bar-sub { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .bar .bar-actions {
   align-items: center;

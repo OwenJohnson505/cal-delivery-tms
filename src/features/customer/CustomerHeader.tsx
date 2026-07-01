@@ -183,7 +183,7 @@ export function CustomerHeader() {
             <option key={ct.id} value={ct.id}>{ct.name}{ct.role ? ` · ${ct.role}` : ''}</option>
           ))}
         </select>
-        <button className="btn sm primary" onClick={exitEdit}>Done</button>
+        <button className="btn sm primary" onClick={exitEdit}>Save</button>
       </div>
     )
   }
