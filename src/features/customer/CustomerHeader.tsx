@@ -6,14 +6,12 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
-import { useUiStore } from '@/store/uiStore.ts'
 import { useCustomersStore, type Customer, type Contact } from '@/store/customersStore.ts'
 
 export function CustomerHeader() {
   const customers = useCustomersStore((s) => s.customers)
   const book = useBookingStore((s) => s.book)
   const setBook = useBookingStore((s) => s.setBook)
-  const openModal = useUiStore((s) => s.openModal)
 
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -189,43 +187,44 @@ export function CustomerHeader() {
   }
 
   const c = book.contact
+  const contactRole = c
+    ? customers.find((x) => x.id === book.cust)?.contacts.find((ct) => ct.name === c.name)?.role
+    : undefined
   return (
-    <div className="cc-oneline" style={{ minWidth: 0 }}>
-      {/* Click the company name for the customer-info pack. */}
-      <button className="cc-name" title="View customer info" onClick={() => openModal('custinfo')}>
-        <Icon name="building" size={14} /> <b>{accountName(customers, book.cust)}</b>
-      </button>
-      {c && (
-        <span className="cc-contact-wrap">
-          <span className="dotsep">·</span>
-          {/* Click the contact name to reveal email + phone (call/email from there). */}
-          <button className="cc-contact" title="Contact details" onClick={() => setContactOpen((o) => !o)}>
-            <Icon name="user" size={14} /> {c.name}
-          </button>
-          {contactOpen && (
-            <>
-              <div className="cc-pop-scrim" onClick={() => setContactOpen(false)} />
-              <div className="cc-contact-pop">
-                <div className="ccp-h">{c.name}</div>
-                {c.email && (
-                  <a className="ccp-row" href={`mailto:${c.email}`} title="Send email">
-                    <Icon name="mail" size={14} /> <span>{c.email}</span>
-                  </a>
-                )}
-                {c.tel && (
-                  <a className="ccp-row" href={`tel:${c.tel}`} title="Call">
-                    <Icon name="phone" size={14} /> <span>{c.tel}</span>
-                  </a>
-                )}
-              </div>
-            </>
-          )}
-        </span>
-      )}
-      <button className="btn sm iconbtn" title="Edit customer" onClick={() => setEditing(true)}>
-        <Icon name="edit" size={15} />
-      </button>
-    </div>
+    <>
+      <div className="cust-name" onClick={() => setEditing(true)} title="Change customer / contact">
+        {accountName(customers, book.cust)}
+      </div>
+      <div className="cust-contact">
+        {c ? (
+          <>
+            <button className="cc-contact-link" onClick={() => setContactOpen((o) => !o)}>
+              {c.name}{contactRole ? ` · ${contactRole}` : ''}
+            </button>
+            {contactOpen && (
+              <>
+                <div className="cc-pop-scrim" onClick={() => setContactOpen(false)} />
+                <div className="cc-contact-pop">
+                  <div className="ccp-h">{c.name}</div>
+                  {c.email && (
+                    <a className="ccp-row" href={`mailto:${c.email}`} title="Send email">
+                      <Icon name="mail" size={14} /> <span>{c.email}</span>
+                    </a>
+                  )}
+                  {c.tel && (
+                    <a className="ccp-row" href={`tel:${c.tel}`} title="Call">
+                      <Icon name="phone" size={14} /> <span>{c.tel}</span>
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <button className="cc-contact-link add" onClick={() => setEditing(true)}>Add contact</button>
+        )}
+      </div>
+    </>
   )
 }
 

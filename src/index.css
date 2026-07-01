@@ -228,7 +228,7 @@ body {
   border-radius: 16px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 16px 38px rgba(16, 24, 40, .07);
   margin: 6px 8px 10px 4px;
-  padding: 10px;
+  padding: 0;
 }
 
 /* Section containers: grey rounded blocks on the white sheet. */
@@ -261,7 +261,7 @@ body {
  * BOOKING FORM v5 — ported from the redesign reference (scoped to .main-stack
  * so it never touches other screens). Grey grouped sections on the white sheet.
  * ============================================================ */
-.main.main-stack { display: flex; flex-direction: column; gap: 12px; flex: 1 1 auto; min-height: 0; }
+.main.main-stack { display: flex; flex-direction: column; gap: 12px; flex: 1 1 auto; min-height: 0; padding: 12px; }
 .main-stack > * { flex: 0 0 auto; }
 .main-stack .bk-footer { margin-top: auto; }
 
@@ -276,7 +276,7 @@ body {
 
 /* route stops */
 .main-stack .stops { padding: 4px 0 2px; display: block; }
-.main-stack .stop { display: flex; gap: 12px; padding: 8px 14px 10px; }
+.main-stack .stop { display: flex; gap: 12px; padding: 8px 14px 10px; border: none; border-radius: 0; background: none; }
 .main-stack .stop .rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 22px; padding-top: 1px; background: none; border: none; width: auto; height: auto; }
 .main-stack .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; color: #fff; flex: 0 0 22px; }
 .main-stack .dot.pickup { background: #34785b; }
@@ -373,6 +373,45 @@ body {
 .main-stack .bk-footer .btn.ghost:hover { background: var(--fill-2); }
 .main-stack .bk-footer .btn.primary { background: var(--blue); color: #fff; }
 .main-stack .bk-footer .btn.primary:hover { background: #0060df; }
+
+/* ── Booking header (topbar) — glyph + two rows + icon-only actions ─────────── */
+.bar.topbar {
+  position: relative; display: block; flex: 0 0 auto;
+  padding: 12px 12px 10px 14px; gap: 0;
+  border: none; border-bottom: 1px solid var(--hair); border-radius: 0;
+  background: var(--panel); align-items: initial; min-width: 0;
+}
+.topbar .tb-row1 { display: flex; align-items: center; gap: 11px; }
+.topbar .glyph {
+  width: 34px; height: 34px; border-radius: 9px; flex: 0 0 34px;
+  background: linear-gradient(160deg, #0a84ff, #0060df);
+  display: grid; place-items: center; color: #fff; font-size: 16px; font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+}
+.topbar .cust { min-width: 0; flex: 1; display: block; }
+.topbar .cust-name {
+  font-size: 16px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2;
+  color: var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar .cust-contact { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+.topbar .cust-contact .cc-contact-link { border: none; background: none; padding: 0; font: inherit; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.topbar .cust-contact .cc-contact-link:hover { color: var(--blue); }
+.topbar .cust-contact .cc-contact-link.add { color: var(--blue); }
+.topbar .tb-row2 { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
+.topbar .pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; background: var(--green-tint); color: var(--green); white-space: nowrap; }
+.topbar .hdr-ref { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.topbar .actions { display: flex; align-items: center; gap: 5px; }
+.topbar .actions .iconbtn {
+  height: 28px; min-width: 28px; padding: 0 6px; border-radius: 8px; border: none;
+  background: var(--fill); color: var(--ink-2); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; position: relative; width: auto;
+}
+.topbar .actions .iconbtn:hover { background: var(--fill-2); }
+.topbar .actions .iconbtn.active { background: var(--blue-tint); color: var(--blue); }
+.topbar .actions .iconbtn svg { width: 16px; height: 16px; }
+.topbar .actions .iconbtn .badge { font-size: 11px; font-weight: 600; color: var(--ink); }
+.topbar .actions .iconbtn.cf-icon-btn.warn { color: var(--amber); }
+.topbar .actions .bar-notes-pop { top: calc(100% + 6px); right: 0; }
 
 .main.main-stack {
   display: flex; flex-direction: column; gap: 11px; flex: 1 1 auto; min-height: 0;
@@ -853,7 +892,7 @@ body {
  * on the outside rather than down the middle. The reflow states (panel-open /
  * drawer-open / email-side) run in a column narrower than this cap, so they're
  * unaffected. Tune via --wizard-max. */
-:root { --wizard-max: 480px; } /* thin single-column "slice" so several wizards stack on an ultrawide; tune to taste */
+:root { --wizard-max: 372px; } /* thin single-column "slice" so several wizards stack on an ultrawide; tune to taste */
 .work { max-width: var(--wizard-max); }
 
 /* The History / Providers drawers belong to the JOB, so anchor them to the right

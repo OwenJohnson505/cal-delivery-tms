@@ -4,7 +4,6 @@
  */
 import { useState } from 'react'
 import { Icon } from './Icon.tsx'
-import { StatusPill } from './StatusPill.tsx'
 import { CustomerHeader } from '@/features/customer/CustomerHeader.tsx'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
@@ -48,122 +47,103 @@ export function Header() {
   const jobFields = fields.filter((f) => f.scope === 'job')
   const cf = jobFieldStatus(jobFields, customJob)
 
+  const companyName = useCustomersStore((s) => s.customers.find((c) => c.id === custId)?.companyName) ?? ''
+  const glyphInitial = companyName ? companyName[0].toUpperCase() : '—'
+  const ourRef = 'BK-2026-100482'
+
   const [toolsOpen, setToolsOpen] = useState(false)
 
   // Quick Quote is a create-time shortcut only — hide it once the job is a booking.
   const isBooked = editingJobId != null && jobStatus === 'Booking'
 
   return (
-    <div className="bar">
-      <div className="bar-top">
-        <div id="ccBox" className="ccbox" style={{ flex: '0 1 auto', minWidth: 0 }}>
-          <CustomerHeader />
-        </div>
-        {custId && <span className="bar-status"><StatusPill status={jobStatus} /></span>}
-        {jobFields.length > 0 && (
-          <button
-            className={'btn sm iconbtn cf-icon-btn' + (cf.missingRequired ? ' warn' : '')}
-            title={`Job custom fields ${cf.filled}/${cf.total}${cf.missingRequired ? ' — required fields missing' : ''}`}
-            onClick={() => openCustomFields(null)}
-          >
-            <Icon name="list" size={14} />
-            <span className="cf-icon-badge">{cf.filled}/{cf.total}</span>
-          </button>
-        )}
-        {!emailFull && (
-          <div className="bar-notes" style={{ position: 'relative' }}>
+    <div className="bar topbar">
+      <div className="tb-row1">
+        <div className="glyph">{glyphInitial}</div>
+        <div className="cust"><CustomerHeader /></div>
+      </div>
+
+      <div className="tb-row2">
+        {custId && <span className="pill">{jobStatus}</span>}
+        <span className="hdr-ref">{ourRef}</span>
+        <span className="db-spacer" />
+        <div className="actions">
+          {jobFields.length > 0 && (
             <button
-              className={'btn sm iconbtn' + (jobNotes.trim() ? ' has-notes' : '')}
-              title="Job notes (internal)"
-              onClick={() => setNotesOpen((o) => !o)}
+              className={'iconbtn cf-icon-btn' + (cf.missingRequired ? ' warn' : '')}
+              title={`Job custom fields ${cf.filled}/${cf.total}${cf.missingRequired ? ' — required fields missing' : ''}`}
+              onClick={() => openCustomFields(null)}
             >
-              <Icon name="note" size={15} />
+              <Icon name="list" size={16} />
+              <span className="badge">{cf.filled}/{cf.total}</span>
             </button>
-            {notesOpen && (
+          )}
+          {!emailFull && (
+            <div className="bar-notes" style={{ position: 'relative' }}>
+              <button
+                className={'iconbtn' + (notesOpen ? ' active' : '')}
+                title="Job notes (internal)"
+                onClick={() => setNotesOpen((o) => !o)}
+              >
+                <Icon name="file" size={16} />
+              </button>
+              {notesOpen && (
+                <>
+                  <div className="bar-tools-scrim" onClick={() => setNotesOpen(false)} />
+                  <div className="bar-notes-pop">
+                    <div className="bar-notes-h"><Icon name="file" size={13} /> Job notes · internal</div>
+                    <textarea
+                      autoFocus
+                      rows={4}
+                      placeholder="Internal notes about this job…"
+                      value={jobNotes}
+                      onChange={(e) => setJobNotes(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {!emailFull && (
+            <button className="iconbtn" title="Job history" onClick={() => openDrawer('history')}>
+              <Icon name="clock" size={16} />
+            </button>
+          )}
+          {!emailFull && (
+            <button
+              className={'iconbtn' + (allocated ? ' active' : '')}
+              title="Service providers"
+              onClick={() => openDrawer('providers')}
+            >
+              <Icon name="truck" size={16} />
+              {!allocated && provBadge > 0 && <span className="badge">{provBadge > 99 ? '99+' : provBadge}</span>}
+            </button>
+          )}
+          <div className="bar-tools" id="routeTools" style={{ position: 'relative' }}>
+            <button className="iconbtn" title="More actions" onClick={() => setToolsOpen((o) => !o)}>
+              <Icon name="more" size={16} />
+            </button>
+            {toolsOpen && (
               <>
-                <div className="bar-tools-scrim" onClick={() => setNotesOpen(false)} />
-                <div className="bar-notes-pop">
-                  <div className="bar-notes-h"><Icon name="note" size={13} /> Job notes · internal</div>
-                  <textarea
-                    autoFocus
-                    rows={4}
-                    placeholder="Internal notes about this job…"
-                    value={jobNotes}
-                    onChange={(e) => setJobNotes(e.target.value)}
-                  />
+                <div className="bar-tools-scrim" onClick={() => setToolsOpen(false)} />
+                <div className="bar-tools-menu">
+                  <button onClick={() => { openModal('docs'); setToolsOpen(false) }}><Icon name="file" size={14} /> Documents</button>
+                  <button onClick={() => { openModal('audit'); setToolsOpen(false) }}><Icon name="list" size={14} /> Audit trail</button>
+                  {!quickQuote && !isBooked && (
+                    <button onClick={() => { setQuickQuote(true); setToolsOpen(false) }}><Icon name="tag" size={14} /> Switch to Quick Quote</button>
+                  )}
+                  {editingJobId == null && (
+                    <button className="danger" onClick={() => { setToolsOpen(false); if (confirm('Clear the whole booking?')) reset() }}><Icon name="trash" size={14} /> Discard booking</button>
+                  )}
                 </div>
               </>
             )}
           </div>
-        )}
-        {!emailFull && (
-          <div className="bar-jobnav" role="group" aria-label="Job panels">
-            <button className="bar-jobnav-btn" title="Job history" onClick={() => openDrawer('history')}>
-              <Icon name="clock" size={15} />
-              History
-            </button>
-            <span className="bar-jobnav-div" />
-            <button
-              className={'bar-jobnav-btn' + (allocated ? ' allocated' : '')}
-              title="Service providers"
-              onClick={() => openDrawer('providers')}
-            >
-              <Icon name="truck" size={15} />
-              Providers
-              {allocated
-                ? <span className="bar-jobnav-tick"><Icon name="check" size={11} /></span>
-                : provBadge > 0 && <span className="bar-jobnav-badge">{provBadge > 99 ? '99+' : provBadge}</span>}
-            </button>
-          </div>
-        )}
-        <span className="db-spacer" />
-        <div className="bar-tools" id="routeTools" style={{ position: 'relative' }}>
-          <button className="btn sm iconbtn" title="More actions" onClick={() => setToolsOpen(o => !o)}>
-            <Icon name="more" size={16} />
+          <button className="iconbtn close" title="Close — back to list" onClick={() => goToList()}>
+            <Icon name="close" size={16} />
           </button>
-          {toolsOpen && (
-            <>
-              <div className="bar-tools-scrim" onClick={() => setToolsOpen(false)} />
-              <div className="bar-tools-menu">
-                <button onClick={() => { openModal('docs'); setToolsOpen(false) }}>
-                  <Icon name="file" size={14} /> Documents
-                </button>
-                <button onClick={() => { openModal('audit'); setToolsOpen(false) }}>
-                  <Icon name="list" size={14} /> Audit trail
-                </button>
-                <button onClick={() => { window.alert('Route map (mock).'); setToolsOpen(false) }}>
-                  <Icon name="map" size={14} /> Route map
-                </button>
-                <button onClick={() => { window.alert('Print delivery notes (mock).'); setToolsOpen(false) }}>
-                  <Icon name="printer" size={14} /> Print delivery notes
-                </button>
-              </div>
-            </>
-          )}
         </div>
-        <div className="bar-sep" />
-        {editingJobId == null && (
-          <button className="btn sm iconbtn" title="Discard booking" onClick={() => { if (confirm('Clear the whole booking?')) reset() }}>
-            <Icon name="trash" size={15} />
-          </button>
-        )}
-        <button className="winx" title="Close — back to list" onClick={() => goToList()}>
-          <Icon name="close" size={16} />
-        </button>
       </div>
-
-      {!isBooked && (
-        <div className="bar-sub">
-          <button
-            className={'qq-toggle' + (quickQuote ? ' on' : '')}
-            title="Quick Quote — only collection postcode + vehicle type"
-            onClick={() => setQuickQuote(!quickQuote)}
-          >
-            <span className="qq-dot" />
-            Quick Quote
-          </button>
-        </div>
-      )}
     </div>
   )
 }
