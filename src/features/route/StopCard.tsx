@@ -12,7 +12,7 @@ import { useBookingStore } from '@/store/bookingStore.ts'
 import { useEffectiveAssign } from '@/store/selectors.ts'
 import { AddressFind } from '@/features/address/AddressFind.tsx'
 import { GoodsPreview, Allocation } from './StopEditor.tsx'
-import { previewGoods, whenLabel, whenValue } from './format.ts'
+import { previewGoods, whenParts } from './format.ts'
 import { isColl as isCollLib, isDel } from '@/lib/index.ts'
 import type { Address, Stop, StopType, TimeMode } from '@/types/index.ts'
 
@@ -142,9 +142,14 @@ export function StopCard({ stop, index, last, onEditingChange }: {
             )}
             <div className="sf-actions"><button className="btn primary sm" onClick={() => setEdit(null)}>Done</button></div>
           </div>
-        ) : (
-          <div className="ml">{whenLabel(stop.time)} · <b>{whenValue(stop.time)}</b></div>
-        )}
+        ) : (() => {
+          const w = whenParts(stop.time)
+          return (
+            <div className="ml">
+              <b>{w.date}</b>{w.time ? <> · {w.time}</> : null}{w.mode ? <> · <span className="ml-mode">{w.mode}</span></> : null}
+            </div>
+          )
+        })()}
 
         {/* Contact */}
         <div className="ml stop-tap" onClick={() => toggle('contact')}>

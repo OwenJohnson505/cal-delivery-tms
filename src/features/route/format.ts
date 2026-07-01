@@ -49,6 +49,27 @@ function parseDt(s: string): Date | null {
   return m ? new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]) : null
 }
 
+/** Date / time / mode split so the card can bold the DATE (left column, under the
+ * address name) then show the time, then an ASAP tag. `mode` is only set for ASAP —
+ * the other modes carry their preposition (at / by) inside `time`. */
+export function whenParts(t: TimeSpec | null | undefined): { date: string; time: string; mode: string } {
+  if (!t || !t.mode) return { date: 'Not set', time: '', mode: '' }
+  const dm = (d: Date) => `${DOW[d.getDay()]} ${ord(d.getDate())} ${MON[d.getMonth()]}`
+  if (t.mode === 'asap') {
+    const d = new Date(Date.now() + 45 * 60000)
+    return { date: dm(d), time: `by ${fmt(d)}`, mode: 'ASAP' }
+  }
+  const parse = (s?: string) => parseDt(s || '')
+  if (t.mode === 'at') { const d = parse(t.at); return d ? { date: dm(d), time: `at ${fmt(d)}`, mode: '' } : { date: 'TBC', time: '', mode: '' } }
+  if (t.mode === 'by') { const d = parse(t.by); return d ? { date: dm(d), time: `by ${fmt(d)}`, mode: '' } : { date: 'TBC', time: '', mode: '' } }
+  if (t.mode === 'between') {
+    const a = parse(t.from); const b = parse(t.to)
+    if (!a) return { date: 'TBC', time: '', mode: '' }
+    return { date: dm(a), time: `${fmt(a)}${b ? '–' + fmt(b) : ''}`, mode: '' }
+  }
+  return { date: 'TBC', time: '', mode: '' }
+}
+
 /** Short label for the time mode. */
 export function whenLabel(t: TimeSpec | null | undefined): string {
   if (!t || !t.mode) return 'When'
