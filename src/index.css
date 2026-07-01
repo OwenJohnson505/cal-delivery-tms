@@ -275,7 +275,7 @@ body {
 .main-stack .sec-note { font-size: 11px; color: var(--ink-3); font-weight: 500; }
 
 /* route stops */
-.main-stack .stops { padding: 4px 0 2px; display: block; }
+.main-stack .stops { padding: 2px 0 0; display: block; }
 .main-stack .stop { display: flex; gap: 12px; padding: 8px 14px 10px; border: none; border-radius: 0; background: none; }
 .main-stack .stop .rail { display: flex; flex-direction: column; align-items: center; flex: 0 0 22px; padding-top: 1px; background: none; border: none; border-radius: 0; width: auto; height: auto; overflow: visible; }
 .main-stack .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; color: #fff; flex: 0 0 22px; }
@@ -310,9 +310,9 @@ body {
 .main-stack .place-add { color: var(--blue); cursor: pointer; }
 
 /* inline stop edit forms — compact, single column, fit the narrow column */
+/* no nested white box — the form fields sit directly on the grey section */
 .main-stack .stop-form {
-  margin: 6px 0 4px; padding: 10px; border-radius: 10px;
-  background: var(--panel); border: 1px solid var(--hair);
+  margin: 4px 0 2px; padding: 0; border: none; background: transparent;
   display: flex; flex-direction: column; gap: 8px;
 }
 .main-stack .stop-form .sf-title { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
@@ -340,8 +340,9 @@ body {
 .main-stack .stop-form .btn.primary { background: var(--blue); color: #fff; }
 .main-stack .stop-form .btn.sm:not(.primary) { background: var(--fill); color: var(--ink); }
 
-/* focused stop editing — only this stop shows, full width, no rail */
-.main-stack .stop.stop-focus { padding: 8px 14px 12px; }
+/* focused stop editing — only this stop shows, full width, no rail; tight top gap */
+.main-stack .stop.stop-focus { padding: 2px 14px 12px; }
+.main-stack .stop-focus .stop-top { margin-bottom: 6px; }
 .main-stack .stop.stop-focus .stop-content { flex: 1 1 auto; min-width: 0; }
 .main-stack .dot-inline { width: 18px; height: 18px; font-size: 10px; margin-right: 6px; flex: 0 0 18px; }
 

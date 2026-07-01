@@ -99,12 +99,14 @@ export function StopCard({ stop, index, last, onEditingChange }: {
           )}
         </div>
 
-        {/* Address (place) */}
-        <div className="place" onClick={() => toggle('addr')}>
-          <span className="name">{a.co || 'Add address'}</span>
-          {loc && <span className="pc">· {loc}</span>}
-          <span className="chev">›</span>
-        </div>
+        {/* Address (place) — hidden while its form is open (the fields show it) */}
+        {edit !== 'addr' && (
+          <div className="place" onClick={() => toggle('addr')}>
+            <span className="name">{a.co || 'Add address'}</span>
+            {loc && <span className="pc">· {loc}</span>}
+            <span className="chev">›</span>
+          </div>
+        )}
 
         {edit === 'addr' ? (
           <div className="stop-form">
