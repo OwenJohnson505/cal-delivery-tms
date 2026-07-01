@@ -227,13 +227,22 @@
 .main-stack > .rsec,
 .main-stack > .panelbox { flex: 0 0 auto; }
 
-/* Requirements: 2 columns, capped height with internal scroll + "+N more" hint,
- * so it stays compact and gives Charges room. */
+/* Requirements: 2-col grid, name over scope, coloured scope (green whole-job /
+ * blue stop-specific) — per the reference. Capped height + scroll to stay compact
+ * and give Charges room. */
 .main-stack .panelbox #reqBox {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px;
-  max-height: 170px; overflow-y: auto;
+  display: grid; grid-template-columns: 1fr 1fr; padding: 2px 0;
+  max-height: 176px; overflow-y: auto;
 }
-.main-stack .panelbox #reqBox .req-line:nth-child(3) { border-top: 1px solid #f0f3f7; }
+.main-stack #reqBox .req { padding: 7px 14px; min-width: 0; }
+.main-stack #reqBox .req:nth-child(odd) { border-right: 1px solid rgba(60, 60, 67, .11); }
+.main-stack #reqBox .req:nth-child(n+3) { border-top: 1px solid rgba(60, 60, 67, .11); }
+.main-stack #reqBox .req-name {
+  font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.main-stack #reqBox .req-scope { font-size: 11px; font-weight: 500; margin-top: 1px; }
+.main-stack #reqBox .req-scope.wj { color: #1a7f37; }
+.main-stack #reqBox .req-scope.sp { color: #0060df; }
 
 /* ── Stop card: two columns so three fit in the shorter route panel ──────────
  * Col 1 = postcode / company / contact, Col 2 = timing / goods. Collapses to a

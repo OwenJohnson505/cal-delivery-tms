@@ -50,9 +50,9 @@ export function RequirementsPanel() {
               <div className="hint">No special requirements.</div>
             ) : (
               rows.map((r, i) => (
-                <div className="req-line" key={r.label + i}>
-                  <span className="req-l">{r.label}</span>
-                  <span className="req-s">{r.scope}</span>
+                <div className="req" key={r.label + i}>
+                  <div className="req-name">{r.label}</div>
+                  <div className={'req-scope ' + (/whole job/i.test(r.scope) ? 'wj' : 'sp')}>{r.scope}</div>
                 </div>
               ))
             )}
