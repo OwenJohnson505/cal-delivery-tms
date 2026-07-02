@@ -1250,6 +1250,119 @@ body {
 /* row 3: view config (View select · Columns · Email) sits close to the table */
 .bk-viewrow { margin-top: -2px; }
 
+/* ============================================================
+ * BOOKINGS TOOLBAR (bkf-) — two rows fused to the top of the table container.
+ * Chips are fixed-size & icon-only; all clear/delete lives inside pop-ups, so the
+ * toolbar itself never changes width whatever filter is applied.
+ * ============================================================ */
+.bkf-main { gap: 0; }
+/* the two toolbar rows form the head of the table card; the table wrap joins beneath */
+.bkf-thead {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: #fafafb;
+  overflow: hidden;
+}
+.bkf-main .list-tablewrap { border-radius: 0 0 var(--radius) var(--radius); border-top: none; }
+.bkf-trow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.bkf-trow + .bkf-trow { border-top: 1px solid var(--line); }
+/* the fused tabs shed the underline treatment (the row carries the separators) */
+.bkf-trow .list-tabs { border-bottom: none; }
+.bkf-trow .list-tab { margin-bottom: 0; padding: 6px 11px; border-bottom: none; }
+.bkf-sp { flex: 1; min-width: 6px; }
+.bkf-add { flex: none; }
+
+/* ── row 2: search · chips · +More · count · views · gear ── */
+.bkf-filterrow { gap: 8px; }
+.bkf-search {
+  display: inline-flex; align-items: center; gap: 8px; flex: 1; min-width: 120px;
+  background: var(--field); border-radius: 9px; padding: 7px 11px; color: var(--ink-3);
+}
+.bkf-search input { border: none; background: none; outline: none; font: inherit; font-size: 13px; color: var(--ink); width: 100%; }
+.bkf-search input::placeholder { color: var(--ink-3); }
+.bkf-chips { display: flex; align-items: center; gap: 7px; flex: none; }
+.bkf-chip {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none;
+  background: #fff; border: 1px solid var(--line-strong); border-radius: 100px; cursor: pointer; color: var(--muted);
+}
+.bkf-chip:hover { background: var(--field); }
+.bkf-chip .ic-svg { width: 14px; height: 14px; }
+.bkf-chip.active { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.bkf-addchip {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none;
+  border: 1px dashed var(--line-strong); border-radius: 100px; background: none; color: var(--muted); cursor: pointer;
+}
+.bkf-addchip:hover { background: var(--field); border-style: solid; }
+.bkf-count { flex: none; margin-left: 2px; font-size: 11.5px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+.bkf-iconbtn {
+  width: 30px; height: 30px; flex: none; display: grid; place-items: center;
+  border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; color: var(--muted); cursor: pointer;
+}
+.bkf-iconbtn:hover { background: var(--field); color: var(--ink); }
+
+/* ── pop-ups (value / more / gear / views) ── */
+.bkf-menu {
+  position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, .16);
+  padding: 6px; min-width: 220px; max-height: 360px; overflow: auto;
+}
+.bkf-menu h5 { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); font-weight: 700; padding: 7px 9px 4px; }
+.bkf-mrow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 8px; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.bkf-mrow:hover { background: var(--fill); }
+.bkf-mrow.muted { color: var(--muted); cursor: default; }
+.bkf-mrow.muted:hover { background: none; }
+.bkf-ck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--line-strong); flex: none; display: grid; place-items: center; }
+.bkf-ck .ic-svg { width: 11px; height: 11px; opacity: 0; color: #fff; }
+.bkf-mrow.on .bkf-ck { background: var(--accent); border-color: var(--accent); }
+.bkf-mrow.on .bkf-ck .ic-svg { opacity: 1; }
+.bkf-mi { width: 15px; height: 15px; color: var(--muted); flex: none; display: grid; place-items: center; }
+.bkf-mi.vb .ic-svg { color: var(--accent); }
+.bkf-mi.star .ic-svg { color: #e0a83a; }
+.bkf-msep { height: 1px; background: var(--line); margin: 5px 4px; }
+.bkf-mhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 5px 3px; }
+.bkf-mhead h5 { padding: 0; }
+.bkf-mall { display: inline-flex; gap: 10px; font-size: 11px; }
+.bkf-mall a { color: var(--accent); cursor: pointer; font-weight: 600; }
+.bkf-mall a:hover { text-decoration: underline; }
+.bkf-mpsec { font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); font-weight: 700; padding: 6px 9px 3px; }
+.bkf-mprow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 8px; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.bkf-mprow:hover { background: var(--accent-soft); }
+.bkf-mpname { flex: 1; }
+.bkf-mpn { font-size: 10px; color: var(--ink-3); background: var(--fill-2); border-radius: 100px; padding: 1px 7px; font-weight: 600; white-space: nowrap; }
+.bkf-mprow.sel { background: rgba(0, 113, 227, .06); }
+.bkf-mprow.sel .bkf-mpname { color: var(--accent); font-weight: 700; }
+.bkf-mrow.clr { color: var(--accent); font-weight: 600; }
+.bkf-mrow.clr:hover { background: var(--accent-soft); }
+.bkf-pdel { margin-left: 2px; width: 22px; height: 22px; border: none; background: none; color: var(--ink-3); border-radius: 6px; cursor: pointer; display: none; place-items: center; flex: none; }
+.bkf-mprow:hover .bkf-pdel { display: grid; }
+.bkf-pdel:hover { background: #fdecec; color: #dc2626; }
+.bkf-pclr {
+  display: inline-flex; align-items: center; gap: 2px; margin-left: 2px; border: none;
+  background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 10.5px; font-weight: 700;
+  padding: 3px 8px; border-radius: 100px; cursor: pointer; flex: none;
+}
+.bkf-pclr:hover { background: var(--accent); color: #fff; }
+.bkf-mfoot { display: flex; gap: 6px; padding: 6px 5px 2px; }
+.bkf-mbtn {
+  flex: 1; border: 1px solid var(--line-strong); background: #fff; border-radius: 8px;
+  font: inherit; font-size: 11.5px; font-weight: 600; padding: 6px; cursor: pointer; color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
+.bkf-mbtn:hover { background: var(--field); }
+.bkf-mbtn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.bkf-saverow { display: flex; gap: 6px; width: 100%; }
+.bkf-pinput { flex: 1; border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 9px; font: inherit; font-size: 12px; outline: none; }
+.bkf-pinput:focus { border-color: var(--accent); }
+.bkf-saved { font-size: 11px; color: var(--muted); padding: 4px 6px; }
+
+/* ── COMPACT-HUG: shrink the whole container to the compact table's width so the
+ * header always matches the table and the space to the right is freed. Scoped to the
+ * list screen; leaves the .list-fixed fixed-height + internal-scroll layout intact. ── */
+.bkf-main.bkf-hug { width: fit-content; max-width: 100%; align-self: flex-start; }
+.bkf-main.bkf-hug .jobs-table.compact { width: 100%; }
+
 /* ── email panel ── */
 .email-panel {
   flex: 1 1 380px; min-width: 360px;
