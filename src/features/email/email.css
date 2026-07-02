@@ -376,6 +376,20 @@
 .nx-msg.flash { box-shadow: 0 0 0 2px var(--nx-blue); border-radius: 6px; }
 .nx-gap { position: relative; height: 26px; }
 .nx-gap::before { content: ""; position: absolute; left: 13px; top: -8px; bottom: -8px; width: 1.5px; background: var(--nx-hair); }
+
+/* ── previous communication: greyed box, capped so only the last few show; scroll up for older ── */
+.nx-history { background: var(--nx-grouped); border: 1px solid var(--nx-hair); border-radius: 12px; padding: 0 12px; margin: 8px 0 10px; max-height: 176px; overflow-y: auto; }
+.nx-history .nx-msg { padding: 8px 0; }
+.nx-history .nx-msg:last-child .nx-mnode::before { display: none; }
+/* the grey box itself signals "older", so rows stay steady rather than fading on scroll */
+.nx-history .nx-msg.older { opacity: 1; filter: none; }
+
+/* ── the email being worked on: clean white container, prominent ── */
+.nx-current { background: #fff; border: 1px solid var(--nx-hair-2); border-radius: 12px; padding: 2px 12px 8px; margin: 0 0 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
+.nx-current > .nx-msg:last-of-type .nx-mnode::before { display: none; }
+
+/* reply arrows sit under the current email, aligned with its body, until one is clicked */
+.nx-replybar { display: flex; gap: 4px; padding-left: 37px; margin-top: 2px; }
 .nx-atts { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
 .nx-att { display: flex; align-items: center; gap: 8px; border: 1px solid var(--nx-hair); border-radius: 9px; padding: 6px 10px 6px 7px; background: #fff; font-size: 11px; }
 .nx-att .ico2 { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: #fff; font-size: 8px; font-weight: 700; background: #d0353a; }

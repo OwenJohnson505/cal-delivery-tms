@@ -207,6 +207,7 @@ export function EmailPanel() {
 
   const composeRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const historyRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLElement>(null)
 
   const openCompose = (to = '') => { setComposeNew({ to, subject: '', body: '' }); setPanelState('full') }
@@ -433,12 +434,19 @@ export function EmailPanel() {
   const newestId = ([...msgs].reverse().find((m) => !m.event)?.id) ?? msgs[msgs.length - 1]?.id
   const newestIdx = msgs.findIndex((m) => m.id === newestId)
   const olderCutoff = newestIdx < 0 ? msgs.length - 1 : newestIdx // emails before the newest are "older" (greyed)
+  // Previous communication is grouped into a greyed, scroll-up box; the newest email (the one
+  // we're working on) sits below it in a clean white container with the reply controls.
+  const historyMsgs = newestIdx <= 0 ? [] : msgs.slice(0, newestIdx)
+  const currentMsgs = newestIdx < 0 ? msgs : msgs.slice(newestIdx)
 
-  // Open scrolled to the newest message (email-reader-peek.html #2).
+  // Open with the newest email high in view: the history box is pinned to its newest (bottom)
+  // so scrolling up reveals older mail, while the outer column rests at the top.
   useEffect(() => {
     if (panelState !== 'full' || !thread || composeNew) return
-    const el = scrollRef.current
-    if (el) window.setTimeout(() => { el.scrollTop = el.scrollHeight }, 0)
+    window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = 0
+      if (historyRef.current) historyRef.current.scrollTop = historyRef.current.scrollHeight
+    }, 0)
   }, [selectedId, panelState, composeNew, thread])
 
   // IntersectionObserver: greyed older messages fade to full colour as they scroll in.
@@ -733,6 +741,75 @@ export function EmailPanel() {
   const si = thread ? senderInfo(thread) : null
   const peekThreads = threads.filter((t) => !t.archived && !t.snoozedUntil && t.id !== selectedId).slice(0, 8)
 
+  // One message row — a compact audit event, or a full email (collapsed to a snippet when older).
+  const renderMsg = (m: EmailMsg, idx: number) => {
+    if (!thread) return null
+    if (m.event) {
+      return (
+        <div key={m.id} id={'nx-msg-' + m.id} data-mid={m.id} className={'nx-msg nx-event' + (flashMsg === m.id ? ' flash' : '')}>
+          <div className="nx-mnode"><span className="nx-enode"><Icon name={m.icon || 'check'} size={11} /></span></div>
+          <div className="nx-eline">
+            <span className="nx-elabel">{m.body}</span>
+            {m.from.name && <span className="nx-eactor">{m.from.name}</span>}
+            <span className="nx-tt nx-etime" title={m.at}>{shortWhen(m.at)}</span>
+          </div>
+        </div>
+      )
+    }
+    const cust = customerForEmail(m.from.email)
+    const older = idx < olderCutoff && !expandAll
+    const expanded = isExpanded(m, idx)
+    // elapsed badge: response time between the previous inbound and this outbound
+    let elapsed: string | null = null
+    if (m.outbound && idx > 0 && !msgs[idx - 1].outbound && !msgs[idx - 1].event) {
+      const mins = minutesBetween(msgs[idx - 1].at, m.at)
+      if (mins != null && mins >= 0) elapsed = elapsedLabel(mins)
+    }
+    const mTier: Tier = m.outbound ? 'me' : (m.from.email.toLowerCase().endsWith('@hauliers.co.uk') ? 'driver' : (cust ? senderInfo(thread).tier : 'grey'))
+    return (
+      <div
+        key={m.id}
+        id={'nx-msg-' + m.id}
+        data-mid={m.id}
+        className={'nx-msg' + (older ? ' older' : '') + (older && inview.has(m.id) ? ' inview' : '') + (expanded ? '' : ' collapsed') + (flashMsg === m.id ? ' flash' : '')}
+      >
+        <div className="nx-mnode">
+          <span className={'nx-avatar' + (METAL_TIERS.has(mTier) ? ' nx-metal ' : ' ') + TIER_CLASS[mTier]}>{initials(m.from.name)}</span>
+        </div>
+        <div className="nx-mmain">
+          <div className="nx-mhead-btn" onClick={() => setExpandedMsgs((p) => (p.includes(m.id) ? p.filter((x) => x !== m.id) : [...p, m.id]))}>
+            <div className="nx-mtop">
+              <div style={{ position: 'relative' }}>
+                <button className="nx-name-btn" onClick={(e) => { e.stopPropagation(); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
+                {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
+              </div>
+              {m.outbound && <span className="nx-ilab" style={{ background: 'var(--nx-blue-tint)', color: 'var(--nx-blue)' }}>You</span>}
+              <span className="nx-mto">To: {recipientsFor(m)}</span>
+              <span className="nx-mt">
+                <span className="nx-tt" title={m.at}>{shortWhen(m.at)}</span>
+                {elapsed && <span className="nx-elapsed"><Icon name="clock" size={9} /> {elapsed}</span>}
+              </span>
+            </div>
+            <div className="nx-msnip">{(m.body || '').replace(/\s+/g, ' ').slice(0, 120)}</div>
+          </div>
+          <div className="nx-mfull">
+            <div className="nx-mbody"><RefText text={m.body} /></div>
+            {!!m.attachments?.length && (
+              <div className="nx-atts">
+                {m.attachments.map((a) => (
+                  <span key={a.id} className="nx-att"><span className="ico2">PDF</span><span className="fnm">{a.name}</span></span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {idx > 0 && (
+          <button className="nx-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋</button>
+        )}
+      </div>
+    )
+  }
+
   const readerCol = (
     <div className="ep-readcol">
       {composeNew ? (
@@ -901,92 +978,63 @@ export function EmailPanel() {
               Conversation
               <button className="exall" onClick={() => setExpandAll((o) => !o)}>{expandAll ? 'Collapse older' : 'Expand all'}</button>
             </div>
-            {msgs.map((m, idx) => {
-              // system / job-lifecycle event → compact audit row on the same timeline
-              if (m.event) {
-                return (
-                  <div key={m.id} id={'nx-msg-' + m.id} data-mid={m.id} className={'nx-msg nx-event' + (flashMsg === m.id ? ' flash' : '')}>
-                    <div className="nx-mnode"><span className="nx-enode"><Icon name={m.icon || 'check'} size={11} /></span></div>
-                    <div className="nx-eline">
-                      <span className="nx-elabel">{m.body}</span>
-                      {m.from.name && <span className="nx-eactor">{m.from.name}</span>}
-                      <span className="nx-tt nx-etime" title={m.at}>{shortWhen(m.at)}</span>
-                    </div>
-                  </div>
-                )
-              }
-              const cust = customerForEmail(m.from.email)
-              const internal = false // internal notes live as comments; kept for the label branch
-              const older = idx < olderCutoff && !expandAll
-              const expanded = isExpanded(m, idx)
-              // elapsed badge: response time between the previous inbound and this outbound
-              let elapsed: string | null = null
-              if (m.outbound && idx > 0 && !msgs[idx - 1].outbound && !msgs[idx - 1].event) {
-                const mins = minutesBetween(msgs[idx - 1].at, m.at)
-                if (mins != null && mins >= 0) elapsed = elapsedLabel(mins)
-              }
-              const mTier: Tier = m.outbound ? 'me' : (m.from.email.toLowerCase().endsWith('@hauliers.co.uk') ? 'driver' : (cust ? senderInfo(thread).tier : 'grey'))
-              return (
-                <div key={m.id}>
-                  {m.id === newestId && msgs.length > 1 && <div className="nx-gap" />}
-                  <div
-                    id={'nx-msg-' + m.id}
-                    data-mid={m.id}
-                    className={'nx-msg' + (older ? ' older' : '') + (older && inview.has(m.id) ? ' inview' : '') + (expanded ? '' : ' collapsed') + (flashMsg === m.id ? ' flash' : '') + (internal ? ' internal' : '')}
-                  >
-                    <div className="nx-mnode">
-                      <span className={'nx-avatar' + (METAL_TIERS.has(mTier) ? ' nx-metal ' : ' ') + TIER_CLASS[mTier]}>{initials(m.from.name)}</span>
-                    </div>
-                    <div className="nx-mmain">
-                      <div className="nx-mhead-btn" onClick={() => setExpandedMsgs((p) => (p.includes(m.id) ? p.filter((x) => x !== m.id) : [...p, m.id]))}>
-                        <div className="nx-mtop">
-                          <div style={{ position: 'relative' }}>
-                            <button className="nx-name-btn" onClick={(e) => { e.stopPropagation(); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
-                            {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
-                          </div>
-                          {m.outbound && <span className="nx-ilab" style={{ background: 'var(--nx-blue-tint)', color: 'var(--nx-blue)' }}>You</span>}
-                          <span className="nx-mto">To: {recipientsFor(m)}</span>
-                          <span className="nx-mt">
-                            <span className="nx-tt" title={m.at}>{shortWhen(m.at)}</span>
-                            {elapsed && <span className="nx-elapsed"><Icon name="clock" size={9} /> {elapsed}</span>}
-                          </span>
-                        </div>
-                        <div className="nx-msnip">{(m.body || '').replace(/\s+/g, ' ').slice(0, 120)}</div>
-                      </div>
-                      <div className="nx-mfull">
-                        <div className="nx-mbody"><RefText text={m.body} /></div>
-                        {!!m.attachments?.length && (
-                          <div className="nx-atts">
-                            {m.attachments.map((a) => (
-                              <span key={a.id} className="nx-att"><span className="ico2">PDF</span><span className="fnm">{a.name}</span></span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {idx > 0 && (
-                      <button className="nx-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋</button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-
-            {/* shared live draft (a colleague drafting) — take it over to edit + send */}
-            {thread.draftPresence && (
-              <div className="nx-msg internal">
-                <div className="nx-mnode"><span className="nx-avatar nx-pp">{initials(thread.draftPresence.by)}</span></div>
-                <div className="nx-mmain">
-                  <div className="nx-mtop">
-                    <span className="nx-mn">{thread.draftPresence.by}</span>
-                    <span className="nx-ilab">Draft</span>
-                    <span className="nx-sp" />
-                    <button className="nx-name-btn" onClick={() => { const d = thread.draftPresence!; startCompose('reply'); setDraft(d.body); clearDraftPresence(thread.id) }}>Take over</button>
-                  </div>
-                  <div className="nx-mbody" style={{ marginTop: 6 }}>{thread.draftPresence.body}</div>
-                </div>
+            {/* previous communication — grouped in a greyed box; scroll up inside it for older mail */}
+            {historyMsgs.length > 0 && (
+              <div className="nx-history" ref={historyRef}>
+                {historyMsgs.map((m) => renderMsg(m, msgs.indexOf(m)))}
               </div>
             )}
+
+            {/* the email we're working on — a clean white container with the reply controls */}
+            <div className="nx-current">
+              {currentMsgs.map((m) => renderMsg(m, msgs.indexOf(m)))}
+
+              {/* shared live draft (a colleague drafting) — take it over to edit + send */}
+              {thread.draftPresence && (
+                <div className="nx-msg internal">
+                  <div className="nx-mnode"><span className="nx-avatar nx-pp">{initials(thread.draftPresence.by)}</span></div>
+                  <div className="nx-mmain">
+                    <div className="nx-mtop">
+                      <span className="nx-mn">{thread.draftPresence.by}</span>
+                      <span className="nx-ilab">Draft</span>
+                      <span className="nx-sp" />
+                      <button className="nx-name-btn" onClick={() => { const d = thread.draftPresence!; startCompose('reply'); setDraft(d.body); clearDraftPresence(thread.id) }}>Take over</button>
+                    </div>
+                    <div className="nx-mbody" style={{ marginTop: 6 }}>{thread.draftPresence.body}</div>
+                  </div>
+                </div>
+              )}
+
+              {replyOpen ? (
+                /* the composer only unfolds once a mode is picked — then we show who's replying */
+                <div className="nx-msg nx-replybox open">
+                  <div className="nx-mnode"><span className="nx-avatar me">{initials(users.find((u) => u.id === currentUserId)?.name ?? 'You')}</span></div>
+                  <div className="nx-mmain">
+                    <div className="nx-rb-head">
+                      <span className="nx-mn">You</span>
+                      <span className="nx-rb-tabs">
+                        {([['reply', 'Reply', 'reply'], ['replyall', 'Reply all', 'reply-all'], ['forward', 'Forward', 'forward']] as const).map(([k, label, icon]) => (
+                          <button key={k} className={'nx-rb-tab' + (tab === k ? ' on' : '')} title={label} aria-label={label} onClick={() => startCompose(k)}>
+                            <Icon name={icon} size={17} />
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                    <div className="nx-rb-to"><span>To</span><input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} /></div>
+                    <textarea className="nx-rb-text" ref={composeRef} placeholder="Write your reply…" value={draft} onChange={(e) => setDraft(e.target.value)} />
+                  </div>
+                </div>
+              ) : (
+                /* nothing but the reply arrows until one is clicked (no name shown yet) */
+                <div className="nx-replybar">
+                  {([['reply', 'Reply', 'reply'], ['replyall', 'Reply all', 'reply-all'], ['forward', 'Forward', 'forward']] as const).map(([k, label, icon]) => (
+                    <button key={k} className="nx-rb-tab" title={label} aria-label={label} onClick={() => startCompose(k)}>
+                      <Icon name={icon} size={17} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* internal comments — click one to jump to the email it was left on */}
             {thread.comments.length > 0 && (
@@ -999,30 +1047,6 @@ export function EmailPanel() {
                 ))}
               </div>
             )}
-
-            {/* inline reply — compose right inside the thread with our avatar + name, so the
-                whole reply is visible; the grey bar below is just the send actions. */}
-            <div className={'nx-msg nx-replybox' + (replyOpen ? ' open' : '')}>
-              <div className="nx-mnode"><span className="nx-avatar me">{initials(users.find((u) => u.id === currentUserId)?.name ?? 'You')}</span></div>
-              <div className="nx-mmain">
-                <div className="nx-rb-head">
-                  <span className="nx-mn">You</span>
-                  <span className="nx-rb-tabs">
-                    {([['reply', 'Reply', 'reply'], ['replyall', 'Reply all', 'reply-all'], ['forward', 'Forward', 'forward']] as const).map(([k, label, icon]) => (
-                      <button key={k} className={'nx-rb-tab' + (replyOpen && tab === k ? ' on' : '')} title={label} aria-label={label} onClick={() => startCompose(k)}>
-                        <Icon name={icon} size={17} />
-                      </button>
-                    ))}
-                  </span>
-                </div>
-                {replyOpen && (
-                  <>
-                    <div className="nx-rb-to"><span>To</span><input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} /></div>
-                    <textarea className="nx-rb-text" ref={composeRef} placeholder="Write your reply…" value={draft} onChange={(e) => setDraft(e.target.value)} />
-                  </>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* compact send bar — the writing happens up in the thread */}
