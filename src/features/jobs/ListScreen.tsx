@@ -344,7 +344,12 @@ export function ListScreen() {
   const [fpop, setFpop] = useState<{ kind: 'value' | 'more' | 'gear' | 'views'; filterId?: FilterId; x: number; y: number } | null>(null)
   const openFpop = (e: React.MouseEvent, kind: 'value' | 'more' | 'gear' | 'views', filterId?: FilterId) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setFpop({ kind, filterId, x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 6 })
+    const W = 250, H = 360, m = 8
+    const x = Math.max(m, Math.min(r.left, window.innerWidth - W - m))
+    // open below; flip above if there isn't room below and there's more space up top
+    const below = window.innerHeight - r.bottom - m
+    const y = (below >= H || below >= r.top) ? r.bottom + 6 : Math.max(m, r.top - 6 - H)
+    setFpop({ kind, filterId, x, y })
   }
 
   const collStop = (j: SavedJob) => j.snapshot.stops.find((s) => s.type === 'Collection' || s.type === 'Both')

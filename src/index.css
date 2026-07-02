@@ -2808,5 +2808,10 @@ body.col-resizing { cursor: col-resize; user-select: none; }
   margin: var(--widget-gap) 6px var(--widget-gap) var(--rail-clear);
 }
 
-/* an open booking — the booking wizard / live-form container */
-.app { border-radius: var(--widget-r); overflow: hidden; }
+/* an open booking — the booking wizard / live-form container. No overflow:hidden here so
+   the form's own dropdowns (customer search, +Add popovers, pickers) are never clipped;
+   the content is inset on a white card, so the rounded corners still read clean. */
+.app { border-radius: var(--widget-r); }
+
+/* portal popover scrim (see app/Popover.tsx) — sits under viewport-clamped menus */
+.pop-scrim { position: fixed; inset: 0; z-index: 2999; }

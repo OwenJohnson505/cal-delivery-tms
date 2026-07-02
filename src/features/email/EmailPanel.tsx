@@ -23,6 +23,7 @@
 import './email.css'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Icon } from '@/app/Icon.tsx'
+import { Popover } from '@/app/Popover.tsx'
 import { useEmailsStore, relTime, LANES, MAILBOXES, type EmailThread, type EmailMsg, type Lane } from '@/store/emailsStore.ts'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
@@ -178,6 +179,7 @@ export function EmailPanel() {
   const [tagDraft, setTagDraft] = useState('')
   const [addingTag, setAddingTag] = useState(false)
   const [openContact, setOpenContact] = useState<string | null>(null)
+  const [contactAnchor, setContactAnchor] = useState<HTMLElement | null>(null)
   const [macroOpen, setMacroOpen] = useState(false)
   const [more, setMore] = useState(false)
   const [peekMenu, setPeekMenu] = useState<'snooze' | null>(null)
@@ -199,6 +201,9 @@ export function EmailPanel() {
 
   const composeRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const snoozeBtnRef = useRef<HTMLButtonElement>(null)
+  const macroBtnRef = useRef<HTMLButtonElement>(null)
+  const moreBtnRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLElement>(null)
 
   const openCompose = (to = '') => { setComposeNew({ to, subject: '', body: '' }); setPanelState('full') }
@@ -729,8 +734,8 @@ export function EmailPanel() {
           <div className="nx-binhead">
             {avatarFor(m)}
             <div style={{ position: 'relative' }}>
-              <button className="nx-bn" onClick={(e) => { e.stopPropagation(); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
-              {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
+              <button className="nx-bn" onClick={(e) => { e.stopPropagation(); setContactAnchor(e.currentTarget); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
+              {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} anchorEl={contactAnchor} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
             </div>
             {m.outbound && <span className="nx-ilab">You</span>}
             <span className="nx-bt">{shortWhen(m.at)}</span>
@@ -784,8 +789,8 @@ export function EmailPanel() {
       <div className="nx-lhead">
         {avatarFor(m)}
         <div style={{ position: 'relative' }}>
-          <button className="nx-bn" onClick={() => setOpenContact(openContact === m.id ? null : m.id)}>{m.from.name}</button>
-          {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
+          <button className="nx-bn" onClick={(e) => { setContactAnchor(e.currentTarget); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
+          {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} anchorEl={contactAnchor} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
         </div>
         {m.outbound && <span className="nx-ilab">You</span>}
         <span className="nx-lto">To: {recipientsFor(m)}</span>
@@ -908,55 +913,40 @@ export function EmailPanel() {
               <span className="nx-sp" />
               <button className={'nx-abtn' + (thread.pinned ? ' on' : '')} title={thread.pinned ? 'Unpin' : 'Pin'} onClick={() => toggleFlag(thread.id, 'pinned')}><Icon name="pin" size={16} /></button>
               <div className="nx-menu-wrap">
-                <button className="nx-abtn" title="Snooze / remind" onClick={() => { setMore(false); setMacroOpen(false); setPeekMenu((p) => (p === 'snooze' ? null : 'snooze')) }}><Icon name="clock" size={16} /></button>
-                {peekMenu === 'snooze' && (
-                  <>
-                    <div className="nx-pop-scrim" onClick={() => setPeekMenu(null)} />
-                    <div className="nx-menu">
-                      <div className="nx-menu-sec">Snooze</div>
-                      {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'s' + label} onClick={() => { snooze(thread.id, ms, label); setPeekMenu(null) }}>💤 {label}</button>)}
-                      <div className="nx-menu-sec">Remind</div>
-                      {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'r' + label} onClick={() => { remind(thread.id, ms, label); setPeekMenu(null) }}>⏰ {label}</button>)}
-                    </div>
-                  </>
-                )}
+                <button ref={snoozeBtnRef} className="nx-abtn" title="Snooze / remind" onClick={() => { setMore(false); setMacroOpen(false); setPeekMenu((p) => (p === 'snooze' ? null : 'snooze')) }}><Icon name="clock" size={16} /></button>
+                <Popover anchorRef={snoozeBtnRef} open={peekMenu === 'snooze'} onClose={() => setPeekMenu(null)} className="nx-menu">
+                  <div className="nx-menu-sec">Snooze</div>
+                  {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'s' + label} onClick={() => { snooze(thread.id, ms, label); setPeekMenu(null) }}>💤 {label}</button>)}
+                  <div className="nx-menu-sec">Remind</div>
+                  {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'r' + label} onClick={() => { remind(thread.id, ms, label); setPeekMenu(null) }}>⏰ {label}</button>)}
+                </Popover>
               </div>
               <button className={'nx-abtn' + (thread.following ? ' on' : '')} title={thread.following ? 'Unfollow' : 'Follow'} onClick={() => toggleFlag(thread.id, 'following')}><Icon name="flag" size={16} /></button>
               <span className="nx-vsep" />
               <div className="nx-menu-wrap">
-                <button className="nx-macro" onClick={() => { setMacroOpen((o) => !o); setPeekMenu(null) }} title="Run a macro"><Icon name="cog" size={13} /> Macros</button>
-                {macroOpen && (
-                  <>
-                    <div className="nx-pop-scrim" onClick={() => setMacroOpen(false)} />
-                    <div className="nx-menu">
-                      <div className="nx-menu-sec">Run macro</div>
-                      {macros.map((m) => <button key={m.id} onClick={() => { runMacro(m.id, thread.id); setMacroOpen(false) }}>{m.icon ?? '⚡'} {m.name}</button>)}
-                      {!macros.length && <div className="nx-menu-sec">None — add some in Email Rules</div>}
-                    </div>
-                  </>
-                )}
+                <button ref={macroBtnRef} className="nx-macro" onClick={() => { setMacroOpen((o) => !o); setPeekMenu(null) }} title="Run a macro"><Icon name="cog" size={13} /> Macros</button>
+                <Popover anchorRef={macroBtnRef} open={macroOpen} onClose={() => setMacroOpen(false)} className="nx-menu" align="start">
+                  <div className="nx-menu-sec">Run macro</div>
+                  {macros.map((m) => <button key={m.id} onClick={() => { runMacro(m.id, thread.id); setMacroOpen(false) }}>{m.icon ?? '⚡'} {m.name}</button>)}
+                  {!macros.length && <div className="nx-menu-sec">None — add some in Email Rules</div>}
+                </Popover>
               </div>
               {thread.status === 'Resolved'
                 ? <button className="nx-reopen" title={`Resolved · ${thread.resolutionReason ?? ''}`} onClick={() => reopenThread(thread.id)}>Re-open</button>
                 : <button className="nx-resolve" title="Resolve this email" onClick={tryResolve}><Icon name="check" size={13} /> Resolve</button>}
               <div className="nx-menu-wrap">
-                <button className="nx-abtn" onClick={() => { setMore((o) => !o); setPeekMenu(null); setMacroOpen(false) }} title="More"><Icon name="more" size={16} /></button>
-                {more && (
-                  <>
-                    <div className="nx-pop-scrim" onClick={() => setMore(false)} />
-                    <div className="nx-menu">
-                      <button onClick={() => { createJobFromEmail(thread); setMore(false) }}>+ Create job</button>
-                      <button onClick={() => { markUnread(thread.id); setMore(false) }}>Mark unread</button>
-                      <button onClick={() => { toggleFlag(thread.id, 'muted'); setMore(false) }}>{thread.muted ? 'Unmute' : 'Mute'}</button>
-                      <div className="nx-menu-sec">Merge into…</div>
-                      {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 4).map((t) => (
-                        <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMore(false) }}>{t.subject.slice(0, 28)}</button>
-                      ))}
-                      <div className="nx-menu-sec">Remove</div>
-                      <button className="danger" onClick={() => { tryDelete(); setMore(false) }}>🗑 Delete (needs resolution)</button>
-                    </div>
-                  </>
-                )}
+                <button ref={moreBtnRef} className="nx-abtn" onClick={() => { setMore((o) => !o); setPeekMenu(null); setMacroOpen(false) }} title="More"><Icon name="more" size={16} /></button>
+                <Popover anchorRef={moreBtnRef} open={more} onClose={() => setMore(false)} className="nx-menu">
+                  <button onClick={() => { createJobFromEmail(thread); setMore(false) }}>+ Create job</button>
+                  <button onClick={() => { markUnread(thread.id); setMore(false) }}>Mark unread</button>
+                  <button onClick={() => { toggleFlag(thread.id, 'muted'); setMore(false) }}>{thread.muted ? 'Unmute' : 'Mute'}</button>
+                  <div className="nx-menu-sec">Merge into…</div>
+                  {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 4).map((t) => (
+                    <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMore(false) }}>{t.subject.slice(0, 28)}</button>
+                  ))}
+                  <div className="nx-menu-sec">Remove</div>
+                  <button className="danger" onClick={() => { tryDelete(); setMore(false) }}>🗑 Delete (needs resolution)</button>
+                </Popover>
               </div>
             </div>
           </div>
@@ -1099,8 +1089,8 @@ export function EmailPanel() {
 }
 
 /** Contact popover — shows the address and, if it maps to a saved contact, their details. */
-function ContactPop({ name, email, onClose, onCompose }: {
-  name: string; email: string; onClose: () => void; onCompose: (to: string) => void
+function ContactPop({ name, email, anchorEl, onClose, onCompose }: {
+  name: string; email: string; anchorEl: HTMLElement | null; onClose: () => void; onCompose: (to: string) => void
 }) {
   const customers = useCustomersStore((s) => s.customers)
   const e = email.toLowerCase()
@@ -1112,9 +1102,8 @@ function ContactPop({ name, email, onClose, onCompose }: {
   }
   const copy = (v: string) => { try { void navigator.clipboard?.writeText(v) } catch { /* ignore */ } }
   return (
-    <>
-      <div className="nx-cpop-scrim" onClick={onClose} />
-      <div className="nx-cpop" onClick={(ev) => ev.stopPropagation()}>
+    <Popover anchorRef={{ current: anchorEl }} open onClose={onClose} className="nx-cpop" align="start" width={250}>
+      <div onClick={(ev) => ev.stopPropagation()}>
         <div className="nx-cpop-h">{contact?.name ?? name}{company && <span className="sub">{company}</span>}</div>
         <button className="nx-cpop-row" onClick={() => { onCompose(email); onClose() }} title="New email to this address">
           <Icon name="mail" size={14} /> <span>{email}</span>
@@ -1133,7 +1122,7 @@ function ContactPop({ name, email, onClose, onCompose }: {
         )}
         {!contact && <div className="nx-cpop-note">Not a saved contact — address only. Click the email to write to them.</div>}
       </div>
-    </>
+    </Popover>
   )
 }
 

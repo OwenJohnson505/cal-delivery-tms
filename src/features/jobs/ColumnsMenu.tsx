@@ -4,8 +4,9 @@
  * hide and drag-reorder columns, reset temporary tweaks, save a new view, or update the
  * current one. See viewsStore for the temporary-vs-persisted model.
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
+import { Popover } from '@/app/Popover.tsx'
 import { COLUMNS, useViewsStore, type ColumnKey } from '@/store/viewsStore.ts'
 
 const LABEL: Record<ColumnKey, string> = Object.fromEntries(COLUMNS.map((c) => [c.key, c.label])) as Record<ColumnKey, string>
@@ -44,6 +45,7 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
   const [drag, setDrag] = useState<number | null>(null)
+  const cmBtnRef = useRef<HTMLButtonElement>(null)
 
   const activeIsUser = userViews.some((v) => v.id === activeViewId)
   const activeView = [...presets, ...userViews].find((v) => v.id === activeViewId)
@@ -68,16 +70,14 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
 
       {/* Columns popover */}
       {showColumns && (
-      <button className={'btn sm cm-btn' + (dirty ? ' dirty' : '')} onClick={() => setOpen((o) => !o)} title="Show / hide / reorder columns">
+      <button ref={cmBtnRef} className={'btn sm cm-btn' + (dirty ? ' dirty' : '')} onClick={() => setOpen((o) => !o)} title="Show / hide / reorder columns">
         <Icon name="list" size={14} /> Columns
         <span className="cm-count">{visibleCount}</span>
       </button>
       )}
 
-      {showColumns && open && (
-        <>
-          <div className="cc-pop-scrim" onClick={() => { setOpen(false); setNaming(false) }} />
-          <div className="cm-pop">
+      <Popover anchorRef={cmBtnRef} open={showColumns && open} onClose={() => { setOpen(false); setNaming(false) }} className="cm-pop" align="start" width={300}>
+        <div>
             <div className="cm-pop-h">
               <span>Columns — <b>{activeView?.name}</b>{dirty ? ' · edited' : ''}</span>
               {dirty && <button className="cm-link" onClick={resetWorking}>Reset</button>}
@@ -149,9 +149,8 @@ export function ColumnsMenu(props: ExtraColumnsProps = {}) {
                 </button>
               )}
             </div>
-          </div>
-        </>
-      )}
+        </div>
+      </Popover>
     </div>
   )
 }
