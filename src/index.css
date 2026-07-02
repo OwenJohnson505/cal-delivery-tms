@@ -1383,8 +1383,10 @@ body {
    card fills the column and the Expanded table scrolls horizontally INSIDE it. Higher
    specificity (.list-fixed.email-jobs-app …) so it beats both the hug rules and
    `.board-table .list-work { max-width: none }`. */
-.list-fixed.email-jobs-app .bkf-main.bkf-hug { width: 100%; max-width: 100%; align-self: stretch; }
+.list-fixed.email-jobs-app .bkf-main.bkf-hug { width: 100%; max-width: 100%; align-self: stretch; padding: 0; }
 .list-fixed.email-jobs-app .bkf-main.bkf-hug .list-tablewrap:has(.jobs-table:not(.compact)) { width: 100%; max-width: 100%; align-self: stretch; overflow-x: auto; }
+/* the toolbar row keeps clear of the card's rounded top-right corner so the Add button is never shaved */
+.list-fixed.email-jobs-app .bkf-main.bkf-hug .bkf-trow { padding-right: 16px; }
 
 /* ── email panel ── */
 .email-panel {

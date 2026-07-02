@@ -198,6 +198,8 @@ export function EmailPanel() {
   const [composeNew, setComposeNew] = useState<{ to: string; subject: string; body: string } | null>(null)
   type ComposeTab = 'reply' | 'replyall' | 'forward' | 'note'
   const [tab, setTab] = useState<ComposeTab>('reply')
+  // the inline write area stays folded away until reply / reply all / forward is picked
+  const [replyOpen, setReplyOpen] = useState(false)
   const [composeTo, setComposeTo] = useState('')
   const [expecting, setExpect] = useState(false)
   const [expectAmount, setExpectAmount] = useState(10)
@@ -341,7 +343,7 @@ export function EmailPanel() {
   // ── selecting a thread ──
   const openThread = (id: string) => {
     selectThread(id)
-    setDraft(''); setComposeNew(null); setTab('reply'); setComposeTo('')
+    setDraft(''); setComposeNew(null); setTab('reply'); setComposeTo(''); setReplyOpen(false)
     setExpandAll(false); setExpandedMsgs([]); setInview(new Set()); setExpect(false)
     setPanelState('full')
   }
@@ -351,6 +353,7 @@ export function EmailPanel() {
   const startCompose = (kind: ComposeTab) => {
     if (!thread) return
     setTab(kind)
+    if (kind !== 'note') setReplyOpen(true)
     if (kind === 'note') { window.setTimeout(() => composeRef.current?.focus(), 40); return }
     const sender = lastInbound?.from.email ?? ''
     const others = thread.participants.filter((p) => !p.endsWith('@cal.delivery'))
@@ -383,7 +386,7 @@ export function EmailPanel() {
     if (expecting) setExpectingStore(thread.id, chaseDeadlineMs())
     else if (mode === 'resolve') resolveThread(thread.id, 'Responded')
     else setStatus(thread.id, thread.assigneeId ? 'Assigned' : 'New')
-    setDraft(''); setExpect(false)
+    setDraft(''); setExpect(false); setReplyOpen(false)
   }
 
   const hasOutbound = !!thread?.msgs.some((m) => m.outbound)
@@ -403,7 +406,9 @@ export function EmailPanel() {
 
   const insertTemplate = (id: string) => {
     const tpl = templates.find((x) => x.id === id)
-    if (tpl) setDraft((d) => (d ? d + '\n' + tpl.body : tpl.body))
+    if (!tpl) return
+    if (!replyOpen) startCompose('reply')
+    setDraft((d) => (d ? d + '\n' + tpl.body : tpl.body))
   }
   const insertEta = (etaText: string) => setDraft((d) => (d ? d + '\n' + etaText : etaText))
 
@@ -997,28 +1002,25 @@ export function EmailPanel() {
 
             {/* inline reply — compose right inside the thread with our avatar + name, so the
                 whole reply is visible; the grey bar below is just the send actions. */}
-            <div className="nx-msg nx-replybox">
+            <div className={'nx-msg nx-replybox' + (replyOpen ? ' open' : '')}>
               <div className="nx-mnode"><span className="nx-avatar me">{initials(users.find((u) => u.id === currentUserId)?.name ?? 'You')}</span></div>
               <div className="nx-mmain">
                 <div className="nx-rb-head">
                   <span className="nx-mn">You</span>
                   <span className="nx-rb-tabs">
-                    {([['reply', 'Reply'], ['replyall', 'Reply all'], ['forward', 'Forward']] as const).map(([k, label]) => (
-                      <button key={k} className={'nx-rb-tab' + (tab === k ? ' on' : '')} onClick={() => startCompose(k)}>{label}</button>
+                    {([['reply', 'Reply', 'reply'], ['replyall', 'Reply all', 'reply-all'], ['forward', 'Forward', 'forward']] as const).map(([k, label, icon]) => (
+                      <button key={k} className={'nx-rb-tab' + (replyOpen && tab === k ? ' on' : '')} title={label} aria-label={label} onClick={() => startCompose(k)}>
+                        <Icon name={icon} size={17} />
+                      </button>
                     ))}
                   </span>
                 </div>
-                <div className="nx-rb-to"><span>To</span><input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} /></div>
-                <textarea className="nx-rb-text" ref={composeRef} placeholder="Write your reply…" value={draft} onChange={(e) => setDraft(e.target.value)} />
-                <div className="nx-rb-tools">
-                  {templates.length > 0 && (
-                    <select className="nx-tpl-pick" value="" onChange={(e) => { insertTemplate(e.target.value); e.currentTarget.value = '' }}>
-                      <option value="">Templates…</option>
-                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  )}
-                  <button className="nx-cicon" title="Attach (mock)"><Icon name="file" size={16} /></button>
-                </div>
+                {replyOpen && (
+                  <>
+                    <div className="nx-rb-to"><span>To</span><input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} /></div>
+                    <textarea className="nx-rb-text" ref={composeRef} placeholder="Write your reply…" value={draft} onChange={(e) => setDraft(e.target.value)} />
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1041,6 +1043,13 @@ export function EmailPanel() {
                 </>
               )}
               <span className="nx-sp" />
+              {templates.length > 0 && (
+                <select className="nx-tpl-pick" value="" title="Insert a template" onChange={(e) => { insertTemplate(e.target.value); e.currentTarget.value = '' }}>
+                  <option value="">Templates…</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+              <button className="nx-cicon" title="Attach (mock)"><Icon name="file" size={16} /></button>
               <button className="nx-cicon" title="Create job from this email" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={16} /></button>
             </div>
             <div className="nx-sendrow">
