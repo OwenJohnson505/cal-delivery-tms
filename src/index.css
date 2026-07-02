@@ -1378,6 +1378,13 @@ body {
 .bkf-main.bkf-hug { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .bkf-main.bkf-hug .bkf-thead { border: none; border-bottom: 1px solid var(--line); border-radius: 0; }
 .bkf-main.bkf-hug .list-tablewrap { border: none; border-radius: 0; }
+/* When an email is open the bookings sit in a narrow column beside it. Hugging there lets the
+   wide Expanded table push the toolbar's + button and item count off-screen, so instead the
+   card fills the column and the Expanded table scrolls horizontally INSIDE it. Higher
+   specificity (.list-fixed.email-jobs-app …) so it beats both the hug rules and
+   `.board-table .list-work { max-width: none }`. */
+.list-fixed.email-jobs-app .bkf-main.bkf-hug { width: 100%; max-width: 100%; align-self: stretch; }
+.list-fixed.email-jobs-app .bkf-main.bkf-hug .list-tablewrap:has(.jobs-table:not(.compact)) { width: 100%; max-width: 100%; align-self: stretch; overflow-x: auto; }
 
 /* ── email panel ── */
 .email-panel {
