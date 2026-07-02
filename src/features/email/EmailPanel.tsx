@@ -994,67 +994,60 @@ export function EmailPanel() {
                 ))}
               </div>
             )}
+
+            {/* inline reply — compose right inside the thread with our avatar + name, so the
+                whole reply is visible; the grey bar below is just the send actions. */}
+            <div className="nx-msg nx-replybox">
+              <div className="nx-mnode"><span className="nx-avatar me">{initials(users.find((u) => u.id === currentUserId)?.name ?? 'You')}</span></div>
+              <div className="nx-mmain">
+                <div className="nx-rb-head">
+                  <span className="nx-mn">You</span>
+                  <span className="nx-rb-tabs">
+                    {([['reply', 'Reply'], ['replyall', 'Reply all'], ['forward', 'Forward']] as const).map(([k, label]) => (
+                      <button key={k} className={'nx-rb-tab' + (tab === k ? ' on' : '')} onClick={() => startCompose(k)}>{label}</button>
+                    ))}
+                  </span>
+                </div>
+                <div className="nx-rb-to"><span>To</span><input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} /></div>
+                <textarea className="nx-rb-text" ref={composeRef} placeholder="Write your reply…" value={draft} onChange={(e) => setDraft(e.target.value)} />
+                <div className="nx-rb-tools">
+                  {templates.length > 0 && (
+                    <select className="nx-tpl-pick" value="" onChange={(e) => { insertTemplate(e.target.value); e.currentTarget.value = '' }}>
+                      <option value="">Templates…</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  )}
+                  <button className="nx-cicon" title="Attach (mock)"><Icon name="file" size={16} /></button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* composer (pinned bottom) */}
-          <div className={'nx-composer' + (tab === 'note' ? ' noteon' : '')}>
-            <div className="nx-ctabs">
-              {([['reply', 'Reply'], ['replyall', 'Reply all'], ['forward', 'Forward']] as const).map(([k, label]) => (
-                <button key={k} className={'nx-ctab' + (tab === k ? ' on' : '')} onClick={() => startCompose(k)}>{label}</button>
-              ))}
+          {/* compact send bar — the writing happens up in the thread */}
+          <div className="nx-composer nx-sendbar">
+            <div className="nx-expect">
+              <label className="nx-expect-tog">
+                <input type="checkbox" checked={expecting} onChange={(e) => setExpect(e.target.checked)} />
+                Expecting a response
+              </label>
+              {expecting && (
+                <>
+                  <span className="nx-expect-lbl">chase in</span>
+                  {[10, 20, 30].map((n) => (
+                    <button key={n} className={'nx-expect-preset' + (expectAmount === n ? ' on' : '')} onClick={() => setExpectAmount(n)}>{n}</button>
+                  ))}
+                  <input type="number" min={1} className="nx-expect-num" value={expectAmount} onChange={(e) => setExpectAmount(Math.max(1, Math.round(+e.target.value) || 1))} />
+                  <button className="nx-unit" title="Switch minutes / hours" onClick={() => setExpectUnit((u) => (u === 'min' ? 'hr' : 'min'))}>{expectUnit}</button>
+                </>
+              )}
+              <span className="nx-sp" />
+              <button className="nx-cicon" title="Create job from this email" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={16} /></button>
             </div>
-            <div className="nx-cbox">
-              {tab !== 'note' && (
-                <div className="nx-cto">
-                  <span>To</span>
-                  <input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} />
-                </div>
-              )}
-              <textarea
-                ref={composeRef}
-                placeholder={tab === 'note' ? 'Internal note — visible to teammates…' : 'Write your reply…'}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-              />
-              {tab !== 'note' && (
-                <div className="nx-expect">
-                  <label className="nx-expect-tog">
-                    <input type="checkbox" checked={expecting} onChange={(e) => setExpect(e.target.checked)} />
-                    Expecting a response
-                  </label>
-                  {expecting && (
-                    <>
-                      <span className="nx-expect-lbl">chase in</span>
-                      {[10, 20, 30].map((n) => (
-                        <button key={n} className={'nx-expect-preset' + (expectAmount === n ? ' on' : '')} onClick={() => setExpectAmount(n)}>{n}</button>
-                      ))}
-                      <input type="number" min={1} className="nx-expect-num" value={expectAmount} onChange={(e) => setExpectAmount(Math.max(1, Math.round(+e.target.value) || 1))} />
-                      <button className="nx-unit" title="Switch minutes / hours" onClick={() => setExpectUnit((u) => (u === 'min' ? 'hr' : 'min'))}>{expectUnit}</button>
-                    </>
-                  )}
-                </div>
-              )}
-              <div className="nx-ctoolbar">
-                {templates.length > 0 && tab !== 'note' && (
-                  <select className="nx-tpl-pick" value="" onChange={(e) => { insertTemplate(e.target.value); e.currentTarget.value = '' }}>
-                    <option value="">Templates…</option>
-                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                )}
-                <button className="nx-cicon" title="Attach (mock)"><Icon name="file" size={16} /></button>
-                <button className="nx-cicon" title="Create job from this email" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={16} /></button>
-                <span className="nx-sp" />
-                {tab === 'note' ? (
-                  <button className="nx-send" disabled={!draft.trim()} onClick={() => send('keep')}>Add note</button>
-                ) : (
-                  <>
-                    <button className="nx-send keep" disabled={!draft.trim()} onClick={() => send('keep')} title="Send and keep it in your queue">Send &amp; Keep</button>
-                    <button className="nx-send" disabled={!draft.trim()} onClick={() => send('resolve')} title={expecting ? 'Send — will wait on the customer' : 'Send and resolve'}>
-                      <Icon name="mail" size={14} /> {expecting ? 'Send & Await' : 'Send & Resolve'}
-                    </button>
-                  </>
-                )}
-              </div>
+            <div className="nx-sendrow">
+              <button className="nx-send keep" disabled={!draft.trim()} onClick={() => send('keep')} title="Send and keep it in your queue">Send &amp; Keep</button>
+              <button className="nx-send" disabled={!draft.trim()} onClick={() => send('resolve')} title={expecting ? 'Send — will wait on the customer' : 'Send and resolve'}>
+                <Icon name="mail" size={14} /> {expecting ? 'Send & Await' : 'Send & Resolve'}
+              </button>
             </div>
           </div>
 
