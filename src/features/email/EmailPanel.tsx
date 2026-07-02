@@ -1,34 +1,38 @@
 /**
- * EmailPanel — Front-style inbox, designed width-first:
- *  • Two columns inside the panel: compact inbox list (left) · reader (right), so the
- *    message body gets real height. Below ~620px panel width (wizard open) it stacks.
- *  • Reader chrome is one tight header (subject + meta + a single toolbar row); the
- *    rarely-used actions live behind a ⋯ More menu; the linked-job context is a
- *    one-line strip that expands on demand.
- *  • Internal comments live in a pop-out drawer (💬), keeping the timeline clean.
- *  • Everything else from phase 1: lanes (drag to move), bulk, rules/triage, tags,
- *    saved views, snooze/remind, undo send, split/merge, keyboard nav, create job.
+ * EmailPanel — the reskinned Front-style inbox.
+ *
+ * Presentation is the new `nx-` layer from ./email.css (ported from the desktop mockups):
+ *   • LIST  (panelState 'list')  — inbox cards with spend-tier metal avatars
+ *                                   (email-designs.html).
+ *   • READER(panelState 'full')  — peek bar (email-reader-inbox.html #4) + envelope header
+ *                                   (email-reader-v2.html) + opens-at-newest chronological
+ *                                   thread (email-reader-peek.html #2) + pinned composer.
+ *   • 'mini' — nothing (App hides the whole panel).
+ *
+ * The shell layout glue (index.css) still positions .email-panel / .ep-body / .ep-listcol /
+ * .ep-readcol / .ep-list, so those structural class names are kept; everything inside is `nx-`.
+ *
+ * Every behaviour from the previous panel is preserved: search + predictive suggestions,
+ * advanced search, filter menu + saved views, scope/sub-status tabs with counts, bulk
+ * actions, sort + row indicators, reader assign/tags/macros/create-job/snooze/remind/
+ * pin/follow/mute/mark-unread/merge/split, job strip, contact popover, comments with
+ * click-to-jump, reply/reply-all/forward, templates, expecting-response chase picker,
+ * Send & Keep / Resolve / Await, compose-new, reminder/awaiting banners with Simulate
+ * customer reply, and the resolve/delete integrity guard.
  */
+import './email.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/app/Icon.tsx'
-import { StatusPill } from '@/app/StatusPill.tsx'
-import { useEmailsStore, relTime, LANES, MAILBOXES, type EmailCategory, type EmailThread, type Lane, type EmailStatus } from '@/store/emailsStore.ts'
+import { useEmailsStore, relTime, LANES, MAILBOXES, type EmailThread, type EmailMsg, type Lane } from '@/store/emailsStore.ts'
 import { useJobsStore, type SavedJob } from '@/store/jobsStore.ts'
 import { useBookingStore } from '@/store/bookingStore.ts'
 import { useViewStore } from '@/store/viewStore.ts'
-import { useCustomersStore } from '@/store/customersStore.ts'
+import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useTariffsStore } from '@/store/tariffsStore.ts'
 import { useUsersStore } from '@/store/usersStore.ts'
 import { useAutomationStore } from '@/store/automationStore.ts'
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-const CAT_CLASS: Record<EmailCategory, string> = {
-  'Urgent booking': 'cat-urgent',
-  'ETA request': 'cat-eta',
-  'Driver details': 'cat-driver',
-  'General': 'cat-general',
-}
 
 const SNOOZE_OPTIONS: Array<[label: string, ms: number]> = [
   ['10 sec (demo)', 10_000],
@@ -37,19 +41,43 @@ const SNOOZE_OPTIONS: Array<[label: string, ms: number]> = [
 ]
 
 const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+/** Company → the 2-letter monogram used on the metal avatar. */
+const companyInitials = (company: string) => {
+  const words = company.replace(/[·].*/, '').trim().split(/\s+/).filter(Boolean)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return (company.slice(0, 2) || '?').toUpperCase()
+}
+/** Employee avatars get a stable, saturated colour (white initials on grey were hard to
+ * read). Hash the user id → a fixed palette entry so the same person is always one colour. */
+const EMP_COLORS = ['#0a84ff', '#8944ab', '#1a7f37', '#c1901c', '#d0353a', '#2b8fd6', '#5e5ce6', '#c0396b']
+const empColor = (id: string | null): string => {
+  if (!id) return '#8e8e93'
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return EMP_COLORS[h % EMP_COLORS.length]
+}
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+/** Neat timestamp: 'HH:MM' if today, '3 Jul · HH:MM' earlier this year, else '3 Jul 25'. */
+const shortWhen = (at: string): string => {
+  const m = /^(\d{2})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(at)
+  if (!m) return at
+  const d = new Date(2000 + +m[3], +m[2] - 1, +m[1], +m[4], +m[5])
+  const now = new Date()
+  const time = `${m[4]}:${m[5]}`
+  if (d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return time
+  if (d.getFullYear() === now.getFullYear()) return `${+m[1]} ${MON[+m[2] - 1]} · ${time}`
+  return `${+m[1]} ${MON[+m[2] - 1]} ${m[3]}`
+}
 const atKey = (at: string) => `${at.slice(6, 8)}-${at.slice(3, 5)}-${at.slice(0, 2)} ${at.slice(9)}`
 const threadText = (t: EmailThread) =>
   `${t.subject} ${t.msgs.map((m) => `${m.from.name} ${m.from.email} ${m.body}`).join(' ')}`.toLowerCase()
 
 // ── search helpers ───────────────────────────────────────────────────────────────
-/** Full free-text surface for a thread: subject + people + bodies + tags + linked job
- * ref — so a search for a booking reference (e.g. BK-100482) finds the thread. */
-const haystack = (t: EmailThread) =>
-  `${threadText(t)} ${t.tags.join(' ')} ${t.linkedJobRef ?? ''}`.toLowerCase()
-const contactHay = (t: EmailThread) =>
-  t.msgs.map((m) => `${m.from.name} ${m.from.email}`).join(' ').toLowerCase()
+const haystack = (t: EmailThread) => `${threadText(t)} ${t.tags.join(' ')} ${t.linkedJobRef ?? ''}`.toLowerCase()
+const contactHay = (t: EmailThread) => t.msgs.map((m) => `${m.from.name} ${m.from.email}`).join(' ').toLowerCase()
 const bodyHay = (t: EmailThread) => t.msgs.map((m) => m.body).join(' ').toLowerCase()
-const lastAtOf = (t: EmailThread) => t.msgs[t.msgs.length - 1].at
+/** Last real EMAIL time — job events don't count as new activity (they inter-thread only). */
+const lastAtOf = (t: EmailThread) => (([...t.msgs].reverse().find((m) => !m.event)) ?? t.msgs[t.msgs.length - 1]).at
 /** Parse a 'dd-mm-yy HH:MM' stamp to a Date (or null). */
 const atDate = (at: string): Date | null => {
   const m = /^(\d{2})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(at)
@@ -62,321 +90,31 @@ const opTest = (op: SearchOp, hay: string, needle: string): boolean => {
   if (!n) return true
   return op === 'matches' ? new RegExp(`\\b${escapeRe(n)}\\b`, 'i').test(hay) : hay.includes(n)
 }
-
-// ── workflow display helpers ─────────────────────────────────────────────────────
-const STATUS_META: Record<EmailStatus, { cls: string; label: string }> = {
-  'New': { cls: 'st-new', label: 'New' },
-  'Assigned': { cls: 'st-assigned', label: 'Assigned' },
-  'In Progress': { cls: 'st-progress', label: 'In Progress' },
-  'Awaiting Customer': { cls: 'st-awaiting', label: 'Awaiting' },
-  'Action Ready': { cls: 'st-action', label: 'Action Ready' },
-  'Resolved': { cls: 'st-resolved', label: 'Resolved' },
+/** Minutes between two 'dd-mm-yy HH:MM' stamps (b − a); null if either is unparseable. */
+const minutesBetween = (a: string, b: string): number | null => {
+  const da = atDate(a), db = atDate(b)
+  if (!da || !db) return null
+  return Math.round((db.getTime() - da.getTime()) / 60_000)
 }
-const STATUS_HELP: Record<EmailStatus, string> = {
-  'New': 'Just arrived — no owner yet',
-  'Assigned': 'Owned by someone, not started',
-  'In Progress': 'Being worked right now — a reply is open / being drafted',
-  'Awaiting Customer': 'We replied; waiting on the customer (chase clock running)',
-  'Action Ready': 'The system re-surfaced it — needs a human now',
-  'Resolved': 'Done, with a resolution reason',
+const elapsedLabel = (mins: number): string =>
+  mins < 60 ? `+${mins}m` : mins < 1440 ? `+${Math.round(mins / 60)}h` : `+${Math.round(mins / 1440)}d`
+
+// ── spend tier ───────────────────────────────────────────────────────────────────
+// TODO: this should later be driven by real spend data (invoiced revenue / run-rate).
+// For now: prefer the customer's declared estAnnualSpend; otherwise derive a tier from
+// how many jobs the account has (a stand-in for spend). Unknown senders → grey.
+type Tier = 'plat' | 'gold' | 'silver' | 'bronze' | 'grey' | 'driver' | 'me'
+const TIER_CLASS: Record<Tier, string> = {
+  plat: 'nx-m-plat', gold: 'nx-m-gold', silver: 'nx-m-silver',
+  bronze: 'nx-m-bronze', grey: 'nx-m-grey', driver: 'nx-m-driver', me: 'nx-me',
 }
-function StatusChip({ status }: { status: EmailStatus }) {
-  return <span className={'ep-status ' + STATUS_META[status].cls} title={`${status} — ${STATUS_HELP[status]}`}>{STATUS_META[status].label}</span>
-}
-/** Statuses worth a pill in the list. 'New'/'Assigned' are implied by the
- * (un)assigned name already shown, so we don't repeat them (avoid duplication). */
-const SHOW_STATUS = new Set<EmailStatus>(['In Progress', 'Awaiting Customer', 'Action Ready', 'Resolved'])
-/** Icons for the sub-status tabs (text wraps in the narrow column; icon + tooltip is cleaner). */
-const SUB_ICON: Record<string, string> = { open: 'inbox', awaiting: 'clock', resolved: 'check-circle', unassigned: 'user-plus' }
-/** Chase deadline escalation: ok (in future) · amber (overdue) · red (>1 day overdue). */
-const chaseInfo = (dueMs: number): { level: 'ok' | 'amber' | 'red'; label: string } => {
-  const diff = dueMs - Date.now()
-  const absMin = Math.floor(Math.abs(diff) / 60_000)
-  const txt = absMin < 60 ? `${absMin}m` : absMin < 1440 ? `${Math.floor(absMin / 60)}h` : `${Math.floor(absMin / 1440)}d`
-  const level = diff >= 0 ? 'ok' : -diff > 24 * 3600_000 ? 'red' : 'amber'
-  return { level, label: diff >= 0 ? `chase in ${txt}` : `${txt} overdue` }
-}
+const METAL_TIERS = new Set<Tier>(['plat', 'gold', 'silver', 'bronze'])
+const tierFromSpend = (spend: number): Tier =>
+  spend >= 250_000 ? 'plat' : spend >= 100_000 ? 'gold' : spend >= 30_000 ? 'silver' : spend >= 5_000 ? 'bronze' : 'grey'
+const tierFromJobCount = (n: number): Tier =>
+  n >= 12 ? 'plat' : n >= 7 ? 'gold' : n >= 3 ? 'silver' : n >= 1 ? 'bronze' : 'grey'
 
-function openJob(job: SavedJob) {
-  useBookingStore.getState().loadSnapshot(job.snapshot)
-  useViewStore.getState().openWizard(job.id)
-}
-
-/** Email body text with job refs / customer refs highlighted as clickable chips. */
-function RefText({ text }: { text: string }) {
-  const jobs = useJobsStore((s) => s.jobs)
-  const map = new Map<string, SavedJob>()
-  jobs.forEach((j) => {
-    map.set(j.ref.toUpperCase(), j)
-    if (j.custRef) map.set(j.custRef.toUpperCase(), j)
-  })
-  if (!map.size) return <>{text}</>
-  const re = new RegExp(`(${[...map.keys()].map(escapeRe).join('|')})`, 'gi')
-  return (
-    <>
-      {text.split(re).map((part, i) => {
-        const job = map.get(part.toUpperCase())
-        return job ? (
-          <button key={i} className="email-ref" title={`Open ${job.ref}`} onClick={() => openJob(job)}>{part}</button>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      })}
-    </>
-  )
-}
-
-function createJobFromEmail(thread: EmailThread) {
-  const inbound = thread.msgs.filter((m) => !m.outbound)
-  const sender = (inbound[0]?.from.email ?? '').toLowerCase()
-  const text = `${thread.subject} ${inbound.map((m) => m.body).join(' ')}`
-
-  const customers = useCustomersStore.getState().customers
-  const cust = customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender))
-  const contact = cust?.contacts.find((ct) => ct.email.toLowerCase() === sender)
-
-  const vehicles = useTariffsStore.getState().tariffs.map((t) => t.name)
-  const vehicle = vehicles.find((v) => new RegExp(`\\b${escapeRe(v)}\\b`, 'i').test(text)) ?? ''
-  const pcs = (text.match(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}\b/gi) ?? []).map((p) => p.toUpperCase())
-
-  const b = useBookingStore.getState()
-  b.newBooking()
-  if (cust) b.setBook({ cust: cust.id, contact: contact ? { name: contact.name, email: contact.email, tel: contact.phone } : null })
-  if (vehicle) b.setTariff(vehicle)
-  const stops = useBookingStore.getState().stops
-  if (pcs[0] && stops[0]) b.updateStop(stops[0].id, { addr: { ...stops[0].addr, pc: pcs[0] } })
-  if (pcs[1] && stops[1]) b.updateStop(stops[1].id, { addr: { ...stops[1].addr, pc: pcs[1] } })
-  if (cust?.notes) b.setJobNotes(`Account note: ${cust.notes}`)
-  // Remember the originating thread so the saved job links back to this conversation.
-  useEmailsStore.getState().setPendingJobThread(thread.id)
-  useViewStore.getState().openWizard(null)
-}
-
-/** Contact popover for a name in the email body — shows the address (always known) and,
- * if the address maps to a saved contact, their full details. Every field copies on
- * click; phone dials; the email starts a new outbound message (compose). */
-function ContactPop({ name, email, onClose, onCompose }: {
-  name: string; email: string; onClose: () => void; onCompose: (to: string) => void
-}) {
-  const customers = useCustomersStore((s) => s.customers)
-  const e = email.toLowerCase()
-  let contact: { name: string; email: string; phone?: string } | null = null
-  let company = ''
-  for (const c of customers) {
-    const ct = c.contacts.find((x) => x.email.toLowerCase() === e)
-    if (ct) { contact = ct; company = c.displayName || c.companyName; break }
-  }
-  const copy = (v: string) => { try { void navigator.clipboard?.writeText(v) } catch { /* ignore */ } }
-  return (
-    <>
-      <div className="cc-pop-scrim" onClick={onClose} />
-      <div className="cc-contact-pop ep-contactpop" onClick={(ev) => ev.stopPropagation()}>
-        <div className="ccp-h">{contact?.name ?? name}{company && <span className="ccp-sub">{company}</span>}</div>
-        <button className="ccp-row" onClick={() => { onCompose(email); onClose() }} title="New email to this address">
-          <Icon name="mail" size={14} /> <span>{email}</span>
-          <i className="ccp-copy" onClick={(ev) => { ev.stopPropagation(); copy(email) }} title="Copy">⧉</i>
-        </button>
-        {contact?.phone && (
-          <a className="ccp-row" href={`tel:${contact.phone}`} title="Call">
-            <Icon name="phone" size={14} /> <span>{contact.phone}</span>
-            <i className="ccp-copy" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); copy(contact!.phone!) }} title="Copy">⧉</i>
-          </a>
-        )}
-        {company && (
-          <button className="ccp-row" onClick={() => copy(company)} title="Copy">
-            <Icon name="building" size={14} /> <span>{company}</span>
-          </button>
-        )}
-        {!contact && <div className="ccp-note">Not a saved contact — address only. Click the email to copy or write to them.</div>}
-      </div>
-    </>
-  )
-}
-
-/** One-line job strip (linked or detected job) that expands into the full card. */
-function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (text: string) => void }) {
-  const jobs = useJobsStore((s) => s.jobs)
-  const setProgress = useJobsStore((s) => s.setProgress)
-  const appendJobNote = useJobsStore((s) => s.appendJobNote)
-  const linkJob = useEmailsStore((s) => s.linkJob)
-  const addComment = useEmailsStore((s) => s.addComment)
-  const customers = useCustomersStore((s) => s.customers)
-  const [open, setOpen] = useState(false)
-  const [noteDraft, setNoteDraft] = useState('')
-
-  const text = threadText(thread).toUpperCase()
-  const detected = jobs.find((j) => j.ref.toUpperCase() === thread.linkedJobRef?.toUpperCase())
-    ?? jobs.find((j) => text.includes(j.ref.toUpperCase()) || (j.custRef && text.includes(j.custRef.toUpperCase())))
-  const persisted = !!thread.linkedJobRef && detected?.ref.toUpperCase() === thread.linkedJobRef.toUpperCase()
-
-  const sender = (thread.msgs.find((m) => !m.outbound)?.from.email ?? '').toLowerCase()
-  const account = customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender))
-  const accountJobs = account ? jobs.filter((j) => j.snapshot.book.cust === account.id).length : 0
-
-  const STATUSES = ['Unallocated', 'Posted', 'Pending', 'Allocated', 'En route COL', 'On site COL', 'Collected', 'Part COL', 'En route DEL', 'On site DEL', 'Delivered', 'Part DEL', 'Failed']
-
-  if (!detected && !account) return null
-  return (
-    <div className="ep-jobwrap">
-      <div className="ep-jobstrip">
-        {account && <span className="ep-js-acct"><Icon name="building" size={12} /> {account.displayName || account.companyName} <i>· {accountJobs} job{accountJobs === 1 ? '' : 's'}</i></span>}
-        {detected && (
-          <>
-            <button className="cell-link" onClick={() => openJob(detected)}>{detected.ref}</button>
-            {detected.progress && <StatusPill status={detected.progress} />}
-            <span className="ep-js-eta">ETA {detected.collectEta || '—'} / {detected.deliverEta || '—'}</span>
-          </>
-        )}
-        <span className="db-spacer" />
-        {detected && (
-          <button className="ep-js-toggle" onClick={() => setOpen((o) => !o)} title="Job details & actions">{open ? '▴' : '▾'}</button>
-        )}
-      </div>
-      {open && detected && (
-        <div className="ep-job">
-          {/* the strip already shows ref · status · ETA — the expanded card adds only
-              NEW detail (route/vehicle/supplier, scheduled times) + actions */}
-          <div className="ep-job-h">
-            <span className="cf-hint">{detected.route} · {detected.vehicle || '—'} · {detected.supplierName || 'Unassigned'}</span>
-            <span className="db-spacer" />
-            {persisted
-              ? <button className="cm-link" onClick={() => linkJob(thread.id, null)}>Linked ✓</button>
-              : <button className="cm-link" onClick={() => linkJob(thread.id, detected.ref)}>Link</button>}
-          </div>
-          <div className="ep-job-grid">
-            <span>Coll booked</span><b>{detected.collectAt || '—'}</b>
-            <span>Del booked</span><b>{detected.deliverAt || '—'}</b>
-          </div>
-          <div className="ep-job-actions">
-            <select className="ep-assign" value={detected.progress || ''} onChange={(e) => setProgress(detected.id, e.target.value)} title="Update job status">
-              <option value="">Status…</option>
-              {STATUSES.map((st) => <option key={st}>{st}</option>)}
-            </select>
-            <button className="btn sm" onClick={() => onInsertEta(`Hi,\n\nUpdate on ${detected.ref}: collection ETA ${detected.collectEta || 'TBC'}, delivery ETA ${detected.deliverEta || 'TBC'}.\n\nThanks,\nCal Delivery`)}>
-              Insert ETA reply
-            </button>
-            <span className="ep-job-note">
-              <input placeholder="Add job note + Enter…" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && noteDraft.trim()) { appendJobNote(detected.id, noteDraft.trim()); addComment(thread.id, `Note added to ${detected.ref}: ${noteDraft.trim()}`); setNoteDraft('') } }} />
-            </span>
-          </div>
-          {thread.msgs.some((m) => m.attachments?.length) && (
-            <div className="ep-job-files">
-              {thread.msgs.flatMap((m) => m.attachments ?? []).map((a) => (
-                <span key={a.id} className="ep-att">
-                  📎 {a.name}
-                  <button className="cm-link" onClick={() => { appendJobNote(detected.id, `Attachment filed from email: ${a.name}`); addComment(thread.id, `📎 ${a.name} filed to ${detected.ref}`) }}>
-                    File to {detected.ref}
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── settings view (rules + templates) — now lives on a Settings screen, not in-panel ──
-export function SettingsView({ onBack }: { onBack?: () => void }) {
-  const rules = useEmailsStore((s) => s.rules)
-  const addRule = useEmailsStore((s) => s.addRule)
-  const updateRule = useEmailsStore((s) => s.updateRule)
-  const deleteRule = useEmailsStore((s) => s.deleteRule)
-  const templates = useEmailsStore((s) => s.templates)
-  const addTemplate = useEmailsStore((s) => s.addTemplate)
-  const deleteTemplate = useEmailsStore((s) => s.deleteTemplate)
-  const users = useUsersStore((s) => s.users)
-
-  const [rName, setRName] = useState('')
-  const [rKeywords, setRKeywords] = useState('')
-  const [rCat, setRCat] = useState<EmailCategory>('General')
-  const [rAssign, setRAssign] = useState('')
-  const [tName, setTName] = useState('')
-  const [tBody, setTBody] = useState('')
-
-  const CATS: EmailCategory[] = ['Urgent booking', 'ETA request', 'Driver details', 'General']
-  const PRIO: Record<EmailCategory, 1 | 2 | 3 | 4> = { 'Urgent booking': 1, 'ETA request': 2, 'Driver details': 3, 'General': 4 }
-
-  return (
-    <div className="ep-settings">
-      {onBack && <div className="ep-set-h"><button className="cm-link" onClick={onBack}>‹ Back</button></div>}
-      <div className="ep-set-sec">
-        <div className="ep-set-title">Rules <span className="cf-hint">keywords → category · auto-assign · auto-tags (re-run on change)</span></div>
-        {rules.map((r) => (
-          <div className="ep-rule" key={r.id}>
-            <div className="ep-rule-top">
-              <label className="chk"><input type="checkbox" checked={r.enabled} onChange={(e) => updateRule(r.id, { enabled: e.target.checked })} /> <b>{r.name}</b></label>
-              <span className={'cat-chip ' + CAT_CLASS[r.category]}>{r.category}</span>
-              <button className="btn sm iconbtn danger" title="Delete rule" onClick={() => deleteRule(r.id)}><Icon name="trash" size={13} /></button>
-            </div>
-            <div className="ep-rule-row">
-              <input value={r.keywords.join(', ')} title="Keywords (comma-separated)" onChange={(e) => updateRule(r.id, { keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean) })} />
-              <select value={r.assignToId} title="Auto-assign to" onChange={(e) => updateRule(r.id, { assignToId: e.target.value })}>
-                <option value="">No auto-assign</option>
-                {users.map((u) => <option key={u.id} value={u.id}>→ {u.name}</option>)}
-              </select>
-            </div>
-            <div className="ep-rule-row">
-              <input value={(r.tags ?? []).join(', ')} placeholder="Auto-tags, comma-separated…" onChange={(e) => updateRule(r.id, { tags: e.target.value.split(',').map((k) => k.trim()).filter(Boolean) })} />
-              <span />
-            </div>
-          </div>
-        ))}
-        <div className="ep-rule ep-rule-new">
-          <div className="ep-rule-row">
-            <input placeholder="Rule name…" value={rName} onChange={(e) => setRName(e.target.value)} />
-            <select value={rCat} onChange={(e) => setRCat(e.target.value as EmailCategory)}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
-          </div>
-          <div className="ep-rule-row">
-            <input placeholder="Keywords, comma-separated…" value={rKeywords} onChange={(e) => setRKeywords(e.target.value)} />
-            <select value={rAssign} onChange={(e) => setRAssign(e.target.value)}>
-              <option value="">No auto-assign</option>
-              {users.map((u) => <option key={u.id} value={u.id}>→ {u.name}</option>)}
-            </select>
-          </div>
-          <button className="btn sm primary" disabled={!rName.trim() || !rKeywords.trim()}
-            onClick={() => { addRule({ name: rName.trim(), enabled: true, keywords: rKeywords.split(',').map((k) => k.trim()).filter(Boolean), category: rCat, priority: PRIO[rCat], assignToId: rAssign }); setRName(''); setRKeywords(''); setRAssign('') }}>
-            Add rule
-          </button>
-        </div>
-      </div>
-      <div className="ep-set-sec">
-        <div className="ep-set-title">Templates &amp; macros</div>
-        {templates.map((t) => (
-          <div className="ep-tpl" key={t.id}>
-            <b>{t.name}</b>
-            <span className="ep-tpl-preview">{t.body.replace(/\s+/g, ' ').slice(0, 60)}…</span>
-            <button className="btn sm iconbtn danger" title="Delete template" onClick={() => deleteTemplate(t.id)}><Icon name="trash" size={13} /></button>
-          </div>
-        ))}
-        <div className="ep-rule ep-rule-new">
-          <input placeholder="Template name…" value={tName} onChange={(e) => setTName(e.target.value)} />
-          <textarea rows={3} placeholder="Template body…" value={tBody} onChange={(e) => setTBody(e.target.value)} />
-          <button className="btn sm primary" disabled={!tName.trim() || !tBody.trim()} onClick={() => { addTemplate(tName.trim(), tBody); setTName(''); setTBody('') }}>Add template</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** One field row in the advanced-search panel: label · contains/matches · value. */
-function AdvRow({ label, op, setOp, val, setVal, placeholder }: {
-  label: string; op: SearchOp; setOp: (o: SearchOp) => void
-  val: string; setVal: (v: string) => void; placeholder: string
-}) {
-  return (
-    <div className="ep-adv-row">
-      <span className="ep-adv-lbl">{label}</span>
-      <select className="ep-adv-op" value={op} onChange={(e) => setOp(e.target.value as SearchOp)}>
-        <option value="contains">contains</option>
-        <option value="matches">matches</option>
-      </select>
-      <input className="ep-adv-val" value={val} onChange={(e) => setVal(e.target.value)} placeholder={placeholder} />
-    </div>
-  )
-}
+interface SenderInfo { company: string; contact: string; tier: Tier; isNew: boolean; email: string }
 
 // ── main panel ──────────────────────────────────────────────────────────────────
 export function EmailPanel() {
@@ -412,46 +150,23 @@ export function EmailPanel() {
   const users = useUsersStore((s) => s.users)
   const currentUserId = useUsersStore((s) => s.currentUserId)
   const customers = useCustomersStore((s) => s.customers)
+  const jobs = useJobsStore((s) => s.jobs)
+  const macros = useAutomationStore((s) => s.macros)
+  const runMacro = useAutomationStore((s) => s.runMacro)
 
+  // ── list filters / search state ──
   const [text, setText] = useState('')
   const [mailbox, setMailbox] = useState<'all' | string>('all')
   const [lane, setLaneFilter] = useState<'all' | Lane>('all')
   const [mine, setMine] = useState(false)
   const [snoozedOnly, setSnoozedOnly] = useState(false)
   const [smart, setSmart] = useState('')
-  const [draft, setDraft] = useState('')
-  const [more, setMore] = useState(false)
-  const [commentDraft, setCommentDraft] = useState('')
-  const [openContact, setOpenContact] = useState<string | null>(null) // message id whose contact popover is open
-  const [macroOpen, setMacroOpen] = useState(false)
-  const macros = useAutomationStore((s) => s.macros)
-  const runMacro = useAutomationStore((s) => s.runMacro)
-  const [flashMsg, setFlashMsg] = useState<string | null>(null) // message briefly highlighted after a comment jump
-  // Compose a brand-new outbound email (not a reply) — null when closed.
-  const [composeNew, setComposeNew] = useState<{ to: string; subject: string; body: string } | null>(null)
-  const openCompose = (to = '') => { setComposeNew({ to, subject: '', body: '' }); setPanelState('full') }
   const [checked, setChecked] = useState<string[]>([])
   const [savingView, setSavingView] = useState(false)
   const [viewName, setViewName] = useState('')
-  const [showAllMsgs, setShowAllMsgs] = useState(false)
-  const [tagDraft, setTagDraft] = useState('')
-  // The composer opens like a real mail client: Reply / Reply all / Forward, with a
-  // generous editing area (the old always-on 3-row box was unreadable).
-  type ComposeState = { kind: 'reply' | 'replyall' | 'forward'; to: string; subject: string }
-  const [compose, setCompose] = useState<ComposeState | null>(null)
-  const composeRef = useRef<HTMLTextAreaElement>(null)
-  const panelRef = useRef<HTMLElement>(null)
-
-  // ── workflow controls (status filter + expecting-a-response) ──
-  // Two-level filter: scope (assigned-to-me vs all) × sub-status (open/awaiting/resolved)
   const [scope, setScope] = useState<'mine' | 'all'>('all')
   const [sub, setSub] = useState<'open' | 'awaiting' | 'resolved' | 'unassigned'>('open')
-  const [expecting, setExpect] = useState(false)
-  const [expectAmount, setExpectAmount] = useState(10) // chase in N minutes/hours
-  const [expectUnit, setExpectUnit] = useState<'min' | 'hr'>('min')
-  const [expectAt, setExpectAt] = useState('') // explicit date/time override (datetime-local)
 
-  // ── search: predictive suggestions + advanced query ──
   const [searchFocused, setSearchFocused] = useState(false)
   const [adv, setAdv] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -459,32 +174,72 @@ export function EmailPanel() {
   const [advSubject, setAdvSubject] = useState(''); const [advSubjectOp, setAdvSubjectOp] = useState<SearchOp>('contains')
   const [advBody, setAdvBody] = useState(''); const [advBodyOp, setAdvBodyOp] = useState<SearchOp>('contains')
   const [advFrom, setAdvFrom] = useState(''); const [advTo, setAdvTo] = useState('')
-  const [cShown, setCShown] = useState(3) // predictive: contacts shown
-  const [eShown, setEShown] = useState(3) // predictive: emails shown
-  const [advShown, setAdvShown] = useState(6) // advanced: list rows shown
+  const [cShown, setCShown] = useState(3)
+  const [eShown, setEShown] = useState(3)
+  const [advShown, setAdvShown] = useState(6)
   useEffect(() => { setCShown(3); setEShown(3) }, [text])
   useEffect(() => { setAdvShown(6) }, [advContact, advContactOp, advSubject, advSubjectOp, advBody, advBodyOp, advFrom, advTo])
   const advActive = adv && !!(advContact.trim() || advSubject.trim() || advBody.trim() || advFrom || advTo)
 
-  /** Close the open email body, returning to the list. If a reply is half-written,
-   * confirm whether to keep it as a draft or discard it first. */
-  const closeBody = () => {
-    if (compose && draft.trim()) {
-      const keep = window.confirm(
-        "You're in the middle of writing an email.\n\nOK — save it as a draft (keep it)\nCancel — discard it",
-      )
-      if (!keep) { setCompose(null); setDraft('') }
-    }
-    setPanelState('list')
-  }
+  // ── reader state ──
+  const [draft, setDraft] = useState('')
+  const [commentDraft, setCommentDraft] = useState('')
+  const [tagDraft, setTagDraft] = useState('')
+  const [addingTag, setAddingTag] = useState(false)
+  const [openContact, setOpenContact] = useState<string | null>(null)
+  const [macroOpen, setMacroOpen] = useState(false)
+  const [more, setMore] = useState(false)
+  const [peekMenu, setPeekMenu] = useState<'snooze' | null>(null)
+  const [flashMsg, setFlashMsg] = useState<string | null>(null)
+  const [expandAll, setExpandAll] = useState(false)
+  const [expandedMsgs, setExpandedMsgs] = useState<string[]>([])
+  const [inview, setInview] = useState<Set<string>>(new Set())
+  const [peekOpen, setPeekOpen] = useState(false)
+  const [composeNew, setComposeNew] = useState<{ to: string; subject: string; body: string } | null>(null)
+  type ComposeTab = 'reply' | 'replyall' | 'forward' | 'note'
+  const [tab, setTab] = useState<ComposeTab>('reply')
+  const [composeTo, setComposeTo] = useState('')
+  const [expecting, setExpect] = useState(false)
+  const [expectAmount, setExpectAmount] = useState(10)
+  const [expectUnit, setExpectUnit] = useState<'min' | 'hr'>('min')
+
+  const composeRef = useRef<HTMLTextAreaElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+
+  const openCompose = (to = '') => { setComposeNew({ to, subject: '', body: '' }); setPanelState('full') }
 
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name ?? ''
 
+  // ── spend-tier derivation (keyed by an inbound sender's email) ──
+  const jobCountByCustomer = useMemo(() => {
+    const m = new Map<string, number>()
+    jobs.forEach((j) => { const c = j.snapshot.book.cust; if (c) m.set(c, (m.get(c) ?? 0) + 1) })
+    return m
+  }, [jobs])
+  const customerForEmail = (email: string): Customer | undefined => {
+    const e = email.toLowerCase()
+    return customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === e))
+  }
+  /** Resolve the situational sender (company · contact · tier · new) for a thread. */
+  const senderInfo = (t: EmailThread): SenderInfo => {
+    const first = t.msgs.find((m) => !m.outbound) ?? t.msgs[0]
+    const email = first.from.email
+    const cust = customerForEmail(email)
+    if (email.toLowerCase().endsWith('@hauliers.co.uk')) {
+      return { company: first.from.name, contact: 'driver', tier: 'driver', isNew: false, email }
+    }
+    if (!cust) return { company: first.from.name, contact: '', tier: 'grey', isNew: true, email }
+    const company = cust.displayName || cust.companyName || first.from.name
+    const jobN = jobCountByCustomer.get(cust.id) ?? 0
+    const tier: Tier = cust.sales.estAnnualSpend != null ? tierFromSpend(cust.sales.estAnnualSpend) : tierFromJobCount(jobN)
+    return { company, contact: first.from.name, tier, isNew: jobN <= 1, email }
+  }
+
+  // ── filtered + sorted list ──
   const visible = useMemo(() => {
     let list = threads.filter((t) => !t.archived && (snoozedOnly ? !!t.snoozedUntil : !t.snoozedUntil))
-    // scope: assigned-to-me vs everyone
     if (scope === 'mine') list = list.filter((t) => t.assigneeId === currentUserId)
-    // sub-status: Open (active work) · Awaiting reply · Resolved · Unassigned (All scope)
     if (sub === 'awaiting') list = list.filter((t) => t.status === 'Awaiting Customer')
     else if (sub === 'resolved') list = list.filter((t) => t.status === 'Resolved')
     else if (sub === 'unassigned') list = list.filter((t) => !t.assigneeId && t.status !== 'Resolved')
@@ -494,10 +249,8 @@ export function EmailPanel() {
     if (mine) list = list.filter((t) => t.assigneeId === currentUserId)
     if (smart === 'needsreply') list = list.filter((t) => !t.msgs[t.msgs.length - 1].outbound && t.lane !== 'Done')
     if (smart === 'unassigned') list = list.filter((t) => !t.assigneeId)
-    // free-text box (kept) — matches anything incl. tags + linked booking ref
-    const q = text.trim().toLowerCase()
-    if (q) list = list.filter((t) => haystack(t).includes(q))
-    // advanced query — per-field contains/matches + date range, ANDed together
+    const query = text.trim().toLowerCase()
+    if (query) list = list.filter((t) => haystack(t).includes(query))
     if (advActive) {
       const from = advFrom ? new Date(advFrom + 'T00:00') : null
       const to = advTo ? new Date(advTo + 'T23:59') : null
@@ -520,7 +273,7 @@ export function EmailPanel() {
   }, [threads, snoozedOnly, mailbox, lane, mine, smart, text, currentUserId, scope, sub,
     advActive, advContact, advContactOp, advSubject, advSubjectOp, advBody, advBodyOp, advFrom, advTo])
 
-  // ── predictive suggestions (as you type in the free-text box) ──
+  // ── predictive suggestions ──
   const q = text.trim().toLowerCase()
   const contactIndex = useMemo(() => {
     const map = new Map<string, { name: string; email: string; company: string; score: number; lastAt: string }>()
@@ -557,7 +310,6 @@ export function EmailPanel() {
   const thread = threads.find((t) => t.id === selectedId) ?? null
   const unread = threads.filter((t) => !t.read && !t.snoozedUntil && !t.muted).length
   const snoozedCount = threads.filter((t) => !!t.snoozedUntil).length
-  // counts for the sub-tabs, within the current scope (me / all)
   const scoped = threads.filter((t) => !t.archived && (scope === 'mine' ? t.assigneeId === currentUserId : true))
   const subCount = {
     open: scoped.filter((t) => t.status !== 'Resolved' && t.status !== 'Awaiting Customer').length,
@@ -567,9 +319,6 @@ export function EmailPanel() {
   }
   const lastInbound = thread?.msgs.filter((m) => !m.outbound).slice(-1)[0]
 
-  // Friendly recipient labels for a message — our side shows as the inbox short
-  // ("Bookings@"), external people resolve to their contact name. No duplication of the
-  // sender's own address (which already sits next to their name in the card header).
   const nameForEmail = (email: string): string => {
     const e = email.toLowerCase()
     if (e.endsWith('@cal.delivery')) return email.split('@')[0] + '@'
@@ -579,7 +328,7 @@ export function EmailPanel() {
     }
     return email.split('@')[0]
   }
-  const recipientsFor = (m: { from: { email: string }; outbound?: boolean }): string => {
+  const recipientsFor = (m: EmailMsg): string => {
     if (!thread) return ''
     const out: string[] = []
     if (!m.outbound) out.push(thread.mailbox.split('@')[0] + '@')
@@ -589,46 +338,55 @@ export function EmailPanel() {
     return [...new Set(out)].join(', ') || '—'
   }
 
-  const startCompose = (kind: 'reply' | 'replyall' | 'forward') => {
+  // ── selecting a thread ──
+  const openThread = (id: string) => {
+    selectThread(id)
+    setDraft(''); setComposeNew(null); setTab('reply'); setComposeTo('')
+    setExpandAll(false); setExpandedMsgs([]); setInview(new Set()); setExpect(false)
+    setPanelState('full')
+  }
+  const backToList = () => setPanelState('list')
+
+  // ── compose ──
+  const startCompose = (kind: ComposeTab) => {
     if (!thread) return
+    setTab(kind)
+    if (kind === 'note') { window.setTimeout(() => composeRef.current?.focus(), 40); return }
     const sender = lastInbound?.from.email ?? ''
     const others = thread.participants.filter((p) => !p.endsWith('@cal.delivery'))
-    const reSubject = `Re: ${thread.subject.replace(/^(Re|Fwd):\s*/i, '')}`
-    if (kind === 'reply') setCompose({ kind, to: sender, subject: reSubject })
-    if (kind === 'replyall') setCompose({ kind, to: others.join(', '), subject: reSubject })
-    if (kind === 'forward') {
-      setCompose({ kind, to: '', subject: `Fwd: ${thread.subject.replace(/^(Re|Fwd):\s*/i, '')}` })
-      const q = lastInbound
+    if (kind === 'reply') setComposeTo(sender)
+    else if (kind === 'replyall') setComposeTo(others.join(', '))
+    else if (kind === 'forward') {
+      setComposeTo('')
+      const quoted = lastInbound
         ? `\n\n---------- Forwarded message ----------\nFrom: ${lastInbound.from.name} <${lastInbound.from.email}>\nSent: ${lastInbound.at}\n\n${lastInbound.body}`
         : ''
-      setDraft(q)
+      setDraft(quoted)
     }
-    // opening the editor = working it (spec §2: In Progress = draft open)
     if (thread.status === 'New' || thread.status === 'Assigned' || thread.status === 'Action Ready') setStatus(thread.id, 'In Progress')
-    window.setTimeout(() => composeRef.current?.focus(), 50)
+    window.setTimeout(() => composeRef.current?.focus(), 40)
   }
 
-  /** Compute the chase deadline (epoch ms) from the expecting-a-response picker. */
   const chaseDeadlineMs = (): number => {
-    if (expectAt) return new Date(expectAt).getTime()
     const amt = Math.max(1, expectAmount || 1)
     return Date.now() + amt * (expectUnit === 'hr' ? 3600_000 : 60_000)
   }
 
-  /** Send the reply, then apply the workflow outcome:
-   *  • Expecting a response → Awaiting Customer with a chase deadline.
-   *  • else 'resolve' → Resolved/Responded; 'keep' → stays in the assigned queue. */
   const send = (mode: 'resolve' | 'keep') => {
-    if (!thread || !draft.trim()) return
+    if (!thread) return
+    if (tab === 'note') {
+      if (!draft.trim()) return
+      addComment(thread.id, draft.trim()); setDraft(''); setTab('reply'); return
+    }
+    if (!draft.trim()) return
     postOutbound(thread.id, draft.trim())
     if (expecting) setExpectingStore(thread.id, chaseDeadlineMs())
     else if (mode === 'resolve') resolveThread(thread.id, 'Responded')
     else setStatus(thread.id, thread.assigneeId ? 'Assigned' : 'New')
-    setDraft(''); setCompose(null); setExpect(false)
+    setDraft(''); setExpect(false)
   }
 
   const hasOutbound = !!thread?.msgs.some((m) => m.outbound)
-  /** Resolve with the integrity guard (spec §4.5): nothing leaves without a reason. */
   const tryResolve = () => {
     if (!thread) return
     if (!hasOutbound) {
@@ -642,511 +400,871 @@ export function EmailPanel() {
     archiveThread(thread.id, hasOutbound ? 'Responded' : 'No Response Needed')
     setPanelState('list')
   }
-  /** Scroll to (and briefly flash) the email a comment was left on. */
+
+  const insertTemplate = (id: string) => {
+    const tpl = templates.find((x) => x.id === id)
+    if (tpl) setDraft((d) => (d ? d + '\n' + tpl.body : tpl.body))
+  }
+  const insertEta = (etaText: string) => setDraft((d) => (d ? d + '\n' + etaText : etaText))
+
   const goToComment = (c: { afterMsgId?: string }) => {
     const mid = c.afterMsgId ?? thread?.msgs[thread.msgs.length - 1]?.id
     if (!mid) return
-    setShowAllMsgs(true) // ensure the target isn't hidden behind the message collapse
+    setExpandedMsgs((p) => (p.includes(mid) ? p : [...p, mid]))
     window.setTimeout(() => {
-      document.getElementById('ep-msg-' + mid)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      document.getElementById('nx-msg-' + mid)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       setFlashMsg(mid)
       window.setTimeout(() => setFlashMsg(null), 1200)
     }, 30)
   }
 
-  // The reader stays open until the user explicitly closes it with the × button — it no
-  // longer collapses when clicking dead space (that was too easy to trigger by accident).
-
   const toggleCheck = (id: string) =>
     setChecked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
   const msgs = thread?.msgs ?? []
-  const collapsed = !showAllMsgs && msgs.length > 3
-  const shownMsgs = collapsed ? msgs.slice(-3) : msgs
-  const hiddenCount = msgs.length - shownMsgs.length
+  // The thread opens scrolled to the newest message; the extended line (nx-gap) sits just
+  // before it, and everything above rests greyed until scrolled into view.
+  // The newest EMAIL is the prominent one (job events are quiet inline markers, never the focus).
+  const newestId = ([...msgs].reverse().find((m) => !m.event)?.id) ?? msgs[msgs.length - 1]?.id
+  const newestIdx = msgs.findIndex((m) => m.id === newestId)
+  const olderCutoff = newestIdx < 0 ? msgs.length - 1 : newestIdx // emails before the newest are "older" (greyed)
 
-  return (
-    <aside className="email-panel" ref={panelRef}>
-      <div className="ep-head">
-        <Icon name="mail" size={16} /> <b>Email</b>
-        {unread > 0 && <span className="ep-unread">{unread}</span>}
-        <span className="db-spacer" />
-        <button className="btn primary sm ep-compose-btn" title="Compose a new email" onClick={() => openCompose()}>
+  // Open scrolled to the newest message (email-reader-peek.html #2).
+  useEffect(() => {
+    if (panelState !== 'full' || !thread || composeNew) return
+    const el = scrollRef.current
+    if (el) window.setTimeout(() => { el.scrollTop = el.scrollHeight }, 0)
+  }, [selectedId, panelState, composeNew, thread])
+
+  // IntersectionObserver: greyed older messages fade to full colour as they scroll in.
+  useEffect(() => {
+    const root = scrollRef.current
+    if (panelState !== 'full' || !root || !thread) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        setInview((prev) => {
+          let next = prev
+          for (const e of entries) {
+            const id = (e.target as HTMLElement).dataset.mid
+            if (!id) continue
+            if (e.isIntersecting && !next.has(id)) { next = new Set(next); next.add(id) }
+          }
+          return next
+        })
+      },
+      { root, threshold: 0.4 },
+    )
+    root.querySelectorAll('[data-mid]').forEach((n) => obs.observe(n))
+    return () => obs.disconnect()
+  }, [selectedId, panelState, thread, expandAll])
+
+  const isExpanded = (m: EmailMsg, idx: number) =>
+    expandAll || m.id === newestId || idx >= olderCutoff || expandedMsgs.includes(m.id)
+
+  // ── LIST ROW ──
+  const ListRow = (t: EmailThread) => {
+    const si = senderInfo(t)
+    // The inbox reflects the latest EMAIL — job events only live inside the thread.
+    const last = [...t.msgs].reverse().find((m) => !m.event) ?? t.msgs[t.msgs.length - 1]
+    const assignee = userName(t.assigneeId)
+    const attachN = t.msgs.reduce((n, m) => n + (m.attachments?.length ?? 0), 0)
+    const replied = !!last.outbound
+    const linkedJob = jobs.find((j) => j.ref.toUpperCase() === t.linkedJobRef?.toUpperCase())
+    const revenue = linkedJob?.revenue
+    // SLA colour from how long an unanswered inbound has waited (arrival → now).
+    const arrived = atDate(last.at)
+    const waitMins = replied || !arrived ? null : Math.round((Date.now() - arrived.getTime()) / 60_000)
+    const waitLevel = waitMins == null ? 'ok' : waitMins > 240 ? 'late' : waitMins > 60 ? 'warn' : 'ok'
+    return (
+      <button
+        key={t.id}
+        className={'nx-card' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
+        onClick={() => openThread(t.id)}
+      >
+        <input type="checkbox" className="nx-check" checked={checked.includes(t.id)}
+          onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} title="Select" />
+        <div className="nx-hline">
+          <span className="nx-avw">
+            <span className={'nx-avatar' + (METAL_TIERS.has(si.tier) ? ' nx-metal ' : ' ') + TIER_CLASS[si.tier]}>
+              {si.company === si.contact ? initials(si.contact) : companyInitials(si.company)}
+            </span>
+            {si.isNew && <span className="nx-newdot" title="New customer" />}
+          </span>
+          <span className="nx-who">{si.company}{si.contact && si.contact !== si.company && <span className="nx-cx"> · {si.contact}</span>}</span>
+          <span className="nx-sp" />
+          {t.assigneeId
+            ? <span className="nx-apill"><span className="nx-avatar nx-emp" style={{ background: empColor(t.assigneeId) }} title={assignee}>{initials(assignee)}</span>{assignee.split(' ')[0]}</span>
+            : <span className="nx-apill none"><span className="nx-avatar dash">?</span>Unassigned</span>}
+          <span className={'nx-wait ' + waitLevel}><Icon name="clock" size={12} /> {relTime(last.at)}</span>
+        </div>
+        <div className="nx-subj">{t.subject}</div>
+        <div className="nx-snip">{(last.body || '').replace(/\s+/g, ' ').slice(0, 90)}</div>
+        {t.draftPresence && (
+          <div className="nx-typing">
+            <span className="nx-typing-dots"><i /><i /><i /></span>
+            {t.draftPresence.by.split(' ')[0]} is replying…
+          </div>
+        )}
+        <div className="nx-foot">
+          {(() => {
+            const readers = users.filter((u) => t.readBy[u.id])
+            if (readers.length > 0) {
+              return (
+                <span className="nx-seen">
+                  <span className="nx-seenlbl">Seen</span>
+                  <span className="nx-seenby">
+                    {readers.slice(0, 4).map((u) => (
+                      <span key={u.id} className="nx-seenav" style={{ background: empColor(u.id) }} title={`Seen by ${u.name}`}>{initials(u.name)}</span>
+                    ))}
+                    {readers.length > 4 && <span className="nx-seenav more" title={readers.slice(4).map((u) => u.name).join(', ')}>+{readers.length - 4}</span>}
+                  </span>
+                </span>
+              )
+            }
+            return (
+              <span className={'nx-seen' + (replied ? ' replied' : '')}>
+                <Icon name={replied ? 'check' : 'mail'} size={13} />
+                {replied ? 'Replied' : 'Unseen'}
+              </span>
+            )
+          })()}
+          {t.reminderDue && <span className="nx-chip nx-c-urgent">⏰ Reminder</span>}
+          {t.snoozedUntil && <span className="nx-chip nx-c-mut">💤 {t.snoozedUntil}</span>}
+          <span className="nx-fsp" />
+          {revenue != null && <span className="nx-val">£{revenue}</span>}
+          {attachN > 0 && <span className="nx-chip nx-c-mut">{attachN} 📎</span>}
+          {linkedJob && <span className={'nx-chip ' + (linkedJob.progress === 'Failed' ? 'nx-c-late' : linkedJob.progress ? 'nx-c-live' : 'nx-c-assigned')}>{linkedJob.ref}{linkedJob.progress ? ` · ${linkedJob.progress}` : ''}</span>}
+          {t.tags[0] && <span className="nx-chip nx-c-quote">{t.tags[0]}</span>}
+        </div>
+      </button>
+    )
+  }
+
+  // ── the LIST column (panelState 'list') ──
+  const listCol = (
+    <div className="ep-listcol">
+      <div className="nx-phead">
+        <Icon name="mail" size={16} />
+        <span className="nx-t">Inbox</span>
+        {unread > 0 && <span className="nx-n">· {unread} new</span>}
+        <span className="nx-sp" />
+        <button className="nx-new-btn" title="Compose a new email" onClick={() => openCompose()}>
           <Icon name="edit" size={13} /> New
         </button>
       </div>
 
-      <div className={'ep-body' + (panelState === 'full' && thread ? ' has-thread' : '')}>
-          {/* ── left column: filters + lanes + inbox list ── */}
-          <div className="ep-listcol">
-            <div className="ep-filters">
-              <div className="ep-searchbox">
-                <Icon name="search" size={13} />
-                <input
-                  className="ep-search"
-                  placeholder="Search people, subjects, bodies, refs…"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => window.setTimeout(() => setSearchFocused(false), 160)}
-                />
-                {text && <button className="ep-search-x" title="Clear" onClick={() => setText('')}>×</button>}
-                <button className={'ep-adv-toggle' + (adv ? ' on' : '')} title="Advanced search" onClick={() => setAdv((o) => !o)}>
-                  <Icon name="filter" size={12} />
-                </button>
+      <div className="nx-filters">
+        <div className="nx-searchrow">
+          <div className="nx-searchbox">
+            <Icon name="search" size={13} />
+            <input
+              className="nx-search"
+              placeholder="Search people, subjects, bodies, refs…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => window.setTimeout(() => setSearchFocused(false), 160)}
+            />
+            {text && <button className="nx-search-x" title="Clear" onClick={() => setText('')}>×</button>}
 
-                {showSuggest && (contactSuggest.length > 0 || emailSuggest.length > 0) && (
-                  <div className="ep-suggest" onMouseDown={(e) => e.preventDefault()}>
-                    {contactSuggest.length > 0 && (
-                      <div className="ep-sug-sec">
-                        <div className="ep-sug-h">People</div>
-                        {contactSuggest.slice(0, cShown).map((c) => (
-                          <button key={c.email} className="ep-sug-row" onClick={() => { setText(c.email); setSearchFocused(false) }}>
-                            <span className="ep-ava sug">{initials(c.name)}</span>
-                            <span className="ep-sug-main"><b>{c.name}</b>{c.company && <span className="ep-sug-sub">{c.company}</span>}</span>
-                            <span className="ep-sug-meta">{c.score} email{c.score === 1 ? '' : 's'}</span>
-                          </button>
-                        ))}
-                        {contactSuggest.length > cShown && (
-                          <button className="ep-sug-more" onClick={() => setCShown((n) => n + 3)}>View next 3 people · {contactSuggest.length - cShown} more</button>
-                        )}
-                      </div>
-                    )}
-                    {emailSuggest.length > 0 && (
-                      <div className="ep-sug-sec">
-                        <div className="ep-sug-h">Emails</div>
-                        {emailSuggest.slice(0, eShown).map((t) => (
-                          <button key={t.id} className="ep-sug-row" onClick={() => { selectThread(t.id); setPanelState('full'); setSearchFocused(false) }}>
-                            <span className="ep-sug-main"><b>{t.subject}</b><span className="ep-sug-sub">{t.msgs.find((m) => !m.outbound)?.from.name ?? ''}{t.linkedJobRef ? ` · ${t.linkedJobRef}` : ''}</span></span>
-                            <span className="ep-sug-meta">{relTime(lastAtOf(t))}</span>
-                          </button>
-                        ))}
-                        {emailSuggest.length > eShown && (
-                          <button className="ep-sug-more" onClick={() => setEShown((n) => n + 3)}>View next 3 emails · {emailSuggest.length - eShown} more</button>
-                        )}
-                      </div>
+            {showSuggest && (contactSuggest.length > 0 || emailSuggest.length > 0) && (
+              <div className="nx-suggest" onMouseDown={(e) => e.preventDefault()}>
+                {contactSuggest.length > 0 && (
+                  <div className="nx-sug-sec">
+                    <div className="nx-sug-h">People</div>
+                    {contactSuggest.slice(0, cShown).map((c) => (
+                      <button key={c.email} className="nx-sug-row" onClick={() => { setText(c.email); setSearchFocused(false) }}>
+                        <span className="nx-avatar nx-m-grey">{initials(c.name)}</span>
+                        <span className="nx-sug-main"><b>{c.name}</b>{c.company && <span className="nx-sug-sub">{c.company}</span>}</span>
+                        <span className="nx-sug-meta">{c.score} email{c.score === 1 ? '' : 's'}</span>
+                      </button>
+                    ))}
+                    {contactSuggest.length > cShown && (
+                      <button className="nx-sug-more" onClick={() => setCShown((n) => n + 3)}>View next 3 people · {contactSuggest.length - cShown} more</button>
                     )}
                   </div>
                 )}
-
-                {adv && (
-                  <div className="ep-advpanel">
-                    <div className="ep-adv-h">Advanced search<span className="db-spacer" /><button className="cm-link" onClick={() => { setAdvContact(''); setAdvSubject(''); setAdvBody(''); setAdvFrom(''); setAdvTo('') }}>Clear</button></div>
-                    <AdvRow label="Contact" op={advContactOp} setOp={setAdvContactOp} val={advContact} setVal={setAdvContact} placeholder="name or email…" />
-                    <AdvRow label="Subject" op={advSubjectOp} setOp={setAdvSubjectOp} val={advSubject} setVal={setAdvSubject} placeholder="subject text…" />
-                    <AdvRow label="Body" op={advBodyOp} setOp={setAdvBodyOp} val={advBody} setVal={setAdvBody} placeholder="body text…" />
-                    <div className="ep-adv-row">
-                      <span className="ep-adv-lbl">Date</span>
-                      <input type="date" className="ep-adv-date" value={advFrom} onChange={(e) => setAdvFrom(e.target.value)} title="From" />
-                      <span className="ep-adv-to">to</span>
-                      <input type="date" className="ep-adv-date" value={advTo} onChange={(e) => setAdvTo(e.target.value)} title="To" />
-                    </div>
-                    <div className="ep-adv-foot">{advActive ? `${visible.length} result${visible.length === 1 ? '' : 's'}` : 'Fill any field to refine'}<span className="db-spacer" /><button className="btn sm" onClick={() => setAdv(false)}>Done</button></div>
+                {emailSuggest.length > 0 && (
+                  <div className="nx-sug-sec">
+                    <div className="nx-sug-h">Emails</div>
+                    {emailSuggest.slice(0, eShown).map((t) => (
+                      <button key={t.id} className="nx-sug-row" onClick={() => { openThread(t.id); setSearchFocused(false) }}>
+                        <span className="nx-sug-main"><b>{t.subject}</b><span className="nx-sug-sub">{t.msgs.find((m) => !m.outbound)?.from.name ?? ''}{t.linkedJobRef ? ` · ${t.linkedJobRef}` : ''}</span></span>
+                        <span className="nx-sug-meta">{relTime(lastAtOf(t))}</span>
+                      </button>
+                    ))}
+                    {emailSuggest.length > eShown && (
+                      <button className="nx-sug-more" onClick={() => setEShown((n) => n + 3)}>View next 3 emails · {emailSuggest.length - eShown} more</button>
+                    )}
                   </div>
                 )}
               </div>
-              {/* one filter menu replaces the old mailbox / smart-folder / Mine / Snoozed / Save clutter */}
-              <div className="ep-filterwrap">
-                <button className={'ep-filter-btn' + ((mailbox !== 'all' || smart || snoozedOnly) ? ' on' : '')} title="Filter & saved views" onClick={() => setFilterOpen((o) => !o)}>
-                  <Icon name="sliders" size={14} />
-                </button>
-                {filterOpen && (
+            )}
+
+            {adv && (
+              <>
+                <div className="nx-pop-scrim" onClick={() => setAdv(false)} />
+                <div className="nx-adv" onClick={(e) => e.stopPropagation()}>
+                  <div className="nx-adv-h">Advanced search<span className="nx-sp" /><button className="nx-fm-save" onClick={() => { setAdvContact(''); setAdvSubject(''); setAdvBody(''); setAdvFrom(''); setAdvTo('') }}>Clear</button></div>
+                  {([
+                    ['Contact', advContactOp, setAdvContactOp, advContact, setAdvContact, 'name or email…'],
+                    ['Subject', advSubjectOp, setAdvSubjectOp, advSubject, setAdvSubject, 'subject text…'],
+                    ['Body', advBodyOp, setAdvBodyOp, advBody, setAdvBody, 'body text…'],
+                  ] as const).map(([label, op, setOp, val, setVal, ph]) => (
+                    <div className="nx-adv-row" key={label}>
+                      <span className="nx-adv-lbl">{label}</span>
+                      <select className="nx-adv-op" value={op} onChange={(e) => setOp(e.target.value as SearchOp)}>
+                        <option value="contains">contains</option>
+                        <option value="matches">matches</option>
+                      </select>
+                      <input className="nx-adv-val" value={val} onChange={(e) => setVal(e.target.value)} placeholder={ph} />
+                    </div>
+                  ))}
+                  <div className="nx-adv-row">
+                    <span className="nx-adv-lbl">Date</span>
+                    <input type="date" className="nx-adv-date" value={advFrom} onChange={(e) => setAdvFrom(e.target.value)} title="From" />
+                    <span className="nx-adv-to">to</span>
+                    <input type="date" className="nx-adv-date" value={advTo} onChange={(e) => setAdvTo(e.target.value)} title="To" />
+                  </div>
+                  <div className="nx-adv-foot">{advActive ? `${visible.length} result${visible.length === 1 ? '' : 's'}` : 'Fill any field to refine'}</div>
+                </div>
+              </>
+            )}
+          </div>
+          <button className={'nx-iconbtn' + (adv ? ' on' : '')} title="Advanced search" onClick={() => setAdv((o) => !o)}>
+            <Icon name="filter" size={14} />
+          </button>
+          <div style={{ position: 'relative' }}>
+            <button className={'nx-iconbtn' + ((mailbox !== 'all' || smart || snoozedOnly) ? ' on' : '')} title="Filter & saved views" onClick={() => setFilterOpen((o) => !o)}>
+              <Icon name="sliders" size={14} />
+            </button>
+            {filterOpen && (
+              <>
+                <div className="nx-pop-scrim" onClick={() => setFilterOpen(false)} />
+                <div className="nx-filtermenu" onClick={(e) => e.stopPropagation()}>
+                  <div className="nx-fm-row"><span className="nx-fm-lbl">Mailbox</span>
+                    <select value={mailbox} onChange={(e) => setMailbox(e.target.value)}>
+                      <option value="all">All mailboxes</option>
+                      {MAILBOXES.map((m) => <option key={m} value={m}>{m.split('@')[0]}@</option>)}
+                    </select>
+                  </div>
+                  <div className="nx-fm-row"><span className="nx-fm-lbl">Lane</span>
+                    <select value={lane} onChange={(e) => setLaneFilter(e.target.value as 'all' | Lane)}>
+                      <option value="all">All lanes</option>
+                      {LANES.map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div className="nx-fm-row"><span className="nx-fm-lbl">Show</span>
+                    <select value={smart} onChange={(e) => setSmart(e.target.value)}>
+                      <option value="">All conversations</option>
+                      <option value="needsreply">Needs reply</option>
+                      <option value="unassigned">Unassigned</option>
+                    </select>
+                  </div>
+                  <label className="nx-fm-chk"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Assigned to me</label>
+                  <label className="nx-fm-chk"><input type="checkbox" checked={snoozedOnly} onChange={(e) => setSnoozedOnly(e.target.checked)} /> Snoozed only{snoozedCount ? ` (${snoozedCount})` : ''}</label>
+                  <div className="nx-fm-sec">Saved views</div>
+                  {savedViews.length === 0 && <div className="nx-fm-empty">None saved yet.</div>}
+                  {savedViews.map((v) => (
+                    <button key={v.id} className="nx-fm-view" onClick={() => { setMailbox(v.q.mailbox ?? 'all'); setLaneFilter(v.q.lane ?? 'all'); setMine(!!v.q.mine); setText(v.q.text ?? ''); setSmart(''); setFilterOpen(false) }}>{v.name}</button>
+                  ))}
+                  {!savingView ? (
+                    <button className="nx-fm-save" onClick={() => setSavingView(true)}>+ Save current as view</button>
+                  ) : (
+                    <input autoFocus placeholder="View name + Enter" value={viewName} onChange={(e) => setViewName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="nx-scope">
+        {([['mine', 'Assigned to me'], ['all', 'All']] as const).map(([k, label]) => (
+          <button key={k} className={'nx-scope-btn' + (scope === k ? ' on' : '')} onClick={() => { setScope(k); if (k === 'mine' && sub === 'unassigned') setSub('open') }}>{label}</button>
+        ))}
+      </div>
+      <div className="nx-subtabs">
+        {([['open', 'Open', 'inbox'], ['awaiting', 'Awaiting', 'clock'], ['resolved', 'Resolved', 'check-circle'],
+          ...(scope === 'all' ? [['unassigned', 'Unassigned', 'user-plus'] as const] : [])] as const).map(([key, label, icon]) => (
+          <button key={key} className={'nx-subtab' + (sub === key ? ' on' : '')} onClick={() => setSub(key)} title={label}>
+            <Icon name={icon} size={15} />
+            {subCount[key] ? <i>{subCount[key]}</i> : null}
+          </button>
+        ))}
+      </div>
+
+      {checked.length > 0 && (
+        <div className="nx-bulk">
+          <b>{checked.length}</b> selected
+          <select value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { assigneeId: e.target.value }); setChecked([]) } }}>
+            <option value="">Assign…</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          <select value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { lane: e.target.value as Lane }); setChecked([]) } }}>
+            <option value="">Lane…</option>
+            {LANES.map((l) => <option key={l}>{l}</option>)}
+          </select>
+          <button className="nx-bulk-link" onClick={() => { bulkApply(checked, { snoozeMs: 3_600_000, snoozeLabel: '1 hour' }); setChecked([]) }}>Snooze</button>
+          <button className="nx-bulk-link" onClick={() => setChecked([])}>Clear</button>
+        </div>
+      )}
+
+      <div className="ep-list">
+        {(advActive ? visible.slice(0, advShown) : visible).map(ListRow)}
+        {!visible.length && <div className="nx-empty">Nothing here.</div>}
+        {advActive && visible.length > advShown && (
+          <button className="nx-sug-more" onClick={() => setAdvShown((n) => n + 3)}>
+            View next 3 · {visible.length - advShown} more
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  // ── READER column (panelState 'full') ──
+  const si = thread ? senderInfo(thread) : null
+  const peekThreads = threads.filter((t) => !t.archived && !t.snoozedUntil && t.id !== selectedId).slice(0, 8)
+
+  const readerCol = (
+    <div className="ep-readcol">
+      {composeNew ? (
+        <div className="nx-newmail">
+          <div className="nx-phead">
+            <Icon name="edit" size={15} /> <span className="nx-t">New email</span>
+            <span className="nx-sp" />
+            <button className="nx-abtn" title="Discard" onClick={() => setComposeNew(null)}><Icon name="close" size={16} /></button>
+          </div>
+          <div className="nx-nm-fields">
+            <label className="nx-nm-row"><span>To</span><input autoFocus placeholder="name@company.com" value={composeNew.to} onChange={(e) => setComposeNew({ ...composeNew, to: e.target.value })} /></label>
+            <label className="nx-nm-row"><span>Subject</span><input placeholder="Subject" value={composeNew.subject} onChange={(e) => setComposeNew({ ...composeNew, subject: e.target.value })} /></label>
+          </div>
+          <textarea className="nx-nm-body" placeholder="Write your message…" value={composeNew.body} onChange={(e) => setComposeNew({ ...composeNew, body: e.target.value })} />
+          <div className="nx-ctoolbar">
+            {templates.length > 0 && (
+              <select className="nx-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setComposeNew((p) => p && ({ ...p, body: p.body ? p.body + '\n' + t.body : t.body })) }}>
+                <option value="">Templates…</option>
+                {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
+            <span className="nx-sp" />
+            <button className="nx-send keep" onClick={() => setComposeNew(null)}>Discard</button>
+            <button className="nx-send" disabled={!composeNew.to.trim() || !composeNew.body.trim()} onClick={() => { composeEmail(composeNew.to.trim(), composeNew.subject, composeNew.body); setComposeNew(null) }}>
+              <Icon name="mail" size={14} /> Send
+            </button>
+          </div>
+        </div>
+      ) : thread && si ? (
+        <div className="nx-reader">
+          {/* peek bar (email-reader-inbox.html #4) */}
+          <div className={'nx-peek' + (peekOpen ? ' on' : '')}>
+            <div className="nx-peekhd" onClick={() => setPeekOpen((o) => !o)}>
+              <span className="pk-c">Inbox</span>
+              <span className="pk-n">{peekThreads.length} more conversation{peekThreads.length === 1 ? '' : 's'}</span>
+              <span className="pk-ch"><Icon name="chevron-down" size={14} /></span>
+            </div>
+            {peekOpen && (
+              <div className="nx-peekbody">
+                {peekThreads.map((t) => {
+                  const psi = senderInfo(t)
+                  const last = t.msgs[t.msgs.length - 1]
+                  return (
+                    <button key={t.id} className="nx-irow" onClick={() => openThread(t.id)}>
+                      <span className={'nx-avatar' + (METAL_TIERS.has(psi.tier) ? ' nx-metal ' : ' ') + TIER_CLASS[psi.tier]}>
+                        {psi.company === psi.contact ? initials(psi.contact) : companyInitials(psi.company)}
+                      </span>
+                      <span className="nx-iw">
+                        <span className="nx-ico">{psi.company}</span>
+                        <span className="nx-isub">{t.subject}</span>
+                      </span>
+                      <span className="nx-it">{relTime(last.at)}</span>
+                    </button>
+                  )
+                })}
+                {!peekThreads.length && <div className="nx-empty">Inbox clear.</div>}
+              </div>
+            )}
+          </div>
+
+          {/* banners */}
+          {thread.reminderDue && (
+            <div className="nx-banner reminder">⏰ Reminder due.<span className="nx-sp" /><button className="nx-banner-link" onClick={() => clearReminder(thread.id)}>Dismiss</button></div>
+          )}
+          {thread.status === 'Awaiting Customer' && thread.chaseDueAt != null && (
+            <div className={'nx-banner ' + (thread.chaseDueAt - Date.now() < 0 ? 'amber' : '')}>
+              ⏳ Awaiting customer{thread.chaseDueAt - Date.now() < 0 ? ' — chase overdue' : ''}.
+              <span className="nx-sp" />
+              <button className="nx-banner-link" onClick={() => simulateInbound(thread.id)}>Simulate customer reply</button>
+            </div>
+          )}
+
+          {/* envelope header (email-reader-v2.html) */}
+          <div className="nx-rhead">
+            <div className="nx-r1">
+              <button className="nx-back" title="Back to inbox" onClick={backToList}><Icon name="chevron-up" size={18} /></button>
+              <span className={'nx-avatar' + (METAL_TIERS.has(si.tier) ? ' nx-metal ' : ' ') + TIER_CLASS[si.tier]}>
+                {si.company === si.contact ? initials(si.contact) : companyInitials(si.company)}
+              </span>
+              <span className="nx-cid">
+                <div className="nx-cco">{si.company}</div>
+                <div className="nx-cct">{si.contact ? `${si.contact} · ` : ''}{si.email}</div>
+              </span>
+              <span className="nx-cstat">
+                <select className="nx-assign-sel" value={thread.assigneeId ?? ''} onChange={(e) => assignThread(thread.id, e.target.value || null)} title="Assigned to">
+                  <option value="">Unassigned</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+                <span className="nx-sla">{thread.status}</span>
+              </span>
+            </div>
+            <h2 className="nx-csubj">{thread.subject}</h2>
+            <div className="nx-cbar">
+              <span className="nx-tags">
+                {thread.tags.map((x) => <span key={x} className="nx-tag">{x}<i onClick={() => removeTag(thread.id, x)}>×</i></span>)}
+                {addingTag ? (
+                  <input className="nx-tagadd-input" autoFocus placeholder="tag…" value={tagDraft}
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    onBlur={() => setAddingTag(false)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && tagDraft.trim()) { addTag(thread.id, tagDraft.trim()); setTagDraft(''); setAddingTag(false) } }} />
+                ) : (
+                  <button className="nx-tagadd" onClick={() => setAddingTag(true)}>+ Tag</button>
+                )}
+              </span>
+              <span className="nx-sp" />
+              <button className={'nx-abtn' + (thread.pinned ? ' on' : '')} title={thread.pinned ? 'Unpin' : 'Pin'} onClick={() => toggleFlag(thread.id, 'pinned')}><Icon name="pin" size={16} /></button>
+              <div className="nx-menu-wrap">
+                <button className="nx-abtn" title="Snooze / remind" onClick={() => { setMore(false); setMacroOpen(false); setPeekMenu((p) => (p === 'snooze' ? null : 'snooze')) }}><Icon name="clock" size={16} /></button>
+                {peekMenu === 'snooze' && (
                   <>
-                    <div className="cc-pop-scrim" onClick={() => setFilterOpen(false)} />
-                    <div className="ep-filtermenu">
-                      <label className="ep-fm-row"><span className="ep-fm-lbl">Mailbox</span>
-                        <select value={mailbox} onChange={(e) => setMailbox(e.target.value)}>
-                          <option value="all">All mailboxes</option>
-                          {MAILBOXES.map((m) => <option key={m} value={m}>{m.split('@')[0]}@</option>)}
-                        </select>
-                      </label>
-                      <label className="ep-fm-row"><span className="ep-fm-lbl">Show</span>
-                        <select value={smart} onChange={(e) => setSmart(e.target.value)}>
-                          <option value="">All conversations</option>
-                          <option value="needsreply">Needs reply</option>
-                        </select>
-                      </label>
-                      <label className="ep-fm-chk"><input type="checkbox" checked={snoozedOnly} onChange={(e) => setSnoozedOnly(e.target.checked)} /> Snoozed only{snoozedCount ? ` (${snoozedCount})` : ''}</label>
-                      <div className="ep-fm-sec">Saved views</div>
-                      {savedViews.length === 0 && <div className="ep-fm-empty">None saved yet.</div>}
-                      {savedViews.map((v) => (
-                        <button key={v.id} className="ep-fm-view" onClick={() => { setMailbox(v.q.mailbox ?? 'all'); setLaneFilter(v.q.lane ?? 'all'); setMine(!!v.q.mine); setText(v.q.text ?? ''); setSmart(''); setFilterOpen(false) }}>{v.name}</button>
+                    <div className="nx-pop-scrim" onClick={() => setPeekMenu(null)} />
+                    <div className="nx-menu">
+                      <div className="nx-menu-sec">Snooze</div>
+                      {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'s' + label} onClick={() => { snooze(thread.id, ms, label); setPeekMenu(null) }}>💤 {label}</button>)}
+                      <div className="nx-menu-sec">Remind</div>
+                      {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'r' + label} onClick={() => { remind(thread.id, ms, label); setPeekMenu(null) }}>⏰ {label}</button>)}
+                    </div>
+                  </>
+                )}
+              </div>
+              <button className={'nx-abtn' + (thread.following ? ' on' : '')} title={thread.following ? 'Unfollow' : 'Follow'} onClick={() => toggleFlag(thread.id, 'following')}><Icon name="flag" size={16} /></button>
+              <span className="nx-vsep" />
+              <div className="nx-menu-wrap">
+                <button className="nx-macro" onClick={() => { setMacroOpen((o) => !o); setPeekMenu(null) }} title="Run a macro"><Icon name="cog" size={13} /> Macros</button>
+                {macroOpen && (
+                  <>
+                    <div className="nx-pop-scrim" onClick={() => setMacroOpen(false)} />
+                    <div className="nx-menu">
+                      <div className="nx-menu-sec">Run macro</div>
+                      {macros.map((m) => <button key={m.id} onClick={() => { runMacro(m.id, thread.id); setMacroOpen(false) }}>{m.icon ?? '⚡'} {m.name}</button>)}
+                      {!macros.length && <div className="nx-menu-sec">None — add some in Email Rules</div>}
+                    </div>
+                  </>
+                )}
+              </div>
+              {thread.status === 'Resolved'
+                ? <button className="nx-reopen" title={`Resolved · ${thread.resolutionReason ?? ''}`} onClick={() => reopenThread(thread.id)}>Re-open</button>
+                : <button className="nx-resolve" title="Resolve this email" onClick={tryResolve}><Icon name="check" size={13} /> Resolve</button>}
+              <div className="nx-menu-wrap">
+                <button className="nx-abtn" onClick={() => { setMore((o) => !o); setPeekMenu(null); setMacroOpen(false) }} title="More"><Icon name="more" size={16} /></button>
+                {more && (
+                  <>
+                    <div className="nx-pop-scrim" onClick={() => setMore(false)} />
+                    <div className="nx-menu">
+                      <button onClick={() => { createJobFromEmail(thread); setMore(false) }}>+ Create job</button>
+                      <button onClick={() => { markUnread(thread.id); setMore(false) }}>Mark unread</button>
+                      <button onClick={() => { toggleFlag(thread.id, 'muted'); setMore(false) }}>{thread.muted ? 'Unmute' : 'Mute'}</button>
+                      <div className="nx-menu-sec">Merge into…</div>
+                      {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 4).map((t) => (
+                        <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMore(false) }}>{t.subject.slice(0, 28)}</button>
                       ))}
-                      {!savingView ? (
-                        <button className="cm-link ep-fm-save" onClick={() => setSavingView(true)}>+ Save current as view</button>
-                      ) : (
-                        <input className="ep-search" autoFocus placeholder="View name + Enter" value={viewName} onChange={(e) => setViewName(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && viewName.trim()) { addSavedView(viewName.trim(), { mailbox, lane, mine, text }); setViewName(''); setSavingView(false) } }} />
-                      )}
+                      <div className="nx-menu-sec">Remove</div>
+                      <button className="danger" onClick={() => { tryDelete(); setMore(false) }}>🗑 Delete (needs resolution)</button>
                     </div>
                   </>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* two-level filter: scope (me / all) then sub-status */}
-            <div className="ep-scope">
-              {([['mine', 'Assigned to me'], ['all', 'All']] as const).map(([k, label]) => (
-                <button key={k} className={'ep-scope-btn' + (scope === k ? ' on' : '')} onClick={() => { setScope(k); if (k === 'mine' && sub === 'unassigned') setSub('open') }}>{label}</button>
-              ))}
+          <JobStrip thread={thread} onInsertEta={insertEta} />
+
+          {/* thread scroll — opens at newest (email-reader-peek.html #2) */}
+          <div className="nx-rscroll" ref={scrollRef}>
+            <div className="nx-threadbar">
+              Conversation
+              <button className="exall" onClick={() => setExpandAll((o) => !o)}>{expandAll ? 'Collapse older' : 'Expand all'}</button>
             </div>
-            <div className="ep-lanes ep-topfilter">
-              {([['open', 'Open'], ['awaiting', 'Awaiting reply'], ['resolved', 'Resolved'],
-                ...(scope === 'all' ? [['unassigned', 'Unassigned'] as const] : [])] as const).map(([key, label]) => (
-                <button key={key} className={'ep-view ep-tf ep-tf-ico' + (sub === key ? ' on' : '')} onClick={() => setSub(key)} title={label} aria-label={label}>
-                  <Icon name={SUB_ICON[key]} size={15} />
-                  {subCount[key] ? <i>{subCount[key]}</i> : null}
-                </button>
-              ))}
-            </div>
-
-            {checked.length > 0 && (
-              <div className="ep-bulk">
-                <b>{checked.length}</b>
-                <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { assigneeId: e.target.value }); setChecked([]) } }}>
-                  <option value="">Assign…</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-                <select className="ep-assign" value="" onChange={(e) => { if (e.target.value) { bulkApply(checked, { lane: e.target.value as Lane }); setChecked([]) } }}>
-                  <option value="">Lane…</option>
-                  {LANES.map((l) => <option key={l}>{l}</option>)}
-                </select>
-                <button className="cm-link" onClick={() => { bulkApply(checked, { snoozeMs: 3_600_000, snoozeLabel: '1 hour' }); setChecked([]) }}>Snooze</button>
-                <button className="cm-link" onClick={() => setChecked([])}>✕</button>
-              </div>
-            )}
-
-            <div className="ep-list">
-              {(advActive ? visible.slice(0, advShown) : visible).map((t) => {
-                const last = t.msgs[t.msgs.length - 1]
-                const assignee = userName(t.assigneeId)
-                const sender = t.msgs.find((m) => !m.outbound)?.from.name ?? last.from.name
-                const attachN = t.msgs.reduce((n, m) => n + (m.attachments?.length ?? 0), 0)
+            {msgs.map((m, idx) => {
+              // system / job-lifecycle event → compact audit row on the same timeline
+              if (m.event) {
                 return (
-                  <div
-                    key={t.id}
-                    className={'ep-row' + (t.id === selectedId ? ' on' : '') + (t.read || t.muted ? '' : ' unread') + (t.muted ? ' muted' : '')}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData('text/thread', t.id)}
-                    onClick={() => { selectThread(t.id); setShowAllMsgs(false); setCompose(null); setDraft(''); setComposeNew(null); setPanelState('full') }}
-                  >
-                    <input type="checkbox" className="ep-check" checked={checked.includes(t.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggleCheck(t.id)} />
-                    <span className="ep-row-when">
-                      {t.status === 'Awaiting Customer' && t.chaseDueAt != null
-                        ? (() => { const c = chaseInfo(t.chaseDueAt!); return <span className={'ep-chase ' + c.level} title="Chase deadline">⏳ {c.label}</span> })()
-                        : <span className="ep-row-at" title={last.at}>{relTime(last.at)}</span>}
-                    </span>
-                    <div className="ep-rbody">
-                      <span className="ep-row-line ep-line-top">
-                        {!t.read && !t.muted && <span className="ep-unread-dot" title="Unseen" />}
-                        {t.pinned && <span className="ep-mini" title="Pinned">📌</span>}
-                        <span className="ep-row-from">{sender}</span>
-                        <span className="ep-sep">›</span>
-                        {t.assigneeId
-                          ? <span className="ep-assignee">{assignee}</span>
-                          : <span className="ep-unassigned">Unassigned</span>}
-                        {t.reminderDue && <span className="ep-mini" title="Reminder due">⏰</span>}
-                      </span>
-                      <span className="ep-row-line ep-line-subj">
-                        <span className="ep-row-subj">{t.subject}</span>
-                        <span className="db-spacer" />
-                        {SHOW_STATUS.has(t.status) && t.status !== 'Awaiting Customer' && <StatusChip status={t.status} />}
-                        {attachN > 0 && <span className="ep-attn" title={`${attachN} attachment${attachN === 1 ? '' : 's'}`}>{attachN} 📎</span>}
-                        {t.snoozedUntil && <span className="ep-snoozed">💤 {t.snoozedUntil}</span>}
-                      </span>
-                      {t.draftPresence && (
-                        <span className="ep-typing" title="A colleague is drafting — click to view & edit their draft"
-                          onClick={(e) => { e.stopPropagation(); selectThread(t.id); setShowAllMsgs(false); setPanelState('full') }}>
-                          <span className="ep-typing-dots"><i /><i /><i /></span>
-                          {t.draftPresence.by.split(' ')[0]} is replying…
-                        </span>
-                      )}
+                  <div key={m.id} id={'nx-msg-' + m.id} data-mid={m.id} className={'nx-msg nx-event' + (flashMsg === m.id ? ' flash' : '')}>
+                    <div className="nx-mnode"><span className="nx-enode"><Icon name={m.icon || 'check'} size={11} /></span></div>
+                    <div className="nx-eline">
+                      <span className="nx-elabel">{m.body}</span>
+                      {m.from.name && <span className="nx-eactor">{m.from.name}</span>}
+                      <span className="nx-tt nx-etime" title={m.at}>{shortWhen(m.at)}</span>
                     </div>
                   </div>
                 )
-              })}
-              {!visible.length && <div className="ep-empty">Nothing here.</div>}
-              {advActive && visible.length > advShown && (
-                <button className="ep-sug-more ep-list-more" onClick={() => setAdvShown((n) => n + 3)}>
-                  View next 3 · {visible.length - advShown} more
-                </button>
+              }
+              const cust = customerForEmail(m.from.email)
+              const internal = false // internal notes live as comments; kept for the label branch
+              const older = idx < olderCutoff && !expandAll
+              const expanded = isExpanded(m, idx)
+              // elapsed badge: response time between the previous inbound and this outbound
+              let elapsed: string | null = null
+              if (m.outbound && idx > 0 && !msgs[idx - 1].outbound && !msgs[idx - 1].event) {
+                const mins = minutesBetween(msgs[idx - 1].at, m.at)
+                if (mins != null && mins >= 0) elapsed = elapsedLabel(mins)
+              }
+              const mTier: Tier = m.outbound ? 'me' : (m.from.email.toLowerCase().endsWith('@hauliers.co.uk') ? 'driver' : (cust ? senderInfo(thread).tier : 'grey'))
+              return (
+                <div key={m.id}>
+                  {m.id === newestId && msgs.length > 1 && <div className="nx-gap" />}
+                  <div
+                    id={'nx-msg-' + m.id}
+                    data-mid={m.id}
+                    className={'nx-msg' + (older ? ' older' : '') + (older && inview.has(m.id) ? ' inview' : '') + (expanded ? '' : ' collapsed') + (flashMsg === m.id ? ' flash' : '') + (internal ? ' internal' : '')}
+                  >
+                    <div className="nx-mnode">
+                      <span className={'nx-avatar' + (METAL_TIERS.has(mTier) ? ' nx-metal ' : ' ') + TIER_CLASS[mTier]}>{initials(m.from.name)}</span>
+                    </div>
+                    <div className="nx-mmain">
+                      <div className="nx-mhead-btn" onClick={() => setExpandedMsgs((p) => (p.includes(m.id) ? p.filter((x) => x !== m.id) : [...p, m.id]))}>
+                        <div className="nx-mtop">
+                          <div style={{ position: 'relative' }}>
+                            <button className="nx-name-btn" onClick={(e) => { e.stopPropagation(); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
+                            {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
+                          </div>
+                          {m.outbound && <span className="nx-ilab" style={{ background: 'var(--nx-blue-tint)', color: 'var(--nx-blue)' }}>You</span>}
+                          <span className="nx-mto">To: {recipientsFor(m)}</span>
+                          <span className="nx-mt">
+                            <span className="nx-tt" title={m.at}>{shortWhen(m.at)}</span>
+                            {elapsed && <span className="nx-elapsed"><Icon name="clock" size={9} /> {elapsed}</span>}
+                          </span>
+                        </div>
+                        <div className="nx-msnip">{(m.body || '').replace(/\s+/g, ' ').slice(0, 120)}</div>
+                      </div>
+                      <div className="nx-mfull">
+                        <div className="nx-mbody"><RefText text={m.body} /></div>
+                        {!!m.attachments?.length && (
+                          <div className="nx-atts">
+                            {m.attachments.map((a) => (
+                              <span key={a.id} className="nx-att"><span className="ico2">PDF</span><span className="fnm">{a.name}</span></span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {idx > 0 && (
+                      <button className="nx-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* shared live draft (a colleague drafting) — take it over to edit + send */}
+            {thread.draftPresence && (
+              <div className="nx-msg internal">
+                <div className="nx-mnode"><span className="nx-avatar nx-pp">{initials(thread.draftPresence.by)}</span></div>
+                <div className="nx-mmain">
+                  <div className="nx-mtop">
+                    <span className="nx-mn">{thread.draftPresence.by}</span>
+                    <span className="nx-ilab">Draft</span>
+                    <span className="nx-sp" />
+                    <button className="nx-name-btn" onClick={() => { const d = thread.draftPresence!; startCompose('reply'); setDraft(d.body); clearDraftPresence(thread.id) }}>Take over</button>
+                  </div>
+                  <div className="nx-mbody" style={{ marginTop: 6 }}>{thread.draftPresence.body}</div>
+                </div>
+              </div>
+            )}
+
+            {/* internal comments — click one to jump to the email it was left on */}
+            {thread.comments.length > 0 && (
+              <div className="nx-comments">
+                {[...thread.comments].sort((a, b) => atKey(a.at).localeCompare(atKey(b.at))).map((c) => (
+                  <button key={c.id} className="nx-cnote" onClick={() => goToComment(c)} title="Jump to the email this was left on">
+                    <span className="nx-cnote-head"><b>{c.by}</b><span className="nx-cnote-time">{c.at}</span></span>
+                    <span className="nx-cnote-body">{c.text}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* composer (pinned bottom) */}
+          <div className={'nx-composer' + (tab === 'note' ? ' noteon' : '')}>
+            <div className="nx-ctabs">
+              {([['reply', 'Reply'], ['replyall', 'Reply all'], ['forward', 'Forward']] as const).map(([k, label]) => (
+                <button key={k} className={'nx-ctab' + (tab === k ? ' on' : '')} onClick={() => startCompose(k)}>{label}</button>
+              ))}
+            </div>
+            <div className="nx-cbox">
+              {tab !== 'note' && (
+                <div className="nx-cto">
+                  <span>To</span>
+                  <input value={composeTo} placeholder="recipients…" onChange={(e) => setComposeTo(e.target.value)} />
+                </div>
               )}
+              <textarea
+                ref={composeRef}
+                placeholder={tab === 'note' ? 'Internal note — visible to teammates…' : 'Write your reply…'}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+              {tab !== 'note' && (
+                <div className="nx-expect">
+                  <label className="nx-expect-tog">
+                    <input type="checkbox" checked={expecting} onChange={(e) => setExpect(e.target.checked)} />
+                    Expecting a response
+                  </label>
+                  {expecting && (
+                    <>
+                      <span className="nx-expect-lbl">chase in</span>
+                      {[10, 20, 30].map((n) => (
+                        <button key={n} className={'nx-expect-preset' + (expectAmount === n ? ' on' : '')} onClick={() => setExpectAmount(n)}>{n}</button>
+                      ))}
+                      <input type="number" min={1} className="nx-expect-num" value={expectAmount} onChange={(e) => setExpectAmount(Math.max(1, Math.round(+e.target.value) || 1))} />
+                      <button className="nx-unit" title="Switch minutes / hours" onClick={() => setExpectUnit((u) => (u === 'min' ? 'hr' : 'min'))}>{expectUnit}</button>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className="nx-ctoolbar">
+                {templates.length > 0 && tab !== 'note' && (
+                  <select className="nx-tpl-pick" value="" onChange={(e) => { insertTemplate(e.target.value); e.currentTarget.value = '' }}>
+                    <option value="">Templates…</option>
+                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                )}
+                <button className="nx-cicon" title="Attach (mock)"><Icon name="file" size={16} /></button>
+                <button className="nx-cicon" title="Create job from this email" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={16} /></button>
+                <span className="nx-sp" />
+                {tab === 'note' ? (
+                  <button className="nx-send" disabled={!draft.trim()} onClick={() => send('keep')}>Add note</button>
+                ) : (
+                  <>
+                    <button className="nx-send keep" disabled={!draft.trim()} onClick={() => send('keep')} title="Send and keep it in your queue">Send &amp; Keep</button>
+                    <button className="nx-send" disabled={!draft.trim()} onClick={() => send('resolve')} title={expecting ? 'Send — will wait on the customer' : 'Send and resolve'}>
+                      <Icon name="mail" size={14} /> {expecting ? 'Send & Await' : 'Send & Resolve'}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* ── right column: reader (hidden in list-only/partial-collapse state) ── */}
-          {panelState === 'full' && (
-          <div className="ep-readcol">
-            {composeNew ? (
-              <div className="ep-reader ep-newmail">
-                <div className="ep-rhead">
-                  <div className="ep-rtitle">
-                    <Icon name="edit" size={14} /> <b>New email</b>
-                    <span className="db-spacer" />
-                    <button className="btn sm iconbtn ep-closebody" title="Discard" onClick={() => setComposeNew(null)}><Icon name="close" size={14} /></button>
-                  </div>
-                </div>
-                <div className="ep-newmail-fields">
-                  <label className="ep-nm-row"><span>To</span><input autoFocus placeholder="name@company.com" value={composeNew.to} onChange={(e) => setComposeNew({ ...composeNew, to: e.target.value })} /></label>
-                  <label className="ep-nm-row"><span>Subject</span><input placeholder="Subject" value={composeNew.subject} onChange={(e) => setComposeNew({ ...composeNew, subject: e.target.value })} /></label>
-                </div>
-                <textarea className="ep-newmail-body" placeholder="Write your message…" value={composeNew.body} onChange={(e) => setComposeNew({ ...composeNew, body: e.target.value })} />
-                <div className="ep-newmail-foot">
-                  {templates.length > 0 && (
-                    <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setComposeNew((p) => p && ({ ...p, body: p.body ? p.body + '\n' + t.body : t.body })) }}>
-                      <option value="">Template…</option>
-                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  )}
-                  <span className="db-spacer" />
-                  <button className="btn" onClick={() => setComposeNew(null)}>Discard</button>
-                  <button className="btn primary" disabled={!composeNew.to.trim() || !composeNew.body.trim()} onClick={() => { composeEmail(composeNew.to.trim(), composeNew.subject, composeNew.body); setComposeNew(null) }}>Send</button>
-                </div>
-              </div>
-            ) : thread ? (
-              <div className="ep-reader">
-                {thread.reminderDue && (
-                  <div className="ep-banner">⏰ Reminder due.<button className="cm-link" onClick={() => clearReminder(thread.id)}>Dismiss</button></div>
-                )}
-                {thread.status === 'Awaiting Customer' && thread.chaseDueAt != null && (() => {
-                  const c = chaseInfo(thread.chaseDueAt)
-                  return (
-                    <div className={'ep-banner ep-chasebanner ' + c.level}>
-                      ⏳ Awaiting customer — {c.label}.
-                      <button className="cm-link" onClick={() => simulateInbound(thread.id)}>Simulate customer reply</button>
-                    </div>
-                  )
-                })()}
-                <div className="ep-rhead">
-                  <div className="ep-rtitle">
-                    <button className="ep-back" title="Back to inbox" onClick={() => useEmailsStore.setState({ selectedId: null })}>
-                      <Icon name="chevron-up" size={16} />
-                    </button>
-                    <b>{thread.subject}</b>
-                    <span className="db-spacer" />
-                    <button className="btn sm iconbtn ep-closebody" title="Close email — back to the list" onClick={closeBody}>
-                      <Icon name="close" size={14} />
-                    </button>
-                  </div>
-                  <div className="ep-rmeta2">
-                    <StatusChip status={thread.status} />
-                    <span className={'cat-chip ' + CAT_CLASS[thread.category]}>{thread.category}</span>
-                  </div>
-                  <div className="ep-rtools">
-                    <select className="ep-assign" value={thread.assigneeId ?? ''} onChange={(e) => assignThread(thread.id, e.target.value || null)} title="Assigned to">
-                      <option value="">Unassigned</option>
-                      {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                    <span className="ep-tagedit">
-                      {thread.tags.map((x) => <span key={x} className="ep-tag">{x}<i onClick={() => removeTag(thread.id, x)}>×</i></span>)}
-                      <input placeholder="+tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && tagDraft.trim()) { addTag(thread.id, tagDraft.trim()); setTagDraft('') } }} />
-                    </span>
-                    <span className="db-spacer" />
-                    <span className="ep-menu-wrap">
-                      <button className="btn sm" onClick={() => setMacroOpen((o) => !o)} title="Run a macro">⚡ Macro</button>
-                      {macroOpen && (
-                        <>
-                          <div className="cc-pop-scrim" onClick={() => setMacroOpen(false)} />
-                          <span className="ep-menu ep-menu-right">
-                            <span className="ep-menu-sec">Run macro</span>
-                            {macros.map((m) => (
-                              <button key={m.id} onClick={() => { runMacro(m.id, thread.id); setMacroOpen(false) }}>{m.icon ?? '⚡'} {m.name}</button>
-                            ))}
-                            {!macros.length && <span className="ep-menu-sec">None — add some in Email Rules</span>}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                    <button className="btn sm" onClick={() => createJobFromEmail(thread)}><Icon name="plus" size={13} /> Job</button>
-                    <span className="ep-menu-wrap">
-                      <button className="btn sm" onClick={() => setMore((o) => !o)}>⋯</button>
-                      {more && (
-                        <>
-                          <div className="cc-pop-scrim" onClick={() => setMore(false)} />
-                          <span className="ep-menu ep-menu-right">
-                            <span className="ep-menu-sec">Snooze</span>
-                            {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'s' + label} onClick={() => { snooze(thread.id, ms, label); setMore(false) }}>💤 {label}</button>)}
-                            <span className="ep-menu-sec">Remind</span>
-                            {SNOOZE_OPTIONS.map(([label, ms]) => <button key={'r' + label} onClick={() => { remind(thread.id, ms, label); setMore(false) }}>⏰ {label}</button>)}
-                            <span className="ep-menu-sec">Conversation</span>
-                            <button onClick={() => { toggleFlag(thread.id, 'pinned'); setMore(false) }}>{thread.pinned ? 'Unpin' : 'Pin'}</button>
-                            <button onClick={() => { toggleFlag(thread.id, 'following'); setMore(false) }}>{thread.following ? 'Unfollow' : 'Follow'}</button>
-                            <button onClick={() => { toggleFlag(thread.id, 'muted'); setMore(false) }}>{thread.muted ? 'Unmute' : 'Mute'}</button>
-                            <button onClick={() => { markUnread(thread.id); setMore(false) }}>Mark unread</button>
-                            <span className="ep-menu-sec">Merge into…</span>
-                            {threads.filter((t) => t.id !== thread.id && !t.snoozedUntil).slice(0, 4).map((t) => (
-                              <button key={t.id} onClick={() => { mergeThreads(thread.id, t.id); setMore(false) }}>{t.subject.slice(0, 28)}</button>
-                            ))}
-                            <span className="ep-menu-sec">Remove</span>
-                            <button className="danger" onClick={() => { tryDelete(); setMore(false) }}>🗑 Delete (needs resolution)</button>
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <JobStrip thread={thread} onInsertEta={(t) => setDraft((d) => (d ? d + '\n' + t : t))} />
-
-                <div className="ep-msgs">
-                  {collapsed && (
-                    <button className="ep-collapse" onClick={() => setShowAllMsgs(true)}>Show {hiddenCount} earlier message{hiddenCount === 1 ? '' : 's'}</button>
-                  )}
-                  {shownMsgs.map((m) => (
-                    <div key={m.id} id={'ep-msg-' + m.id} className={'ep-msg' + (m.outbound ? ' out' : '') + (flashMsg === m.id ? ' flash' : '')}>
-                      <div className="ep-msg-head">
-                        <span className="ep-msg-ava">{initials(m.from.name)}</span>
-                        <span className="ep-msg-who">
-                          <span className="ep-msg-name">
-                            <span className="ep-namewrap">
-                              <button className="ep-name-btn" onClick={(e) => { e.stopPropagation(); setOpenContact(openContact === m.id ? null : m.id) }}>{m.from.name}</button>
-                              {openContact === m.id && <ContactPop name={m.from.name} email={m.from.email} onClose={() => setOpenContact(null)} onCompose={openCompose} />}
-                            </span>
-                            <span className="ep-msg-email">&lt;{m.from.email}&gt;</span>
-                            {m.outbound && <span className="ep-msg-tag">You</span>}
-                          </span>
-                          <span className="ep-msg-addr">To: {recipientsFor(m)}</span>
-                        </span>
-                        <span className="db-spacer" />
-                        <span className="ep-msg-time">{m.at}</span>
-                        {thread.msgs[0]?.id !== m.id && (
-                          <button className="ep-split" title="Split this and later messages into a new conversation" onClick={() => splitThread(thread.id, m.id)}>⎋</button>
-                        )}
-                      </div>
-                      <div className="ep-msg-body"><RefText text={m.body} /></div>
-                      {m.attachments?.map((a) => <span key={a.id} className="ep-att">📎 {a.name}</span>)}
-                    </div>
-                  ))}
-
-                  {/* live shared draft, inline in the thread (Front-style): see a colleague
-                      compose in real time and take it over to edit & send */}
-                  {thread.draftPresence && !compose && (
-                    <div className="ep-shared">
-                      <div className="ep-shared-h">
-                        <Icon name="users" size={12} /> <b>Shared draft</b>
-                        <span className="ep-shared-sub">· editable by teammates</span>
-                        <span className="db-spacer" />
-                        <span className="ep-shared-editing"><span className="ep-typing-dots"><i /><i /><i /></span>{thread.draftPresence.by} is editing</span>
-                        <button className="cm-link" onClick={() => { const d = thread.draftPresence!; startCompose('reply'); setDraft(d.body); clearDraftPresence(thread.id) }}>Take over</button>
-                      </div>
-                      <div className="ep-msg ep-shared-msg">
-                        <div className="ep-msg-head">
-                          <span className="ep-msg-ava">{initials(thread.draftPresence.by)}</span>
-                          <span className="ep-msg-who">
-                            <span className="ep-msg-name">{thread.draftPresence.by}<span className="ep-msg-tag">draft</span></span>
-                            <span className="ep-msg-addr">drafting now…</span>
-                          </span>
-                        </div>
-                        <div className="ep-msg-body">{thread.draftPresence.body}<span className="ep-draft-caret" /></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* all internal comments collected at the foot of the thread — click one
-                      to jump to the email it was left on */}
-                  {thread.comments.length > 0 && (
-                    <div className="ep-comments">
-                      {[...thread.comments]
-                        .sort((a, b) => atKey(a.at).localeCompare(atKey(b.at)))
-                        .map((c) => (
-                          <button key={c.id} className="ep-cnote" onClick={() => goToComment(c)} title="Click to jump to the email this was left on">
-                            <span className="ep-cnote-head"><b>{c.by}</b><span className="ep-cnote-time">{c.at}</span></span>
-                            <span className="ep-cnote-body">{c.text}</span>
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
-                {!compose ? (
-                  <div className="ep-actionbar">
-                    <button className="btn sm" onClick={() => startCompose('reply')}>↩ Reply</button>
-                    <button className="btn sm" onClick={() => startCompose('replyall')}>↩↩ Reply all</button>
-                    <button className="btn sm" onClick={() => startCompose('forward')}>↪ Forward</button>
-                    <span className="db-spacer" />
-                    {thread.status === 'Resolved'
-                      ? <button className="btn sm" title={`Resolved · ${thread.resolutionReason ?? ''}`} onClick={() => reopenThread(thread.id)}>Re-open</button>
-                      : <button className="btn primary sm" title="Resolve this email" onClick={tryResolve}><Icon name="check" size={13} /> Resolve</button>}
-                  </div>
-                ) : (
-                  <div className="ep-composer">
-                    <div className="ep-composer-h">
-                      <b>{compose.kind === 'reply' ? 'Reply' : compose.kind === 'replyall' ? 'Reply all' : 'Forward'}</b>
-                      <input className="ep-to" placeholder="To…" value={compose.to} onChange={(e) => setCompose({ ...compose, to: e.target.value })} />
-                      {templates.length > 0 && (
-                        <select className="ep-tpl-pick" value="" onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); if (t) setDraft((d) => (d ? d + '\n' + t.body : t.body)) }}>
-                          <option value="">Template…</option>
-                          {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                      )}
-                      <button className="btn sm iconbtn" title="Discard" onClick={() => { setCompose(null); setDraft(''); setExpect(false) }}><Icon name="close" size={14} /></button>
-                    </div>
-                    <div className="ep-composer-sub">{compose.subject}</div>
-                    <textarea
-                      ref={composeRef}
-                      placeholder="Write your message…"
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                    />
-                    <div className="ep-composer-f">
-                      {/* Expecting a response → chase deadline (defaults to minutes) */}
-                      <div className="ep-expect">
-                        <label className="ep-expect-tog">
-                          <input type="checkbox" checked={expecting} onChange={(e) => { setExpect(e.target.checked); if (e.target.checked) setExpectAt('') }} />
-                          Expecting a response
-                        </label>
-                        {expecting && (
-                          <span className="ep-expect-opts">
-                            <span className="ep-expect-lbl">chase in</span>
-                            {[10, 20, 30].map((n) => (
-                              <button key={n} className={'ep-view ep-expect-preset' + (!expectAt && expectAmount === n ? ' on' : '')} onClick={() => { setExpectAt(''); setExpectAmount(n) }}>{n}</button>
-                            ))}
-                            <input type="number" min={1} className="ep-expect-num" value={expectAmount} title="Custom amount" onChange={(e) => { setExpectAt(''); setExpectAmount(Math.max(1, Math.round(+e.target.value) || 1)) }} />
-                            <button className="ep-unit-toggle" title="Switch minutes / hours" onClick={() => setExpectUnit((u) => (u === 'min' ? 'hr' : 'min'))}>{expectUnit}</button>
-                            <span className="ep-expect-or">or</span>
-                            <label className={'ep-setdt' + (expectAt ? ' on' : '')} title="Set an exact date & time">
-                              <Icon name="calendar" size={13} />
-                              {expectAt ? <span>{new Date(expectAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span> : <span>date/time</span>}
-                              <input type="datetime-local" value={expectAt} onChange={(e) => setExpectAt(e.target.value)}
-                                onClick={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; try { el.showPicker?.() } catch { /* unsupported */ } }} />
-                            </label>
-                          </span>
-                        )}
-                      </div>
-                      <span className="db-spacer" />
-                      <button className="btn sm" disabled={!draft.trim()} onClick={() => send('keep')} title="Send and keep it in your queue">Send &amp; Keep</button>
-                      <button className="btn primary sm" disabled={!draft.trim()} onClick={() => send('resolve')} title={expecting ? 'Send — will wait on the customer' : 'Send and resolve'}>{expecting ? 'Send & Await' : 'Send & Resolve'}</button>
-                    </div>
-                  </div>
-                )}
-
-                {/* always-on internal-comment composer — type + Enter, like a chat */}
-                <div className="ep-cbar">
-                  <input
-                    className="ep-cbar-input"
-                    placeholder="Add internal comment — visible to teammates…"
-                    value={commentDraft}
-                    onChange={(e) => setCommentDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && commentDraft.trim()) { e.preventDefault(); addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }}
-                  />
-                  <button className="ep-cbar-send" disabled={!commentDraft.trim()} title="Add comment (Enter)" onClick={() => { if (commentDraft.trim()) { addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }}>
-                    <Icon name="check" size={15} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="ep-empty">Select an email.</div>
-            )}
+          {/* always-on internal-comment quick bar */}
+          <div className="nx-cbar">
+            <input
+              className="nx-cbar-input"
+              placeholder="Add internal comment — visible to teammates…"
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && commentDraft.trim()) { e.preventDefault(); addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }}
+            />
+            <button className="nx-cbar-send" disabled={!commentDraft.trim()} title="Add comment (Enter)" onClick={() => { if (commentDraft.trim()) { addComment(thread.id, commentDraft.trim()); setCommentDraft('') } }}>
+              <Icon name="check" size={15} />
+            </button>
           </div>
-          )}
         </div>
+      ) : (
+        <div className="nx-empty">Select an email.</div>
+      )}
+    </div>
+  )
+
+  return (
+    <aside className="email-panel" ref={panelRef}>
+      <div className={'ep-body' + (panelState === 'full' ? ' has-thread' : '')}>
+        {panelState === 'full' ? readerCol : listCol}
+      </div>
     </aside>
   )
 }
 
+/** Contact popover — shows the address and, if it maps to a saved contact, their details. */
+function ContactPop({ name, email, onClose, onCompose }: {
+  name: string; email: string; onClose: () => void; onCompose: (to: string) => void
+}) {
+  const customers = useCustomersStore((s) => s.customers)
+  const e = email.toLowerCase()
+  let contact: { name: string; email: string; phone?: string } | null = null
+  let company = ''
+  for (const c of customers) {
+    const ct = c.contacts.find((x) => x.email.toLowerCase() === e)
+    if (ct) { contact = ct; company = c.displayName || c.companyName; break }
+  }
+  const copy = (v: string) => { try { void navigator.clipboard?.writeText(v) } catch { /* ignore */ } }
+  return (
+    <>
+      <div className="nx-cpop-scrim" onClick={onClose} />
+      <div className="nx-cpop" onClick={(ev) => ev.stopPropagation()}>
+        <div className="nx-cpop-h">{contact?.name ?? name}{company && <span className="sub">{company}</span>}</div>
+        <button className="nx-cpop-row" onClick={() => { onCompose(email); onClose() }} title="New email to this address">
+          <Icon name="mail" size={14} /> <span>{email}</span>
+          <i className="copy" onClick={(ev) => { ev.stopPropagation(); copy(email) }} title="Copy">⧉</i>
+        </button>
+        {contact?.phone && (
+          <a className="nx-cpop-row" href={`tel:${contact.phone}`} title="Call">
+            <Icon name="phone" size={14} /> <span>{contact.phone}</span>
+            <i className="copy" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); copy(contact!.phone!) }} title="Copy">⧉</i>
+          </a>
+        )}
+        {company && (
+          <button className="nx-cpop-row" onClick={() => copy(company)} title="Copy">
+            <Icon name="building" size={14} /> <span>{company}</span>
+          </button>
+        )}
+        {!contact && <div className="nx-cpop-note">Not a saved contact — address only. Click the email to write to them.</div>}
+      </div>
+    </>
+  )
+}
+
+/** Email body text with job / customer refs highlighted as clickable chips. */
+function RefText({ text }: { text: string }) {
+  const jobs = useJobsStore((s) => s.jobs)
+  const map = new Map<string, SavedJob>()
+  jobs.forEach((j) => {
+    map.set(j.ref.toUpperCase(), j)
+    if (j.custRef) map.set(j.custRef.toUpperCase(), j)
+  })
+  if (!map.size) return <>{text}</>
+  const re = new RegExp(`(${[...map.keys()].map(escapeRe).join('|')})`, 'gi')
+  return (
+    <>
+      {text.split(re).map((part, i) => {
+        const job = map.get(part.toUpperCase())
+        return job ? (
+          <button key={i} className="nx-js-ref" title={`Open ${job.ref}`} onClick={() => openJob(job)}>{part}</button>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      })}
+    </>
+  )
+}
+
+function openJob(job: SavedJob) {
+  useBookingStore.getState().loadSnapshot(job.snapshot)
+  useViewStore.getState().openWizard(job.id)
+}
+
+/** Port of the old create-job-from-email flow: prefill a booking from the thread. */
+function createJobFromEmail(thread: EmailThread) {
+  const inbound = thread.msgs.filter((m) => !m.outbound)
+  const sender = (inbound[0]?.from.email ?? '').toLowerCase()
+  const text = `${thread.subject} ${inbound.map((m) => m.body).join(' ')}`
+
+  const customers = useCustomersStore.getState().customers
+  const cust = customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender))
+  const contact = cust?.contacts.find((ct) => ct.email.toLowerCase() === sender)
+
+  const vehicles = useTariffsStore.getState().tariffs.map((t) => t.name)
+  const vehicle = vehicles.find((v) => new RegExp(`\\b${escapeRe(v)}\\b`, 'i').test(text)) ?? ''
+  const pcs = (text.match(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}\b/gi) ?? []).map((p) => p.toUpperCase())
+
+  const b = useBookingStore.getState()
+  b.newBooking()
+  if (cust) b.setBook({ cust: cust.id, contact: contact ? { name: contact.name, email: contact.email, tel: contact.phone } : null })
+  if (vehicle) b.setTariff(vehicle)
+  const stops = useBookingStore.getState().stops
+  if (pcs[0] && stops[0]) b.updateStop(stops[0].id, { addr: { ...stops[0].addr, pc: pcs[0] } })
+  if (pcs[1] && stops[1]) b.updateStop(stops[1].id, { addr: { ...stops[1].addr, pc: pcs[1] } })
+  if (cust?.notes) b.setJobNotes(`Account note: ${cust.notes}`)
+  useEmailsStore.getState().setPendingJobThread(thread.id)
+  useViewStore.getState().openWizard(null)
+}
+
+/** One-line job strip (linked or detected job) that expands into the full card. */
+function JobStrip({ thread, onInsertEta }: { thread: EmailThread; onInsertEta: (text: string) => void }) {
+  const jobs = useJobsStore((s) => s.jobs)
+  const setProgress = useJobsStore((s) => s.setProgress)
+  const appendJobNote = useJobsStore((s) => s.appendJobNote)
+  const linkJob = useEmailsStore((s) => s.linkJob)
+  const addComment = useEmailsStore((s) => s.addComment)
+  const customers = useCustomersStore((s) => s.customers)
+  const [open, setOpen] = useState(false)
+  const [noteDraft, setNoteDraft] = useState('')
+
+  const text = threadText(thread).toUpperCase()
+  const detected = jobs.find((j) => j.ref.toUpperCase() === thread.linkedJobRef?.toUpperCase())
+    ?? jobs.find((j) => text.includes(j.ref.toUpperCase()) || (j.custRef && text.includes(j.custRef.toUpperCase())))
+  const persisted = !!thread.linkedJobRef && detected?.ref.toUpperCase() === thread.linkedJobRef.toUpperCase()
+
+  const sender = (thread.msgs.find((m) => !m.outbound)?.from.email ?? '').toLowerCase()
+  const account = customers.find((c) => c.contacts.some((ct) => ct.email.toLowerCase() === sender))
+  const accountJobs = account ? jobs.filter((j) => j.snapshot.book.cust === account.id).length : 0
+
+  const STATUSES = ['Unallocated', 'Posted', 'Pending', 'Allocated', 'En route COL', 'On site COL', 'Collected', 'Part COL', 'En route DEL', 'On site DEL', 'Delivered', 'Part DEL', 'Failed']
+
+  if (!detected && !account) return null
+  return (
+    <div className="nx-jobwrap">
+      <div className="nx-jobstrip">
+        {account && <span className="nx-js-acct"><Icon name="building" size={13} /> {account.displayName || account.companyName} <i>· {accountJobs} job{accountJobs === 1 ? '' : 's'}</i></span>}
+        {detected && (
+          <>
+            <button className="nx-js-ref" onClick={() => openJob(detected)}>{detected.ref}</button>
+            {detected.progress && <span className="nx-chip nx-c-live">{detected.progress}</span>}
+            <span className="nx-js-eta">ETA {detected.collectEta || '—'} / {detected.deliverEta || '—'}</span>
+          </>
+        )}
+        {detected && (
+          <button className="nx-js-toggle" onClick={() => setOpen((o) => !o)} title="Job details & actions">{open ? '▴' : '▾'}</button>
+        )}
+      </div>
+      {open && detected && (
+        <div className="nx-job">
+          <div className="nx-job-h">
+            <span>{detected.route} · {detected.vehicle || '—'} · {detected.supplierName || 'Unassigned'}</span>
+            <span className="nx-sp" />
+            {persisted
+              ? <button className="nx-job-link" onClick={() => linkJob(thread.id, null)}>Linked ✓</button>
+              : <button className="nx-job-link" onClick={() => linkJob(thread.id, detected.ref)}>Link</button>}
+          </div>
+          <div className="nx-job-grid">
+            <span>Coll booked</span><b>{detected.collectAt || '—'}</b>
+            <span>Del booked</span><b>{detected.deliverAt || '—'}</b>
+          </div>
+          <div className="nx-job-actions">
+            <select value={detected.progress || ''} onChange={(e) => setProgress(detected.id, e.target.value)} title="Update job status">
+              <option value="">Status…</option>
+              {STATUSES.map((st) => <option key={st}>{st}</option>)}
+            </select>
+            <button className="nx-gbtn" onClick={() => onInsertEta(`Hi,\n\nUpdate on ${detected.ref}: collection ETA ${detected.collectEta || 'TBC'}, delivery ETA ${detected.deliverEta || 'TBC'}.\n\nThanks,\nCal Delivery`)}>
+              Insert ETA reply
+            </button>
+            <span className="nx-job-note">
+              <input placeholder="Add job note + Enter…" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && noteDraft.trim()) { appendJobNote(detected.id, noteDraft.trim()); addComment(thread.id, `Note added to ${detected.ref}: ${noteDraft.trim()}`); setNoteDraft('') } }} />
+            </span>
+          </div>
+          {thread.msgs.some((m) => m.attachments?.length) && (
+            <div className="nx-job-files">
+              {thread.msgs.flatMap((m) => m.attachments ?? []).map((a) => (
+                <span key={a.id} className="nx-job-att">
+                  📎 {a.name}
+                  <button className="nx-gbtn" onClick={() => { appendJobNote(detected.id, `Attachment filed from email: ${a.name}`); addComment(thread.id, `📎 ${a.name} filed to ${detected.ref}`) }}>
+                    File to {detected.ref}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Thin strip shown on the right edge when the email section is fully closed —
- * click to reopen it (always available, on every screen). */
+ * click to reopen it. */
 export function EmailReopenTab() {
   const setPanelState = useEmailsStore((s) => s.setPanelState)
   const unread = useEmailsStore((s) => s.threads.filter((t) => !t.read && !t.snoozedUntil && !t.muted).length)
