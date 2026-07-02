@@ -201,16 +201,33 @@ export function ListScreen() {
   // (team-level → their team; department-level → their department; otherwise all).
   const scope = useMemo(() => userScope(currentUserId, departments, teams), [currentUserId, departments, teams])
 
-  // Tab counts reflect all jobs per status; team/dept scoping is now a chip filter (below).
+  // Applied filter values — ephemeral (like colFilters), reset on reload. Seeded with the
+  // user's default team/dept scope so the list opens scoped to their team.
+  const [chipFilters, setChipFilters] = useState<Partial<Record<FilterId, string[]>>>({})
+  const scopeKey = scope.level === 'team' ? `team:${scope.teamId}` : scope.level === 'department' ? `dep:${scope.departmentId}` : ''
+  useEffect(() => {
+    setChipFilters(scopeKey ? { team: [scopeKey] } : {})
+  }, [scopeKey])
+  // Jobs within the active Team/dept chip — drives the tab counts so they match the visible
+  // rows when a team is selected (defaults to the signed-in user's team).
+  const teamScoped = useMemo(() => {
+    const sel = chipFilters['team'] ?? []
+    if (!sel.length) return jobs
+    return jobs.filter((j) => {
+      const c = custById[j.snapshot.book.cust ?? '']
+      const keys = c ? [c.departmentId && `dep:${c.departmentId}`, c.teamId && `team:${c.teamId}`].filter(Boolean) : []
+      return keys.some((k) => sel.includes(k as string))
+    })
+  }, [jobs, chipFilters, custById])
   const counts = useMemo(() => {
     const c: Record<ListTab, number> = { bookings: 0, quotes: 0, drafts: 0 }
-    jobs.forEach((j) => {
+    teamScoped.forEach((j) => {
       ;(Object.keys(TAB_STATUSES) as ListTab[]).forEach((t) => {
         if (TAB_STATUSES[t].includes(j.status)) c[t]++
       })
     })
     return c
-  }, [jobs])
+  }, [teamScoped])
 
   // Search looks inside the job, not just the visible table: ref, names, route,
   // vehicle, supplier, status, custom ref, every stop's address/ref/contact, and notes.
@@ -323,13 +340,6 @@ export function ListScreen() {
   const addView = useFilterStore((s) => s.addView)
   const deleteView = useFilterStore((s) => s.deleteView)
 
-  // Applied filter values — ephemeral (like colFilters), reset on reload. Seeded with the
-  // user's default team/dept scope so the list opens scoped to their team.
-  const [chipFilters, setChipFilters] = useState<Partial<Record<FilterId, string[]>>>({})
-  const scopeKey = scope.level === 'team' ? `team:${scope.teamId}` : scope.level === 'department' ? `dep:${scope.departmentId}` : ''
-  useEffect(() => {
-    setChipFilters(scopeKey ? { team: [scopeKey] } : {})
-  }, [scopeKey])
   // Chip value/more/gear/views popovers (single at a time), positioned like headerMenu.
   const [fpop, setFpop] = useState<{ kind: 'value' | 'more' | 'gear' | 'views'; filterId?: FilterId; x: number; y: number } | null>(null)
   const openFpop = (e: React.MouseEvent, kind: 'value' | 'more' | 'gear' | 'views', filterId?: FilterId) => {
