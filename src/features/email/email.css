@@ -377,26 +377,85 @@
 .nx-gap { position: relative; height: 26px; }
 .nx-gap::before { content: ""; position: absolute; left: 13px; top: -8px; bottom: -8px; width: 1.5px; background: var(--nx-hair); }
 
-/* ── ONE conversation container ──────────────────────────────────────────────
-   A single grey card holds the whole thread. Previous mail reads grey (transparent
-   on the grey), and the email you're actually viewing — the newest, or any you click
-   to expand — pops to its own white card. No inner scroll: it flows in the outer
-   column and, when short, hugs the bottom so the newest sits low with the reply. */
-.nx-rscroll { display: flex; flex-direction: column; }
-.nx-rscroll .nx-threadbar { margin-top: auto; } /* thread hugs the bottom when it doesn't fill the height */
-.nx-convo { background: var(--nx-grouped); border: 1px solid var(--nx-hair); border-radius: 14px; padding: 4px 10px; }
-/* collapsed = previous mail: quiet grey summary rows, steady (no scroll-fade) */
-.nx-convo .nx-msg { padding: 7px 4px; }
-.nx-convo .nx-msg.older { opacity: 1; filter: none; }
-.nx-convo .nx-mnode::before { display: none; } /* cards read as separate blocks, no timeline rule */
-/* expanded = the email you're viewing: a white card that stands out from the grey */
-.nx-convo .nx-msg:not(.collapsed):not(.nx-event) { background: #fff; border: 1px solid var(--nx-hair-2); border-radius: 11px; padding: 9px 11px; margin: 5px 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
-.nx-convo .nx-msg.collapsed { cursor: pointer; border-radius: 8px; }
-.nx-convo .nx-msg.collapsed:hover { background: rgba(0, 0, 0, .03); }
-.nx-convo .nx-comments { margin: 4px 0; }
+/* ── A3 thread ───────────────────────────────────────────────────────────────
+   Previous emails read as chat bubbles (yours blue / theirs grey), job statuses and
+   internal notes sit on plain white, runs of statuses collapse to "N milestones", and
+   the latest email is a full white block with the reply controls in its top-right. */
+.nx-thread { display: block; }
+.nx-respondgap { min-height: 60px; }
 
-/* reply arrows sit under the newest email, aligned with its body, until one is clicked */
-.nx-replybar { display: flex; gap: 4px; padding-left: 37px; margin: 2px 0 4px; }
+/* bubbles — full width, meta inside the top, two-tone */
+.nx-bmsg { margin: 10px 0; cursor: pointer; }
+.nx-bmsg.open { cursor: default; }
+.nx-bub { border-radius: 14px; padding: 10px 13px; font-size: 13px; line-height: 1.5; color: var(--nx-ink); }
+.nx-bmsg.them .nx-bub { background: var(--nx-grouped); }
+.nx-bmsg.me .nx-bub { background: var(--nx-blue-soft, #e8f1fd); }
+.nx-bmsg.flash .nx-bub { box-shadow: 0 0 0 2px var(--nx-blue); }
+.nx-binhead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.nx-binhead .nx-avatar { width: 20px; height: 20px; font-size: 8px; }
+.nx-bn { font-size: 12px; font-weight: 600; color: var(--nx-ink); background: none; border: none; padding: 0; cursor: pointer; }
+.nx-bt { font-size: 11px; color: var(--nx-ink-3); margin-left: auto; }
+.nx-bsnip { color: var(--nx-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nx-bfull { white-space: pre-wrap; }
+
+/* job status / audit event — plain white, no divider lines, separated by space */
+.nx-evt { display: flex; align-items: center; gap: 10px; padding: 5px 4px; margin: 9px 2px; font-size: 11.5px; color: var(--nx-ink-2); }
+.nx-evt-ic { width: 21px; height: 21px; border-radius: 50%; background: var(--nx-green-tint); color: var(--nx-green); display: grid; place-items: center; flex: none; }
+.nx-evt-tx { min-width: 0; } .nx-evt-tx b { color: var(--nx-ink); font-weight: 600; }
+.nx-evt-t { margin-left: auto; color: var(--nx-ink-3); white-space: nowrap; }
+.nx-evt.flash { box-shadow: 0 0 0 2px var(--nx-blue); border-radius: 6px; }
+
+/* collapsed run of statuses — a subtle centred "N milestones" divider (option 2) */
+.nx-mgroup { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 10px 4px; font-size: 11px; color: var(--nx-ink-2); cursor: pointer; }
+.nx-mgroup::before, .nx-mgroup::after { content: ""; flex: 1; height: 1px; background: var(--nx-hair); }
+.nx-mgroup .nx-mgic { width: 18px; height: 18px; border-radius: 50%; background: var(--nx-green-tint); color: var(--nx-green); display: grid; place-items: center; flex: none; }
+.nx-mgroup b { color: var(--nx-ink); font-weight: 600; }
+.nx-mgroup .nx-mgchev { display: grid; place-items: center; color: var(--nx-ink-3); }
+.nx-mgroup .nx-mgchev svg { transition: transform .18s; }
+.nx-mgroup.open .nx-mgchev svg { transform: rotate(180deg); }
+.nx-mgitems { margin: 2px 0; }
+
+/* latest email — full white, reply / reply-all / forward top-right */
+.nx-latest { margin: 12px 2px 2px; }
+.nx-latest.flash { box-shadow: 0 0 0 2px var(--nx-blue); border-radius: 8px; }
+.nx-lhead { display: flex; align-items: center; gap: 9px; }
+.nx-lhead .nx-avatar { width: 30px; height: 30px; font-size: 10px; }
+.nx-lhead .nx-bn { font-size: 14px; }
+.nx-lto { font-size: 11.5px; color: var(--nx-ink-3); }
+.nx-ltools { margin-left: auto; display: inline-flex; gap: 2px; }
+.nx-rbtn { width: 31px; height: 29px; border-radius: 7px; border: none; background: none; color: var(--nx-ink-2); display: grid; place-items: center; cursor: pointer; }
+.nx-rbtn:hover { background: var(--nx-fill); color: var(--nx-ink); }
+.nx-rbtn.on { background: var(--nx-blue-soft, #e8f1fd); color: var(--nx-blue); }
+.nx-lbody { font-size: 14px; line-height: 1.55; margin: 8px 0 0 39px; color: var(--nx-ink); white-space: pre-wrap; }
+
+/* internal comments — plain white note rows, amber accent */
+.nx-notes { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.nx-note { display: flex; align-items: center; gap: 9px; text-align: left; border: none; background: #fff; box-shadow: inset 2px 0 0 var(--nx-int-line); border-radius: 2px; padding: 6px 4px 6px 10px; cursor: pointer; font: inherit; font-size: 12px; color: var(--nx-amber); }
+.nx-note:hover { background: var(--nx-fill); }
+.nx-note-ic { width: 20px; height: 20px; border-radius: 50%; background: var(--nx-amber-tint, rgba(154,103,0,.10)); color: var(--nx-amber); display: grid; place-items: center; flex: none; }
+.nx-note-tx { min-width: 0; } .nx-note-tx b { color: var(--nx-amber); }
+.nx-note-t { margin-left: auto; color: var(--nx-ink-3); white-space: nowrap; }
+
+/* a colleague drafting a reply — live in the blue bubble */
+.nx-draftbub .nx-bub { border: 1px dashed rgba(0, 113, 227, .45); }
+.nx-draftlbl { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--nx-blue); display: inline-flex; align-items: center; gap: 5px; }
+.nx-lpulse { width: 6px; height: 6px; border-radius: 50%; background: var(--nx-blue); animation: nx-pl 1.1s infinite; }
+@keyframes nx-pl { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
+.nx-takeover { font-size: 11px; font-weight: 600; color: #fff; background: var(--nx-blue); border: none; border-radius: 8px; padding: 4px 10px; margin-left: 8px; cursor: pointer; }
+.nx-caret { display: inline-block; width: 2px; height: 1.05em; background: var(--nx-blue); vertical-align: -2px; margin-left: 1px; animation: nx-bk 1s step-end infinite; }
+@keyframes nx-bk { 50% { opacity: 0; } }
+
+/* send-bar toggle switch (replaces the raw checkbox) */
+.nx-expect-tog { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--nx-ink-2); background: none; border: none; cursor: pointer; padding: 0; }
+.nx-switch { position: relative; width: 34px; height: 20px; border-radius: 20px; background: var(--nx-fill-2); transition: .18s; flex: none; }
+.nx-switch.on { background: var(--nx-blue); }
+.nx-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: .18s; }
+.nx-switch.on::after { transform: translateX(14px); }
+/* "You" label reads blue on our own mail (not the amber internal tint) */
+.nx-binhead .nx-ilab, .nx-lhead .nx-ilab { background: var(--nx-blue-tint); color: var(--nx-blue); }
+/* template picker blends into the grey send bar instead of a mismatched white cell */
+.nx-sendbar .nx-tpl-pick { background: none; border: none; color: var(--nx-ink-2); font-weight: 600; padding: 0 4px; height: 29px; cursor: pointer; }
+.nx-sendbar .nx-tpl-pick:hover { color: var(--nx-ink); }
 .nx-atts { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
 .nx-att { display: flex; align-items: center; gap: 8px; border: 1px solid var(--nx-hair); border-radius: 9px; padding: 6px 10px 6px 7px; background: #fff; font-size: 11px; }
 .nx-att .ico2 { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: #fff; font-size: 8px; font-weight: 700; background: #d0353a; }
