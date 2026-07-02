@@ -26,9 +26,10 @@
 .hm-pedit{border:none; background:var(--fill); color:var(--ink2); width:30px; height:30px; border-radius:8px; cursor:pointer; display:grid; place-items:center;} .hm-pedit:hover{background:var(--fill2);} .hm-pedit svg{width:16px;height:16px;}
 .hm-hint{font-size:12px; color:var(--ink3); margin-left:auto;}
 
-.hm-canvas{flex:1; min-height:0; position:relative; display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); grid-template-rows:repeat(6,minmax(0,1fr)); gap:14px;}
-.hm-cell{border-radius:16px; background:rgba(120,125,140,.05); border:1.5px dashed transparent; cursor:context-menu;}
-.hm-cell:hover{background:rgba(0,113,227,.06); border-color:rgba(0,113,227,.28);}
+/* fine grid — column/row counts come from inline style (HOME_COLS×HOME_ROWS). */
+.hm-canvas{flex:1; min-height:0; position:relative; display:grid; gap:6px;}
+.hm-cell{border-radius:7px; background:rgba(120,125,140,.045); border:1px dashed transparent; cursor:context-menu;}
+.hm-cell:hover{background:rgba(0,113,227,.08); border-color:rgba(0,113,227,.3);}
 .hm-w{position:relative; background:var(--panel); border:1px solid var(--line); border-radius:22px; box-shadow:0 6px 22px rgba(0,0,0,.09); overflow:hidden; display:flex; flex-direction:column; z-index:2; cursor:pointer;}
 .hm-w:hover{box-shadow:0 8px 28px rgba(0,0,0,.14);}
 .hm-wx{position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.5); color:#fff; cursor:pointer; display:none; place-items:center; z-index:5;} .hm-wx svg{width:12px;height:12px;} .hm-w:hover .hm-wx{display:grid;}
@@ -108,6 +109,15 @@
 .whome-embed .list-app.list-fixed{ padding:0 !important; }
 .whome-embed .list-work, .whome-embed .bkf-main{ height:100% !important; max-width:none !important; margin:0 !important; }
 .whome-embed .email-panel{ height:100% !important; width:100% !important; min-width:0 !important; border:none !important; border-radius:0 !important; margin:0 !important; box-shadow:none !important; flex:1 1 auto !important; }
+/* email inbox list is fixed-width in the app (leaves a white gap in a wider widget); make it
+   fill the widget so there's no dead space, exactly like the app's "email-solo" mode. The
+   reader column already fills (flex:1), so both list and thread views use the full width. */
+.whome-embed .email-panel .ep-body{ flex-direction:row !important; height:100% !important; }
+.whome-embed .email-panel .ep-listcol{ width:100% !important; min-width:0 !important; flex:1 1 auto !important; border-right:none !important; max-height:none !important; }
+.whome-embed .email-panel .ep-list{ flex:1 1 auto !important; max-height:none !important; }
+/* the create-booking wizard is a fixed 372px column by design — keep that max-width, but let
+   its min-width relax so a ~372px-wide widget shows it snugly with no horizontal scroll. */
+.whome-embed .work{ min-width:0 !important; }
 .whome-embed .app{ height:100% !important; padding:0 !important; margin:0 !important; border-radius:0 !important; }
 .whome-embed .app.fb-livewrap{ padding:0 !important; }
 /* the job card / bkf toolbar already carry their own border+radius — the widget frame is

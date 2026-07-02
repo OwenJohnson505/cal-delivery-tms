@@ -7,8 +7,11 @@
  */
 import { create } from 'zustand'
 
-export const HOME_COLS = 8
-export const HOME_ROWS = 6
+// Fine grid: many small cells so a widget's footprint can land close to its design's real
+// pixel width (~67px per col / ~58px per row on a full screen) instead of snapping to a coarse
+// block. We may never place a 1×1 — the point is the granularity to be precise.
+export const HOME_COLS = 24
+export const HOME_ROWS = 12
 
 export interface HWidget { id: string; type: string; col: number; row: number; w: number; h: number }
 export interface HPage { id: string; name: string; icon: string; tools: string[]; widgets: HWidget[] }
@@ -35,14 +38,16 @@ interface PagesState {
 
 export const usePagesStore = create<PagesState>((set) => ({
   pages: [
+    // widths sized to each design's real footprint on the 24-col grid: email inbox ~520px (8),
+    // bookings/customers tables ~50% (12/11), create-booking the 372px thin column (5). All full height.
     { id: 'p1', name: 'Operations', icon: 'truck', tools: ['assign', 'track', 'newjob'], widgets: [
-      mk('email', 0, 0, 3, 6), mk('bookings', 3, 0, 5, 6), // email column + bookings column, side by side
+      mk('email', 0, 0, 8, 12), mk('bookings', 8, 0, 9, 12), // email column + bookings column, side by side
     ] },
     { id: 'p2', name: 'Accounts', icon: 'briefcase', tools: ['invoice', 'statement', 'credit'], widgets: [
-      mk('customers', 0, 0, 5, 6), mk('createbooking', 5, 0, 3, 6),
+      mk('customers', 0, 0, 10, 12), mk('createbooking', 10, 0, 5, 12),
     ] },
     { id: 'p3', name: 'Planning', icon: 'calendar', tools: ['route', 'capacity', 'newquote'], widgets: [
-      mk('bookings', 0, 0, 5, 6), mk('createbooking', 5, 0, 3, 6),
+      mk('bookings', 0, 0, 9, 12), mk('createbooking', 9, 0, 5, 12),
     ] },
   ],
   active: 0,

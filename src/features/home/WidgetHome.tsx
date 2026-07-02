@@ -57,11 +57,11 @@ const PAGE_ICONS = ['truck', 'mail', 'users', 'chart', 'calendar', 'map', 'build
 // no invented sizes. (Bookings' compact/expanded is the table's own toggle, not a size.)
 type Cat = { nm: string; icon: string; color: string; desc: string; w: number; h: number; render: () => ReactNode }
 const CAT: Record<string, Cat> = {
-  // sizes match how each design was actually built — tall columns, not wide blocks.
-  email: { nm: 'Email', icon: 'mail', color: '#5856d6', desc: 'Inbox, threads & replies', w: 3, h: 6, render: () => <EmailPanel /> },
-  bookings: { nm: 'Booking page', icon: 'grid', color: '#0071e3', desc: 'Bookings / quotes / drafts', w: 5, h: 6, render: () => <ListScreen /> },
-  customers: { nm: 'Customer screen', icon: 'users', color: '#0a8f6c', desc: 'Accounts & contacts', w: 5, h: 6, render: () => <CustomersScreen /> },
-  createbooking: { nm: 'Create booking', icon: 'plus', color: '#ff9500', desc: 'The booking wizard', w: 3, h: 6, render: () => <BookingWizard /> },
+  // sizes on the 24×12 fine grid, tuned to each design's real footprint (see pagesStore seed).
+  email: { nm: 'Email', icon: 'mail', color: '#5856d6', desc: 'Inbox, threads & replies', w: 8, h: 12, render: () => <EmailPanel /> },
+  bookings: { nm: 'Booking page', icon: 'grid', color: '#0071e3', desc: 'Bookings / quotes / drafts', w: 9, h: 12, render: () => <ListScreen /> },
+  customers: { nm: 'Customer screen', icon: 'users', color: '#0a8f6c', desc: 'Accounts & contacts', w: 10, h: 12, render: () => <CustomersScreen /> },
+  createbooking: { nm: 'Create booking', icon: 'plus', color: '#ff9500', desc: 'The booking wizard', w: 5, h: 12, render: () => <BookingWizard /> },
 }
 const TYPE_KEYS = Object.keys(CAT)
 
@@ -107,6 +107,7 @@ export function WidgetHome() {
           </div>
 
           <div className="hm-canvas"
+            style={{ gridTemplateColumns: `repeat(${HOME_COLS},minmax(0,1fr))`, gridTemplateRows: `repeat(${HOME_ROWS},minmax(0,1fr))` }}
             onContextMenu={(e) => { const cell = (e.target as HTMLElement).closest('.hm-cell') as HTMLElement | null; if (cell) { e.preventDefault(); setGal({ r: +cell.dataset.r!, c: +cell.dataset.c! }) } }}
             onDoubleClick={(e) => { const cell = (e.target as HTMLElement).closest('.hm-cell') as HTMLElement | null; if (cell) setGal({ r: +cell.dataset.r!, c: +cell.dataset.c! }) }}>
             {Array.from({ length: HOME_ROWS * HOME_COLS }).map((_, i) => { const r = Math.floor(i / HOME_COLS), c = i % HOME_COLS
@@ -154,7 +155,8 @@ function Gallery({ anchor, galType, setGalType, widgets, onClose, onAdd }: {
   const cells = HOME_COLS * HOME_ROWS
   const free = cells - widgets.reduce((a, w) => a + Math.min(w.w, HOME_COLS - w.col) * Math.min(w.h, HOME_ROWS - w.row), 0)
   const ok = fits(widgets, anchor.c, anchor.r, cat.w, cat.h)
-  const W = cat.w * 88 + (cat.w - 1) * 8, H = cat.h * 88 + (cat.h - 1) * 8
+  // preview scaled to the fine grid so a 12-wide widget doesn't render a 1000px block
+  const W = cat.w * 26 + (cat.w - 1) * 4, H = cat.h * 22 + (cat.h - 1) * 4
   return (
     <div className="hm-gal">
       <div className="hm-galtop"><h2>Add a widget</h2>
