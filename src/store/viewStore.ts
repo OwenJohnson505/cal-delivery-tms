@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand'
 
-export type Screen = 'list' | 'wizard' | 'customers' | 'users' | 'teams' | 'tariffs' | 'addresses' | 'forms' | 'emailrules' | 'email' | 'priority'
+export type Screen = 'home' | 'list' | 'wizard' | 'customers' | 'users' | 'teams' | 'tariffs' | 'addresses' | 'forms' | 'emailrules' | 'email' | 'priority'
 export type ListTab = 'bookings' | 'quotes' | 'drafts'
 
 interface ViewState {
@@ -24,7 +24,7 @@ interface ViewState {
 }
 
 export const useViewStore = create<ViewState>((set) => ({
-  screen: 'list',
+  screen: 'home',
   listTab: 'bookings',
   editingJobId: null,
   pinnedJobId: null,

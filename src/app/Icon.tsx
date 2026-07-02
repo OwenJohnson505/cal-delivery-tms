@@ -67,6 +67,7 @@ const ICONS: Record<string, string> = {
   'reply-all': '<polyline points="8 17 3 12 8 7"/><polyline points="13 17 8 12 13 7"/><path d="M22 18v-2a4 4 0 0 0-4-4H8"/>',
   // forward = straight arrow, like a standard mail client
   forward: '<path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>',
+  home: '<path d="M4 11 12 4l8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/>',
 }
 
 export type IconName = keyof typeof ICONS | string

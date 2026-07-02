@@ -53,8 +53,9 @@ export function LeftRail() {
     else { go('email'); setPanelState('full') }                        // both/elsewhere → emails-only
   }
 
-  // Primary nav: the three everyday destinations, always visible.
+  // Primary nav: Home (the widget pages), then the everyday destinations.
   const primary: NavItem[] = [
+    { icon: 'home', label: 'Home', onClick: () => go('home') },
     { icon: 'calendar', label: 'Bookings', onClick: showBookings, active: bookingsShown },
     { icon: 'mail', label: 'Emails', onClick: showEmails, active: emailShown },
     { icon: 'user', label: 'Customers', onClick: () => goToCustomers(), active: screen === 'customers' },
