@@ -1373,6 +1373,11 @@ body {
 .list-fixed .bkf-main.bkf-hug .jobs-table:not(.compact) { width: max-content; max-width: none; }
 /* keep the Add label as an icon only in compact, so the tight card stays close to the table */
 .bkf-main.bkf-compact .bkf-add .bkf-lb { display: none; }
+/* one clipped, rounded card (border on the container, not on the separate header/table
+   boxes) so the toolbar/Add button can never poke past the table's edge in the hug layout */
+.bkf-main.bkf-hug { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.bkf-main.bkf-hug .bkf-thead { border: none; border-bottom: 1px solid var(--line); border-radius: 0; }
+.bkf-main.bkf-hug .list-tablewrap { border: none; border-radius: 0; }
 
 /* ── email panel ── */
 .email-panel {
