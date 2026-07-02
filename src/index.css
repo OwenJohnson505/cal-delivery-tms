@@ -2774,27 +2774,38 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 /* ── iPhone-widget rounded surfaces ─────────────────────────────────────────
    The inbox, an open booking, and the job screen float as rounded cards on the
-   tray background, matching the widget look. */
-:root { --widget-r: 20px; }
+   tray background (which shows through the gaps), matching the widget look.
+   A fixed 44px nav rail sits at the far left, so left-edge panels clear it. */
+:root { --widget-r: 20px; --widget-gap: 12px; --rail-clear: 52px; /* 44px rail + 8px */ }
 .shell { background: var(--bg); }
 
-/* job screen — the bookings/quotes/drafts card (already inset in the tray) */
+/* the booking/quotes/drafts card — rounded in every layout */
 .bkf-main.bkf-hug { border-radius: var(--widget-r); }
-.list-fixed.email-jobs-app .bkf-main.bkf-hug { border-radius: var(--widget-r); }
-/* priority-queue view uses its own container */
-.list-work.wide > .pq-wrap, .pq-wrap { border-radius: var(--widget-r); overflow: hidden; }
+.pq-wrap { border-radius: var(--widget-r); overflow: hidden; }
 
-/* inbox — round + float the email panel */
+/* JOB SCREEN, on its own: float the card inside the tray with a gap all round */
+.list-app.list-fixed:not(.email-jobs-app) { padding: var(--widget-gap) var(--widget-gap) var(--widget-gap) var(--rail-clear); }
+.list-app.list-fixed:not(.email-jobs-app) .list-work { padding: 0; height: 100%; }
+
+/* JOB SCREEN, beside an open email: the card floats with gaps (clears the email panel) */
+.list-fixed.email-jobs-app { padding: 0; }
+.list-fixed.email-jobs-app .bkf-main.bkf-hug {
+  border-radius: var(--widget-r);
+  margin: var(--widget-gap) var(--widget-gap) var(--widget-gap) 0;
+  height: auto;
+}
+
+/* INBOX — round + float the email panel; clear the fixed nav rail on its left */
 .email-panel { border-left: none; }
 .shell.panel-open .email-panel,
-.shell.email-side .email-panel,
 .shell.email-left .email-panel,
 .shell.email-solo .email-panel {
   border-radius: var(--widget-r);
   overflow: hidden;
   box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
-  height: calc(100vh - 20px);
-  margin: 10px 8px;
+  height: auto;
+  align-self: stretch;
+  margin: var(--widget-gap) 6px var(--widget-gap) var(--rail-clear);
 }
 
 /* an open booking — the booking wizard / live-form container */
