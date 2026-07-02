@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option 4 — compact hugs the table</title>
+<style>
+  :root{
+    --bg:#e8e8ed; --panel:#fff; --ink:#1d1d1f; --muted:#6e6e73; --ink-3:#8e8e93;
+    --line:#e4e4e9; --line-strong:#d3d3d8; --field:#f5f5f7;
+    --accent:#0071e3; --accent-soft:rgba(0,113,227,.10);
+    --fill:rgba(118,118,128,.08); --fill-2:rgba(118,118,128,.14);
+    --green:#15803d; --green-bg:rgba(26,127,55,.12); --amber:#b45309; --amber-bg:rgba(154,103,0,.14);
+    --red:#b91c1c; --red-bg:rgba(215,0,21,.10); --blue-bg:rgba(0,113,227,.12);
+    --shadow:0 1px 2px rgba(0,0,0,.04),0 10px 30px rgba(0,0,0,.07);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,"SF Pro Text","SF Pro Display","Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 10% -10%,#f0f0f5,transparent 60%),radial-gradient(1200px 600px at 100% 110%,#ececf2,transparent 55%),var(--bg);
+    color:var(--ink);letter-spacing:-.01em;overflow-y:hidden;-webkit-font-smoothing:antialiased}
+  .topbar{padding:14px 22px 6px}
+  .topbar h1{font-size:15px;font-weight:600;letter-spacing:-.02em}
+  .topbar p{font-size:12.5px;color:var(--muted);margin-top:2px;max-width:980px;line-height:1.45}
+  .topbar p b{color:var(--ink)}
+  .stage{display:flex;gap:22px;height:calc(100vh - 60px);padding:8px 22px 22px;align-items:stretch;overflow-x:auto;overflow-y:hidden;min-width:max-content}
+  .col{display:flex;flex-direction:column;gap:9px;height:100%}
+  .cap{flex:0 0 auto}
+  .cap .num{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:11px;font-weight:700;margin-right:7px;vertical-align:2px}
+  .cap .nm{font-size:14px;font-weight:600}
+  .cap .ds{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.4;max-width:600px}
+  .cap .ds b{color:var(--ink);font-weight:600}
+
+  /* the container. EXPANDED: fills the column. COMPACT: hugs the table's width. */
+  .panel{flex:1;min-height:0;background:var(--panel);border-radius:16px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.7);display:flex;flex-direction:column;overflow:hidden}
+  .panel.compact{align-self:flex-start;width:fit-content;max-width:100%;max-height:100%}
+  /* the empty space that opens up beside a compact card — where future widgets live */
+  .ghost{flex:1;min-height:0;border:1.5px dashed var(--line-strong);border-radius:16px;display:grid;place-items:center;color:var(--ink-3);font-size:12px;font-weight:600;background:rgba(255,255,255,.35)}
+  .compact-host{display:flex;gap:14px;flex:1;min-height:0}
+  .compact-host .panel{flex:0 0 auto}
+
+  .thead{flex:0 0 auto;border-bottom:1px solid var(--line);background:#fafafb}
+  .trow{display:flex;align-items:center;gap:8px;padding:9px 12px}
+  .trow+.trow{border-top:1px solid var(--line)}
+  .tabs{display:inline-flex;background:var(--fill);border-radius:9px;padding:2px;flex:none}
+  .tab{border:none;background:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:4px 12px;border-radius:7px;cursor:pointer}
+  .tab.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .tab .n{font-size:10.5px;color:var(--ink-3);font-weight:600;margin-left:3px}.tab.on .n{color:var(--accent)}
+  .seg{display:inline-flex;background:var(--fill);border-radius:8px;padding:2px;flex:none}
+  .seg button{border:none;background:none;font:inherit;font-size:11px;font-weight:600;color:var(--muted);padding:3px 10px;border-radius:6px;cursor:pointer}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .colsbtn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line-strong);background:#fff;border-radius:8px;padding:5px 9px;font:inherit;font-size:11.5px;font-weight:600;color:var(--ink);cursor:pointer;flex:none}
+  .colsbtn svg{width:13px;height:13px;color:var(--muted)}
+  .colsbtn .lb{display:inline}
+  .add{border:none;background:var(--accent);color:#fff;font:inherit;font-size:12px;font-weight:600;padding:6px 11px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;flex:none}
+  .add svg{width:13px;height:13px}.add .lb{display:inline}
+  .toolsp{flex:1;min-width:6px}
+  /* in the narrow compact card, let the view controls shed their text labels to stay tidy */
+  .panel.compact .colsbtn .lb,.panel.compact .add .lb{display:none}
+  .panel.compact .colsbtn,.panel.compact .add{padding:6px 8px}
+  .panel.compact .tab{padding:4px 9px}
+
+  .search{display:inline-flex;align-items:center;gap:8px;background:var(--field);border-radius:9px;padding:7px 11px;flex:1;min-width:110px}
+  .search svg{width:15px;height:15px;color:var(--ink-3);flex:none}
+  .search input{border:none;background:none;outline:none;font:inherit;font-size:13px;color:var(--ink);width:100%}
+  .search input::placeholder{color:var(--ink-3)}
+  .chips{display:flex;align-items:center;gap:7px}
+  .chip{display:inline-flex;align-items:center;gap:0;background:#fff;border:1px solid var(--line-strong);border-radius:100px;padding:6px 8px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;flex:none}
+  .chip:hover{background:var(--field)}
+  .chip svg.i{width:14px;height:14px;color:var(--muted)}
+  .chip.active{background:var(--accent-soft);border-color:transparent}
+  .chip.active svg.i{color:#0060df}
+  .addchip{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px dashed var(--line-strong);border-radius:100px;background:none;color:var(--muted);cursor:pointer;flex:none}
+  .addchip:hover{background:var(--field);border-style:solid}.addchip svg{width:14px;height:14px}
+  .gear{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);background:#fff;color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:none}
+  .gear:hover{background:var(--field)}.gear svg{width:15px;height:15px}
+  .count{font-size:11.5px;color:var(--ink-3);font-weight:600;white-space:nowrap;flex:none}
+
+  .menu{position:absolute;z-index:50;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.16);padding:6px;min-width:210px;max-height:340px;overflow:auto}
+  .scrim{position:fixed;inset:0;z-index:40}
+  .menu h5{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:700;padding:7px 9px 4px}
+  .mrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+  .mrow:hover{background:var(--fill)}
+  .mrow .ck{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line-strong);flex:none;display:grid;place-items:center}
+  .mrow.on .ck{background:var(--accent);border-color:var(--accent)}.mrow.on .ck svg{width:11px;height:11px;color:#fff}
+  .mrow .mi{width:15px;height:15px;color:var(--muted);flex:none}
+  .msep{height:1px;background:var(--line);margin:5px 4px}
+  .mfoot{display:flex;gap:6px;padding:6px 5px 2px}
+  .mbtn{flex:1;border:1px solid var(--line-strong);background:#fff;border-radius:8px;font:inherit;font-size:11.5px;font-weight:600;padding:6px;cursor:pointer;color:var(--ink)}
+  .mbtn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .saved{font-size:11px;color:var(--green);font-weight:600;padding:6px}
+  .mhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 5px 3px}
+  .mhead h5{padding:0}
+  .mall{display:inline-flex;gap:10px;font-size:11px}
+  .mall a{color:var(--accent);cursor:pointer;font-weight:600}.mall a:hover{text-decoration:underline}
+  .mpsec{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:700;padding:6px 9px 3px}
+  .mprow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+  .mprow:hover{background:var(--accent-soft)}
+  .mprow .mi{width:14px;height:14px;color:#e0a83a;flex:none}.mprow .mi.vb{color:var(--accent)}
+  .mprow .mpname{flex:1}
+  .mprow .mpn{font-size:10px;color:var(--ink-3);background:var(--fill-2);border-radius:100px;padding:1px 7px;font-weight:600;white-space:nowrap}
+  .mbtn svg.sm{width:12px;height:12px;vertical-align:-1px;margin-right:2px}
+  .pinput{flex:1;border:1px solid var(--line-strong);border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;outline:none}
+  .pinput:focus{border-color:var(--accent)}
+  .pdel{margin-left:2px;width:22px;height:22px;border:none;background:none;color:var(--ink-3);border-radius:6px;cursor:pointer;display:none;place-items:center;flex:none}
+  .mprow:hover .pdel{display:grid}
+  .pdel:hover{background:var(--red-bg);color:var(--red)}.pdel svg{width:13px;height:13px}
+  .mrow.clr{color:var(--accent);font-weight:600}.mrow.clr:hover{background:var(--accent-soft)}.mrow.clr .mi{color:var(--accent)}
+  .mprow.sel{background:rgba(0,113,227,.06)}.mprow.sel .mpname{color:var(--accent);font-weight:700}
+  .pclr{display:inline-flex;align-items:center;gap:2px;margin-left:2px;border:none;background:var(--accent-soft);color:var(--accent);font:inherit;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:100px;cursor:pointer;flex:none}
+  .pclr:hover{background:var(--accent);color:#fff}.pclr svg{width:10px;height:10px}
+  .clrbtn{border:none;background:none;color:var(--accent);font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px;flex:none;padding:3px 6px;border-radius:7px}
+  .clrbtn:hover{background:var(--accent-soft)}.clrbtn svg{width:11px;height:11px}
+
+  .twrap{flex:1;min-height:0;overflow:auto}
+  .jobs-table{font-size:12px;width:100%;border-collapse:collapse}
+  .jobs-table th,.jobs-table td{padding:6px 10px;vertical-align:middle}
+  .jobs-table thead th{position:sticky;top:0;background:#fafafb;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+  .jobs-table tbody td{border-bottom:1px solid var(--line);white-space:nowrap}
+  .jobs-table tbody tr:hover{background:#f6f8fb}
+  .muted{color:var(--muted)} .cell-sub{font-size:10.5px;color:var(--muted);margin-top:1px}
+  .refc{font-weight:600}
+  .cell-link{background:none;border:none;padding:0;font:inherit;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+  .cell-link:hover{text-decoration:underline}
+  .route-cell{display:inline-flex;align-items:center;gap:3px}.route-pt{background:none;border:none;padding:0;font:inherit;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+  .route-pt:hover{text-decoration:underline}.route-arrow{color:var(--muted);margin:0 1px}
+  .dt-stack{display:flex;flex-direction:column;gap:2px}.dt-stack .dtt{color:var(--muted);font-size:11.5px}
+  .eta-cell{display:inline-flex;flex-direction:column;align-items:flex-start}.eta-val{font-weight:700;font-variant-numeric:tabular-nums}.eta-delta{font-size:10px;font-weight:600}
+  .d-green{color:var(--green)}.d-amber{color:var(--amber)}.d-red{color:var(--red)}.d-pending{color:var(--muted)}
+  .notes-icon{position:relative;width:28px;height:24px;display:inline-grid;place-items:center;border:none;background:transparent;border-radius:7px;color:var(--muted);cursor:pointer}
+  .notes-icon:hover{background:var(--field);color:var(--ink)}.notes-icon.has{color:var(--ink)}.notes-icon svg{width:15px;height:15px}
+  .notes-dot{position:absolute;top:3px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .kebab{width:26px;height:26px;border:none;background:transparent;border-radius:999px;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;display:inline-grid;place-items:center}
+  .kebab:hover{background:var(--field);color:var(--ink)}
+  .status-pill{display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;font-weight:700;border-radius:999px;padding:2px 10px}
+  .st-green{background:var(--green-bg);color:var(--green)}.st-blue{background:var(--blue-bg);color:#0060df}
+  .st-amber{background:var(--amber-bg);color:var(--amber)}.st-grey{background:var(--fill-2);color:var(--muted)}.st-red{background:var(--red-bg);color:var(--red)}
+  .empty td{text-align:center;color:var(--ink-3);padding:26px;font-style:italic}
+  /* compact table stretches to fill the card (whose width is set by the toolbar above),
+     so there's no dead space to the right of the columns — they widen to take it up */
+  .jobs-table.compact{width:100%}
+  .jobs-table.compact td.cmp{vertical-align:top;padding:13px 18px;border-bottom:1px solid var(--line)}
+  .cmp-cust{min-width:150px}
+  .cmp-co{color:var(--ink);font-size:14px;font-weight:600;background:none;border:none;padding:0;cursor:pointer}.cmp-co:hover{text-decoration:underline}
+  .cmp-ref{font-size:11.5px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:3px}
+  .cmp-status{margin-top:7px}
+  .cmp-stop{white-space:nowrap}
+  .cmp .pc{font-size:13px;font-weight:600;color:var(--ink);display:inline-block;margin-bottom:3px}
+  .cmp-time{display:block;border:none;background:none;padding:0;margin:0;font:inherit;text-align:left;cursor:pointer}
+  .tcell{display:flex;flex-direction:column;gap:1px}.tcell-date{font-size:10.5px;color:var(--muted)}
+  .tcell-row{display:flex;align-items:center;gap:6px;font-size:12.5px}.tcell-booked{color:var(--ink);font-variant-numeric:tabular-nums}
+  .tcell-arrow{color:var(--muted)}.tcell-actual{font-weight:700;font-variant-numeric:tabular-nums}.tcell-delta{font-size:10.5px;font-weight:600}
+  .cmp-veh{color:var(--ink);font-size:13px;font-weight:600;margin-bottom:6px}
+  .cmp-sup{font-size:12.5px;background:none;border:none;padding:0;cursor:pointer;color:var(--ink);font-weight:600}.cmp-sup:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Option 4 · Compact hugs the table</h1>
+  <p>The pin-chips (icon-first) toolbar you chose. <b>The fix:</b> when you switch to <b>Compact</b>, the whole container — tabs, view toggle, columns, add, search and chips — shrinks to the <b>same width as the compact table</b>. No dead space between header and table; the freed space opens up <b>beside</b> the card for the other widgets. Left panel is Expanded; right shows Compact. Toggle either to compare.</p>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<script>
+  const I={search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',plus:'<path d="M12 5v14M5 12h14"/>',
+    check:'<path d="M20 6 9 17l-5-5"/>',gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+    cols:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',note:'<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/>',
+    user:'<circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/>',alert:'<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.4"/>',
+    users:'<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 2.5-5 6-5s6 2 6 5"/><path d="M16 6a3 3 0 0 1 0 6M18 20c0-2.4-1-4-3-4.6"/>',
+    building:'<rect x="4" y="3" width="12" height="18" rx="1"/><path d="M8 7h4M8 11h4M8 15h4M16 21h4V9h-4"/>',
+    pin:'<path d="M12 21s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/>',
+    truck:'<path d="M3 7h10v9H3z"/><path d="M13 10h4l4 3v3h-8z"/><circle cx="7.5" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
+    star:'<path d="M12 3l2.6 5.6L21 9.3l-4.5 4.3 1.1 6.4L12 17l-5.6 3 1.1-6.4L3 9.3l6.4-.7z"/>',bookmark:'<path d="M6 3h12v18l-6-4-6 4z"/>',
+    trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>'};
+  const svg=(k,c='')=>`<svg class="${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
+  const FILTERS={
+    sales:{full:'Salesperson',icon:'user',attr:'sales',opts:['Tom Baker','Sarah Doyle','James Hill','Priya Shah']},
+    late:{full:'Late status',icon:'alert',attr:'late',opts:['Late collection','Late delivery','At risk','On time']},
+    team:{full:'Team / dept',icon:'users',attr:'team',opts:['Operations','Sales','Accounts']},
+    customer:{full:'Customer',icon:'building',attr:'customer',opts:['Brightway','Orbit Retail','Meridian Foods','Northgate','Forsyth']},
+    collregion:{full:'Collection region',icon:'pin',attr:'collregion',opts:[['Leeds','LS'],['Manchester','M'],['Sheffield','S']]},
+    delregion:{full:'Delivery region',icon:'pin',attr:'delregion',opts:[['Warrington','WA'],['Birmingham','B'],['Luton','LU'],['Bradford','BD'],['Hull','HU'],['Manchester','M']]},
+    vehicle:{full:'Vehicle size',icon:'truck',attr:'vehicle',opts:['Van','7.5t','18t','26t','Artic']},
+  };
+  const optVal=o=>Array.isArray(o)?o[1]:o,optLab=o=>Array.isArray(o)?o[0]:o;
+  const AVC={'Tom Baker':'#0a84ff','Sarah Doyle':'#8944ab','James Hill':'#1a7f37','Priya Shah':'#c1901c'};
+  const ini=n=>n.split(' ').map(w=>w[0]).join('').slice(0,2);
+  // saved option-sets WITHIN a single filter (one click ticks the lot)
+  const FILTER_PRESETS={
+    sales:[{name:'My team',vals:['Tom Baker','Sarah Doyle']},{name:'New business',vals:['Sarah Doyle','James Hill']}],
+    late:[{name:'Anything late',vals:['Late collection','Late delivery','At risk']}],
+    customer:[{name:'Key accounts',vals:['Brightway','Meridian Foods']},{name:'Retail',vals:['Orbit Retail','Forsyth']}],
+    vehicle:[{name:'Heavies',vals:['18t','26t','Artic']}],
+  };
+  // saved VIEWS = a whole combination of filters saved as one preset
+  const VIEW_PRESETS=[
+    {name:'My late jobs',f:{sales:['Sarah Doyle'],late:['Late collection','Late delivery']}},
+    {name:'Ops · at risk',f:{team:['Operations'],late:['Late collection','Late delivery','At risk']}},
+    {name:'Heavies this week',f:{vehicle:['18t','26t','Artic']}},
+  ];
+  const activeCount=v=>Object.values(S[v].f).reduce((n,s)=>n+s.size,0);
+  const STCLASS={'En route DEL':'st-green','Collected':'st-green','Delivered':'st-grey','Booked':'st-grey','Allocated':'st-grey','Quote':'st-blue','Failed':'st-red','En route COL':'st-amber'};
+  const toMin=t=>{const m=/^(\d{2}):(\d{2})/.exec(t||'');return m?+m[1]*60+ +m[2]:null;};
+  function delta(b,e,f){if(f)return{val:'failed',cls:'d-red',label:'failed'};if(!e)return{val:'—',cls:'d-pending',label:''};const bm=toMin(b),em=toMin(e);if(bm==null||em==null)return{val:e,cls:'d-pending',label:''};const d=em-bm;if(d<=0)return{val:e,cls:'d-green',label:d===0?'on time':`${-d}m early`};if(d<=30)return{val:e,cls:'d-amber',label:`${d}m late`};return{val:e,cls:'d-red',label:`${d}m late`};}
+  const ROWS=[
+    {ref:'BK-100482',customer:'Brightway',rt:['LS10','WA2'],vehicle:'18t',cd:'2 Jul',ct:'08:00',ce:'08:05',dd:'2 Jul',dt:'14:15',de:'14:05',status:'En route DEL',sales:'Tom Baker',sup:'A. Shaw',notes:1,late:'On time',collregion:'LS',delregion:'WA',team:'Operations'},
+    {ref:'BK-100486',customer:'Brightway',rt:['LS9','B1'],vehicle:'7.5t',cd:'today',ct:'13:40',ce:'13:58',dd:'today',dt:'16:20',de:'16:20',status:'Collected',sales:'Tom Baker',sup:'A. Shaw',notes:0,late:'Late collection',collregion:'LS',delregion:'B',team:'Operations'},
+    {ref:'BK-100479',customer:'Orbit Retail',rt:['M15','B1'],vehicle:'Artic',cd:'2 Jul',ct:'09:00',ce:'09:00',dd:'2 Jul',dt:'16:20',de:'16:15',status:'Delivered',sales:'Priya Shah',sup:'R. Niles',notes:1,late:'On time',collregion:'M',delregion:'B',team:'Operations'},
+    {ref:'QU-100501',customer:'Orbit Retail',rt:['LS','WA'],vehicle:'7.5t',cd:'',ct:'',ce:'',dd:'',dt:'',de:'',status:'Quote',sales:'Sarah Doyle',sup:'',notes:0,late:'On time',collregion:'LS',delregion:'WA',team:'Sales'},
+    {ref:'BK-100488',customer:'Meridian Foods',rt:['M15','LU1'],vehicle:'Van',cd:'2 Jul',ct:'07:30',ce:'07:40',dd:'2 Jul',dt:'11:00',de:'11:55',status:'Failed',sales:'Sarah Doyle',sup:'M. Reid',notes:1,late:'Late delivery',collregion:'M',delregion:'LU',team:'Sales'},
+    {ref:'BK-100490',customer:'Northgate',rt:['LS9','M17'],vehicle:'18t',cd:'3 Jul',ct:'08:00',ce:'08:00',dd:'3 Jul',dt:'11:30',de:'11:20',status:'Allocated',sales:'Tom Baker',sup:'Unassigned',notes:0,late:'On time',collregion:'LS',delregion:'M',team:'Operations'},
+    {ref:'BK-100491',customer:'Forsyth',rt:['S1','HU1'],vehicle:'Artic',cd:'today',ct:'06:00',ce:'06:35',dd:'today',dt:'10:30',de:'10:40',status:'En route COL',sales:'James Hill',sup:'K. Ford',notes:0,late:'Late collection',collregion:'S',delregion:'HU',team:'Sales'},
+    {ref:'BK-100492',customer:'Meridian Foods',rt:['LS10','BD1'],vehicle:'26t',cd:'4 Jul',ct:'09:00',ce:'',dd:'4 Jul',dt:'13:00',de:'',status:'Booked',sales:'Sarah Doyle',sup:'Unassigned',notes:0,late:'On time',collregion:'LS',delregion:'BD',team:'Sales'},
+  ];
+  const rowMatch=(r,f,s)=>{if(s){const q=s.toLowerCase();if(!`${r.ref} ${r.customer} ${r.rt.join(' ')} ${r.vehicle} ${r.sales}`.toLowerCase().includes(q))return false;}for(const fid in f){const set=f[fid];if(!set||!set.size)continue;if(!set.has(r[FILTERS[fid].attr]))return false;}return true;};
+  const pill=s=>`<span class="status-pill ${STCLASS[s]||'st-grey'}">${s}</span>`;
+  const av=n=>`<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:8px;font-weight:700;background:${AVC[n]||'#8e8e93'};text-shadow:0 1px 1px rgba(0,0,0,.2)">${ini(n)}</span>${n.split(' ')[0]}</span>`;
+  function expandedTable(v){const st=S[v];const rows=ROWS.filter(r=>rowMatch(r,st.f,st.search));const head=['Ref','Customer','Route','Veh','Collection','Delivery','Coll ETA','Del ETA','Booked by','Notes',''];
+    const body=rows.length?rows.map(r=>{const cE=delta(r.ct,r.ce,false),dE=delta(r.dt,r.de,r.status==='Failed');return `<tr><td><span class="refc">${r.ref}</span></td><td><button class="cell-link">${r.customer}</button></td><td><span class="route-cell">${r.rt.map((p,i)=>`${i?'<span class="route-arrow">→</span>':''}<button class="route-pt">${p}</button>`).join('')}</span></td><td>${r.vehicle}</td><td>${r.ct?`<div class="dt-stack"><span>${r.cd}</span><span class="dtt">${r.ct}</span></div>`:'<span class="muted">—</span>'}</td><td>${r.dt?`<div class="dt-stack"><span>${r.dd}</span><span class="dtt">${r.dt}</span></div>`:'<span class="muted">—</span>'}</td><td><span class="eta-cell"><span class="eta-val ${cE.cls}">${cE.val}</span>${cE.label?`<span class="eta-delta ${cE.cls}">${cE.label}</span>`:''}</span></td><td><span class="eta-cell"><span class="eta-val ${dE.cls}">${dE.val}</span>${dE.label?`<span class="eta-delta ${dE.cls}">${dE.label}</span>`:''}</span></td><td>${av(r.sales)}<div class="cell-sub">${r.cd||'—'}</div></td><td><button class="notes-icon ${r.notes?'has':''}">${svg('note')}${r.notes?'<span class="notes-dot"></span>':''}</button></td><td><button class="kebab">⋮</button></td></tr>`;}).join(''):`<tr class="empty"><td colspan="11">No bookings match these filters.</td></tr>`;
+    return `<div class="twrap"><table class="jobs-table"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;}
+  function compactTable(v){const st=S[v];const rows=ROWS.filter(r=>rowMatch(r,st.f,st.search));
+    const stop=(r,w)=>{const pc=w==='c'?r.rt[0]:r.rt[1];const bt=w==='c'?r.ct:r.dt;const et=w==='c'?r.ce:r.de;const dd=w==='c'?r.cd:r.dd;const f=w==='d'&&r.status==='Failed';const d=delta(bt,et,f);return `<td class="cmp cmp-stop"><span class="pc">${pc}</span><button class="cmp-time"><div class="tcell"><span class="tcell-date">${dd||'—'}</span><span class="tcell-row"><span class="tcell-booked">${bt||'—'}</span><span class="tcell-arrow">→</span><span class="tcell-actual ${d.cls}">${d.val}</span></span>${d.label?`<span class="tcell-delta ${d.cls}">${d.label}</span>`:''}</div></button></td>`;};
+    const body=rows.length?rows.map(r=>`<tr><td class="cmp cmp-cust"><button class="cmp-co">${r.customer}</button><div class="cmp-ref">${r.ref}</div><div class="cmp-status">${pill(r.status)}</div></td>${stop(r,'c')}${stop(r,'d')}<td class="cmp cmp-vd"><div class="cmp-veh">${r.vehicle}</div>${r.sup&&r.sup!=='Unassigned'?`<button class="cmp-sup">${r.sup}</button>`:'<span class="muted cmp-sup">Unassigned</span>'}</td></tr>`).join(''):`<tr class="empty"><td colspan="4">No bookings match.</td></tr>`;
+    return `<div class="twrap"><table class="jobs-table compact"><thead><tr><th>Customer</th><th>COL</th><th>DEL</th><th>Vehicle / Driver</th></tr></thead><tbody>${body}</tbody></table></div>`;}
+  const tableHTML=v=>S[v].density==='compact'?compactTable(v):expandedTable(v);
+
+  const S={};
+  const has=(v,fid,val)=>S[v].f[fid]&&S[v].f[fid].has(val);
+  const toggleVal=(v,fid,val)=>{const f=S[v].f;if(!f[fid])f[fid]=new Set();f[fid].has(val)?f[fid].delete(val):f[fid].add(val);if(!f[fid].size)delete f[fid];refresh(v);};
+  const clearF=(v,fid)=>{delete S[v].f[fid];refresh(v);};
+  const clearAll=v=>{S[v].f={};refresh(v);};
+  function updateTable(v){const tw=document.getElementById('tw-'+v);if(tw)tw.innerHTML=tableHTML(v);const c=document.querySelector('#fh-'+v+' [data-count]');if(c){const n=ROWS.filter(r=>rowMatch(r,S[v].f,S[v].search)).length;c.textContent=`${n} items`;}}
+  function refresh(v){updateTable(v);renderFilterRow(v);}
+  let openScrim=null;
+  function popover(a,html,cb){closePop();const s=document.createElement('div');s.className='scrim';s.onclick=closePop;document.body.appendChild(s);const m=document.createElement('div');m.className='menu';m.innerHTML=html;document.body.appendChild(m);const r=a.getBoundingClientRect();let x=r.left,y=r.bottom+6;if(x+m.offsetWidth>innerWidth-8)x=innerWidth-8-m.offsetWidth;if(y+m.offsetHeight>innerHeight-8)y=Math.max(8,r.top-6-m.offsetHeight);m.style.left=x+'px';m.style.top=y+'px';openScrim=[s,m];if(cb)cb(m);}
+  function closePop(){if(openScrim){openScrim.forEach(e=>e.remove());openScrim=null;}}
+  function valueMenu(v,fid,a){
+    const F=FILTERS[fid];const presets=FILTER_PRESETS[fid]||[];const cur=()=>S[v].f[fid]||new Set();
+    const opts=F.opts.map(o=>{const val=optVal(o);return `<div class="mrow ${cur().has(val)?'on':''}" data-v="${val}"><span class="ck">${svg('check')}</span>${optLab(o)}</div>`;}).join('');
+    const presetRows=presets.length?`<div class="mpsec">Presets</div>`+presets.map((p,i)=>`<div class="mprow" data-preset="${i}"><span class="mi">${svg('star')}</span><span class="mpname">${p.name}</span><span class="mpn">${p.vals.length}</span><button class="pdel" data-del="${i}" title="Delete preset">${svg('trash')}</button></div>`).join('')+`<div class="msep"></div>`:'';
+    popover(a,`<div class="mhead"><h5>${F.full}</h5><span class="mall"><a data-all>Select all</a><a data-none>Clear</a></span></div>${presetRows}${opts}<div class="msep"></div><div class="mfoot" id="pf"><button class="mbtn" data-savep>${svg('star','sm')} Save selection as preset</button></div>`,(m)=>{
+      const sync=()=>m.querySelectorAll('[data-v]').forEach(r=>r.classList.toggle('on',cur().has(r.dataset.v)));
+      m.querySelectorAll('[data-v]').forEach(row=>row.onclick=()=>{toggleVal(v,fid,row.dataset.v);row.classList.toggle('on');});
+      m.querySelector('[data-all]').onclick=()=>{S[v].f[fid]=new Set(F.opts.map(optVal));refresh(v);sync();};
+      m.querySelector('[data-none]').onclick=()=>{clearF(v,fid);sync();};
+      m.querySelectorAll('[data-preset]').forEach(r=>r.onclick=()=>{S[v].f[fid]=new Set(presets[+r.dataset.preset].vals);refresh(v);sync();});
+      m.querySelectorAll('[data-del]').forEach(b=>b.onclick=(ev)=>{ev.stopPropagation();FILTER_PRESETS[fid].splice(+b.dataset.del,1);closePop();const fresh=document.querySelector('#fh-'+v+' [data-chip="'+fid+'"]');if(fresh)valueMenu(v,fid,fresh);});
+      m.querySelector('[data-savep]').onclick=()=>{const pf=m.querySelector('#pf');pf.innerHTML=`<input class="pinput" placeholder="Preset name…"><button class="mbtn pri" data-do>Save</button>`;const inp=pf.querySelector('.pinput');inp.focus();const go=()=>{(FILTER_PRESETS[fid]=FILTER_PRESETS[fid]||[]).push({name:inp.value.trim()||'My preset',vals:[...cur()]});closePop();const fresh=document.querySelector('#fh-'+v+' [data-chip="'+fid+'"]');if(fresh)valueMenu(v,fid,fresh);};pf.querySelector('[data-do]').onclick=go;inp.onkeydown=e=>{if(e.key==='Enter')go();};};
+    });
+  }
+  // Applying a view sets the filters but does NOT add chips (that would grow the widget).
+  // Matching pinned chips just light up blue; the rest show via the count + Clear.
+  function applyView(v,p){S[v].f={};for(const fid in p.f)S[v].f[fid]=new Set(p.f[fid]);refresh(v);}
+  // is this saved view exactly what's currently applied?
+  function viewApplied(v,pf){const cur=S[v].f;const keys=Object.keys(pf);if(keys.length!==Object.keys(cur).length)return false;return keys.every(fid=>cur[fid]&&cur[fid].size===pf[fid].length&&pf[fid].every(x=>cur[fid].has(x)));}
+  function viewMenu(v,a){
+    const anyApplied=VIEW_PRESETS.some(p=>viewApplied(v,p.f));
+    // a general "clear" only for ad-hoc filters that don't match a saved view (a saved
+    // view shows its own Clear on its row instead)
+    const clr=(activeCount(v)&&!anyApplied)?`<div class="mrow clr" data-clrall><span class="mi vb">${svg('x')}</span>Clear all filters — back to normal</div><div class="msep"></div>`:'';
+    const rows=VIEW_PRESETS.map((p,i)=>{const on=viewApplied(v,p.f);return `<div class="mprow ${on?'sel':''}" data-view="${i}"><span class="mi vb">${svg(on?'check':'bookmark')}</span><span class="mpname">${p.name}</span><span class="mpn">${Object.keys(p.f).length} filters</span>${on?`<button class="pclr" data-clrrow>${svg('x','sm')} Clear</button>`:`<button class="pdel" data-del="${i}" title="Delete view">${svg('trash')}</button>`}</div>`;}).join('')||'<div class="mrow muted">No saved views yet.</div>';
+    popover(a,`<h5>Saved views</h5>${clr}${rows}<div class="msep"></div><div class="mfoot" id="vf"><button class="mbtn" data-savev ${activeCount(v)?'':'disabled'}>${svg('bookmark','sm')} Save current filters as a view</button></div>`,(m)=>{
+      const cl=m.querySelector('[data-clrall]');if(cl)cl.onclick=()=>{clearAll(v);closePop();};
+      m.querySelectorAll('[data-view]').forEach(r=>r.onclick=()=>{applyView(v,VIEW_PRESETS[+r.dataset.view]);closePop();});
+      const rc=m.querySelector('[data-clrrow]');if(rc)rc.onclick=(ev)=>{ev.stopPropagation();clearAll(v);closePop();};
+      m.querySelectorAll('[data-del]').forEach(b=>b.onclick=(ev)=>{ev.stopPropagation();VIEW_PRESETS.splice(+b.dataset.del,1);closePop();const fresh=document.querySelector('#fh-'+v+' [data-views]');if(fresh)viewMenu(v,fresh);});
+      const sv=m.querySelector('[data-savev]');if(sv&&!sv.hasAttribute('disabled'))sv.onclick=()=>{const vf=m.querySelector('#vf');vf.innerHTML=`<input class="pinput" placeholder="View name…"><button class="mbtn pri" data-do>Save</button>`;const inp=vf.querySelector('.pinput');inp.focus();const go=()=>{const f={};for(const fid in S[v].f)f[fid]=[...S[v].f[fid]];VIEW_PRESETS.push({name:inp.value.trim()||'My view',f});closePop();};vf.querySelector('[data-do]').onclick=go;inp.onkeydown=e=>{if(e.key==='Enter')go();};};
+    });
+  }
+  function moreMenu(v,a){const un=Object.keys(FILTERS).filter(f=>!S[v].pinned.includes(f));popover(a,`<h5>More filters</h5>${un.map(fid=>`<div class="mrow" data-open="${fid}"><span class="mi">${svg(FILTERS[fid].icon)}</span>${FILTERS[fid].full}</div>`).join('')||'<div class="mrow muted">All pinned.</div>'}`,(m)=>m.querySelectorAll('[data-open]').forEach(r=>r.onclick=()=>valueMenu(v,r.dataset.open,a)));}
+  function gearMenu(v,a){popover(a,`<h5>Pin as quick filters</h5>${Object.keys(FILTERS).map(fid=>`<div class="mrow ${S[v].pinned.includes(fid)?'on':''}" data-t="${fid}"><span class="ck">${svg('check')}</span><span class="mi">${svg(FILTERS[fid].icon)}</span>${FILTERS[fid].full}</div>`).join('')}<div class="msep"></div><div class="mfoot"><button class="mbtn pri" data-s>Save as my default</button></div>`,(m)=>{m.querySelectorAll('[data-t]').forEach(r=>r.onclick=()=>{const fid=r.dataset.t,i=S[v].pinned.indexOf(fid);i>=0?S[v].pinned.splice(i,1):S[v].pinned.push(fid);r.classList.toggle('on');renderFilterRow(v);});m.querySelector('[data-s]').onclick=e=>e.target.outerHTML='<span class="saved">✓ Saved as default</span>';});}
+  // The chip is ALWAYS icon-only and a fixed size. An active filter only turns it blue —
+  // it never shows the value/name, so the widget can never grow, whatever's applied.
+  const chipHTML=(v,fid)=>{const F=FILTERS[fid];const set=S[v].f[fid];const on=set&&set.size;return `<button class="chip ${on?'active':''}" data-chip="${fid}" title="${F.full}${on?' · filter active':''}">${svg(F.icon,'i')}</button>`;};
+  function renderFilterRow(v){const host=document.getElementById('fh-'+v);if(!host)return;
+    const chips=S[v].pinned.map(fid=>chipHTML(v,fid)).join('');
+    host.innerHTML=`<div class="trow"><div class="search"><span>${svg('search')}</span><input placeholder="Search…" data-s></div><div class="chips">${chips}</div><button class="addchip" data-more title="More filters">${svg('plus')}</button><span class="count" data-count></span><button class="gear" data-views title="Saved views &amp; clear filters">${svg('bookmark')}</button><button class="gear" data-gear title="Customize quick filters">${svg('gear')}</button></div>`;
+    const s=host.querySelector('[data-s]');if(s){s.value=S[v].search;s.oninput=e=>{S[v].search=e.target.value;updateTable(v);};}
+    host.querySelectorAll('[data-chip]').forEach(c=>c.onclick=()=>valueMenu(v,c.dataset.chip,c));
+    host.querySelector('[data-more]').onclick=e=>moreMenu(v,e.currentTarget);
+    host.querySelector('[data-views]').onclick=e=>viewMenu(v,e.currentTarget);
+    host.querySelector('[data-gear]').onclick=e=>gearMenu(v,e.currentTarget);
+    const n=ROWS.filter(r=>rowMatch(r,S[v].f,S[v].search)).length;host.querySelector('[data-count]').textContent=`${n} items`;}
+
+  function buildPanel(v,density){
+    S[v]={search:'',f:{},pinned:['sales','late','customer','vehicle','collregion'],density};
+    const p=document.createElement('div');p.className='panel'+(density==='compact'?' compact':'');p.id='p-'+v;
+    p.innerHTML=`<div class="thead">
+      <div class="trow"><div class="tabs"><button class="tab on">Bookings<span class="n">42</span></button><button class="tab">Quotes<span class="n">11</span></button><button class="tab">Drafts<span class="n">3</span></button></div><span class="toolsp"></span>
+        <div class="seg" data-density><button class="${density==='expanded'?'on':''}" data-d="expanded">Expanded</button><button class="${density==='compact'?'on':''}" data-d="compact">Compact</button></div>
+        <button class="colsbtn" title="Columns">${svg('cols')}<span class="lb">Columns</span></button><button class="add" title="Add booking">${svg('plus')}<span class="lb">Add</span></button></div>
+      <div id="fh-${v}"></div>
+    </div><div id="tw-${v}">${tableHTML(v)}</div>`;
+    p.querySelector('[data-density]').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;S[v].density=b.dataset.d;p.classList.toggle('compact',b.dataset.d==='compact');p.querySelectorAll('[data-density] button').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('tw-'+v).innerHTML=tableHTML(v);});
+    return p;
+  }
+  const stage=document.getElementById('stage');
+  // Left column: Expanded
+  const c1=document.createElement('div');c1.className='col';c1.style.width='820px';
+  c1.innerHTML=`<div class="cap"><span class="num">A</span><span class="nm">Expanded</span><div class="ds">Fills the container as normal — every data point in its own column, horizontal scroll if needed.</div></div>`;
+  c1.appendChild(buildPanel('a','expanded'));stage.appendChild(c1);renderFilterRow('a');
+  // Right column: Compact — header hugs the table, space opens beside it
+  const c2=document.createElement('div');c2.className='col';c2.style.width='820px';
+  c2.innerHTML=`<div class="cap"><span class="num">B</span><span class="nm">Compact — header matches the table</span><div class="ds">The whole card shrinks to the compact table's width. Header = table width; the space to the right is freed for other widgets (shown dashed).</div></div>`;
+  const host=document.createElement('div');host.className='compact-host';
+  host.appendChild(buildPanel('b','compact'));
+  const ghost=document.createElement('div');ghost.className='ghost';ghost.textContent='space for another widget →';host.appendChild(ghost);
+  c2.appendChild(host);stage.appendChild(c2);renderFilterRow('b');
+</script>
+</body>
+</html>
