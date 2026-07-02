@@ -2771,3 +2771,31 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .pl-num span { font-size: 12px; color: var(--muted); }
 .pl-toggle { flex: none; }
 .pl-foot { font-size: 12px; color: var(--muted); }
+
+/* ── iPhone-widget rounded surfaces ─────────────────────────────────────────
+   The inbox, an open booking, and the job screen float as rounded cards on the
+   tray background, matching the widget look. */
+:root { --widget-r: 20px; }
+.shell { background: var(--bg); }
+
+/* job screen — the bookings/quotes/drafts card (already inset in the tray) */
+.bkf-main.bkf-hug { border-radius: var(--widget-r); }
+.list-fixed.email-jobs-app .bkf-main.bkf-hug { border-radius: var(--widget-r); }
+/* priority-queue view uses its own container */
+.list-work.wide > .pq-wrap, .pq-wrap { border-radius: var(--widget-r); overflow: hidden; }
+
+/* inbox — round + float the email panel */
+.email-panel { border-left: none; }
+.shell.panel-open .email-panel,
+.shell.email-side .email-panel,
+.shell.email-left .email-panel,
+.shell.email-solo .email-panel {
+  border-radius: var(--widget-r);
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+  height: calc(100vh - 20px);
+  margin: 10px 8px;
+}
+
+/* an open booking — the booking wizard / live-form container */
+.app { border-radius: var(--widget-r); overflow: hidden; }

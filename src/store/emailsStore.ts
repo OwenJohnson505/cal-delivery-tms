@@ -204,7 +204,7 @@ function applyRulesTo(t: EmailThread, rules: EmailRule[]): EmailThread {
 
 // ── seed threads ────────────────────────────────────────────────────────────────
 type ThreadSeed = Omit<EmailThread, 'category' | 'priority' | 'assigneeId' | 'comments' | 'snoozedUntil' | 'reminderAt' | 'conversationId' | 'participants' | 'tags' | 'lane' | 'linkedJobRef' | 'status' | 'resolutionReason' | 'assignedAt' | 'lastActivityAt' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'archived'> &
-  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'draftPresence' | 'status' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'assigneeId' | 'manuallyAssigned'>>
+  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'draftPresence' | 'status' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'assigneeId' | 'manuallyAssigned' | 'comments' | 'pinned' | 'following'>>
 
 function seedThreads(rules: EmailRule[]): EmailThread[] {
   const base = (t: ThreadSeed): EmailThread => {
@@ -395,6 +395,118 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
           body: 'Collected and en route — delivery ETA around 16:00.\n\nTom' },
         { id: uid(), event: true, icon: 'clock', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(10),
           body: 'Delivery ETA changed → 16:20 (traffic)' },
+      ],
+    }),
+
+    // ── richer threads: long back-and-forth + job milestones + internal notes ──
+    base({
+      id: 'th-16', read: false, mailbox: 'bookings@cal.delivery', subject: 'Weekly RDC run — LS9 → Avonmouth', linkedJobRef: 'BK-100510',
+      tags: ['contract'],
+      comments: [
+        { id: uid(), by: 'Priya Shah', at: minsAgo(258), text: 'Good payer — 30-day terms, never late. Worth locking the rate in.' },
+        { id: uid(), by: 'Tom Baker', at: minsAgo(96), text: 'Set this up as a recurring booking template once confirmed.' },
+      ],
+      msgs: [
+        { id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: minsAgo(320),
+          body: 'Hi Tom,\n\nWe’re looking to move a weekly run from our Leeds RDC (LS9 0PX) down to Avonmouth (BS11 8DL). Could you quote a standing rate?\n\nThanks,\nSarah' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(305), outbound: true,
+          body: 'Hi Sarah,\n\nHappy to. How many pallets per run, what days, and any timed delivery at the Avonmouth end?\n\nTom' },
+        { id: uid(), event: true, icon: 'plus', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(300), body: 'Enquiry logged · NGL — weekly RDC' },
+        { id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: minsAgo(270),
+          body: '18 pallets, every Wednesday, collection 06:00, delivery booked slot 13:00–14:00. Ambient, no tail-lift.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(255), outbound: true,
+          body: 'Great — for a standing weekly 18t we can do £240 per run, all-in, hitting the 13:00–14:00 slot.' },
+        { id: uid(), event: true, icon: 'check', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(253), body: 'Quote sent · £240 / run' },
+        { id: uid(), event: true, icon: 'check', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(250), body: 'Credit check passed · 30-day terms' },
+        { id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: minsAgo(200),
+          body: 'Can you sharpen that to £215? We’ll sign a 12-month commitment.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(185), outbound: true,
+          body: 'Let’s meet at £225 for the 12 months and I’ll get it set up today.' },
+        { id: uid(), event: true, icon: 'check', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(183), body: 'Rate agreed · £225 / run · 12-month' },
+        { id: uid(), event: true, icon: 'plus', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(180), body: 'Job booked · BK-100510' },
+        { id: uid(), event: true, icon: 'truck', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(150), body: 'Vehicle assigned · 18t · Greg Shaw (YJ71 KXP)' },
+        { id: uid(), from: { name: 'Sarah Doyle', email: 's.doyle@brightway.co.uk' }, at: minsAgo(100),
+          body: 'Hi Tom,\n\nPerfect — £225 works. Please start from next Wednesday, our ref BW-RDC-01.\n\nCheers,\nSarah' },
+        { id: uid(), event: true, icon: 'clock', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(40), body: 'Collection scheduled · Wed 06:00 · LS9 0PX' },
+      ],
+    }),
+    base({
+      id: 'th-17', read: false, mailbox: 'bookings@cal.delivery', subject: 'Delivery failed — BK-100486 into B1', linkedJobRef: 'BK-100486',
+      assigneeId: 'USR-1004', manuallyAssigned: true, following: true, tags: ['exception'],
+      comments: [
+        { id: uid(), by: 'James Hill', at: minsAgo(118), text: 'Customer is annoyed — keep them updated hourly until it’s redelivered.' },
+        { id: uid(), by: 'Priya Shah', at: minsAgo(70), text: 'Booked a re-attempt for 08:30 tomorrow; comped the redelivery fee this once.' },
+      ],
+      msgs: [
+        { id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(180),
+          body: 'Morning — our delivery for BK-100486 hasn’t shown. The bay was booked for 11:00 and it’s now gone 12:30. What’s happening?' },
+        { id: uid(), event: true, icon: 'flag', from: { name: 'M. Reid · driver', email: 'mreid@hauliers.co.uk' }, at: minsAgo(170), body: 'Driver arrived — site refused, no booking on gate' },
+        { id: uid(), event: true, icon: 'alert', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(168), body: 'Delivery failed — no access / not on gate list' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(150), outbound: true,
+          body: 'Hi Dan,\n\nApologies — the driver was turned away at the gate (not on the list). Can you confirm the site contact and a slot for a re-attempt? We can be back first thing tomorrow.\n\nTom' },
+        { id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(120),
+          body: 'That’s frustrating. Site contact is Ade on 0121 555 0199. 08:30 tomorrow works — please don’t charge us for the re-attempt.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(90), outbound: true,
+          body: 'Understood — no charge for the re-attempt. Booked for 08:30, Ade added as the gate contact. I’ll confirm once it’s away in the morning.' },
+        { id: uid(), event: true, icon: 'clock', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(60), body: 'Redelivery scheduled · 08:30 tomorrow · B1 1AA' },
+      ],
+    }),
+    base({
+      id: 'th-18', read: false, mailbox: 'bookings@cal.delivery', subject: 'Multi-drop Friday — 4 drops across the NW',
+      draftPresence: { by: 'Priya Shah', body: 'Hi Helen,\n\nAll four drops are planned in for Friday. Route is Warrington → Bolton → Preston → Blackburn, first collection 07:00. Driver will be' },
+      tags: ['multi-drop'],
+      comments: [
+        { id: uid(), by: 'Tom Baker', at: minsAgo(140), text: 'Tight schedule — make sure the 3rd drop has a 2-hour window, they’re slow to tip.' },
+      ],
+      msgs: [
+        { id: uid(), from: { name: 'Helen Cross', email: 'h.cross@brightway.co.uk' }, at: minsAgo(240),
+          body: 'Hi — can we do a multi-drop this Friday? Four drops: Warrington (WA1), Bolton (BL1), Preston (PR1) and Blackburn (BB1). Around 5 pallets each.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(225), outbound: true,
+          body: 'Hi Helen,\n\nYes — that’s a comfortable day for an 18t. Any timed windows at any of the drops?' },
+        { id: uid(), event: true, icon: 'plus', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(222), body: 'Enquiry logged · multi-drop' },
+        { id: uid(), from: { name: 'Helen Cross', email: 'h.cross@brightway.co.uk' }, at: minsAgo(200),
+          body: 'Only Preston is timed — needs to be 12:00–14:00. The rest are anytime before 17:00.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(175), outbound: true,
+          body: 'Perfect — I’ll route it so Preston lands mid-run inside that window. £320 for the day, all four drops.' },
+        { id: uid(), event: true, icon: 'check', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(172), body: 'Quote sent · £320 / day' },
+        { id: uid(), from: { name: 'Helen Cross', email: 'h.cross@brightway.co.uk' }, at: minsAgo(150),
+          body: 'Great, book it in please. PO to follow.' },
+      ],
+    }),
+    base({
+      id: 'th-19', read: true, mailbox: 'accounts@cal.delivery', subject: 'Damaged pallet claim — BK-100471', linkedJobRef: 'BK-100471',
+      assigneeId: 'USR-1002', manuallyAssigned: true, tags: ['claim'], lane: 'Waiting',
+      comments: [
+        { id: uid(), by: 'Priya Shah', at: minsAgo(210), text: 'POD photo shows the wrap intact on collection — damage looks like it happened on their forklift.' },
+        { id: uid(), by: 'James Hill', at: minsAgo(150), text: 'Offer a 50% goodwill credit to keep the account happy; don’t admit liability.' },
+        { id: uid(), by: 'Priya Shah', at: minsAgo(40), text: 'Waiting on their photos before we settle. Chased once.' },
+      ],
+      msgs: [
+        { id: uid(), from: { name: 'Karen Doyle', email: 'k.doyle@meridianfoods.com' }, at: minsAgo(300),
+          body: 'Hi — one of the pallets from BK-100471 arrived damaged (crushed corner, 3 cases written off). We’ll need to raise a claim.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(280), outbound: true,
+          body: 'Hi Karen,\n\nSorry to hear that. Could you send photos of the damage and the delivery note? I’ll pull our collection POD and get this looked at straight away.\n\nTom' },
+        { id: uid(), event: true, icon: 'box', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(275), body: 'Claim opened · CLM-0042' },
+        { id: uid(), from: { name: 'Karen Doyle', email: 'k.doyle@meridianfoods.com' }, at: minsAgo(230),
+          body: 'Photos attached. The outer wrap was torn on arrival. Value of the write-off is £148.' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(120), outbound: true,
+          body: 'Thanks Karen. Our POD shows it left us wrapped and intact, so this looks to have happened on delivery/handling — but I don’t want to argue over £148. I can offer a 50% goodwill credit while we review. Fair?' },
+      ],
+    }),
+    base({
+      id: 'th-20', read: false, mailbox: 'bookings@cal.delivery', subject: 'New account — credit terms & first booking', pinned: true, tags: ['new-account'],
+      comments: [
+        { id: uid(), by: 'James Hill', at: minsAgo(60), text: 'New logo — finance approved £5k credit limit, 14-day terms to start.' },
+      ],
+      msgs: [
+        { id: uid(), from: { name: 'Mark Ellis', email: 'mark@peakdistribution.co.uk' }, at: minsAgo(150),
+          body: 'Hello — we’re a new distributor in Sheffield and looking for a regular transport partner. Could we open an account and get a first booking in this week?' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(130), outbound: true,
+          body: 'Hi Mark,\n\nWelcome — we’d be glad to help. I’ll get an account opened. Could you share your company reg and a trade reference for the credit check? Meanwhile, what’s the first job?' },
+        { id: uid(), event: true, icon: 'plus', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(125), body: 'Account created · Peak Distribution' },
+        { id: uid(), event: true, icon: 'check', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(90), body: 'Credit approved · £5,000 · 14-day' },
+        { id: uid(), from: { name: 'Mark Ellis', email: 'mark@peakdistribution.co.uk' }, at: minsAgo(45),
+          body: 'Brilliant, thank you. First job: 10 pallets Sheffield (S9) to Nottingham (NG1), Thursday. Reg and reference attached.' },
       ],
     }),
   ]
