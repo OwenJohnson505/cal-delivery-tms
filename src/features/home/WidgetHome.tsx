@@ -5,9 +5,12 @@
  *
  * Seeded widgets are the current app screens; clicking one launches the real screen.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePagesStore, fits, maxAt, HOME_COLS, HOME_ROWS, type HWidget } from '@/store/pagesStore.ts'
-import { useViewStore, type Screen } from '@/store/viewStore.ts'
+import { ListScreen } from '@/features/jobs/ListScreen.tsx'
+import { EmailPanel } from '@/features/email/EmailPanel.tsx'
+import { CustomersScreen } from '@/features/customers/CustomersScreen.tsx'
+import { BookingWizard } from '@/app/BookingWizard.tsx'
 import './home.css'
 
 // ── icons ──
@@ -47,55 +50,23 @@ const P: Record<string, string> = {
 const Ic = ({ k, size = 20 }: { k: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: P[k] || '' }} />
 )
-const svg = (k: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${P[k] || ''}</svg>`
-
 const PAGE_ICONS = ['truck', 'mail', 'users', 'chart', 'calendar', 'map', 'building', 'box', 'briefcase', 'flag', 'star', 'cog', 'bolt', 'pin', 'clock', 'inbox', 'grid', 'phone']
 
-// ── widget catalogue ──
-type Size = { n: string; w: number; h: number }
-type Cat = { nm: string; icon: string; color: string; desc: string; sizes: Size[]; screen?: Screen }
+// ── widget catalogue — ONLY the finalised screens, one size each. The widget IS the
+// interface: the real, fully-functional component renders live inside it. No dummy widgets,
+// no invented sizes. (Bookings' compact/expanded is the table's own toggle, not a size.)
+type Cat = { nm: string; icon: string; color: string; desc: string; w: number; h: number; render: () => ReactNode }
 const CAT: Record<string, Cat> = {
-  bookings: { nm: 'Bookings', icon: 'grid', color: '#0071e3', desc: 'The jobs table', screen: 'list', sizes: [{ n: 'Small', w: 4, h: 2 }, { n: 'Medium', w: 6, h: 3 }, { n: 'Large', w: 8, h: 4 }] },
-  email: { nm: 'Email', icon: 'mail', color: '#5856d6', desc: 'Inbox & reader', screen: 'email', sizes: [{ n: 'Small', w: 2, h: 3 }, { n: 'Medium', w: 4, h: 4 }, { n: 'Large', w: 6, h: 4 }] },
-  priority: { nm: 'Priority queue', icon: 'alert', color: '#d70015', desc: 'Needs attention', screen: 'priority', sizes: [{ n: 'Small', w: 2, h: 2 }, { n: 'Medium', w: 3, h: 3 }, { n: 'Large', w: 4, h: 4 }] },
-  customers: { nm: 'Customers', icon: 'users', color: '#0a8f6c', desc: 'Accounts & contacts', screen: 'customers', sizes: [{ n: 'Small', w: 3, h: 3 }, { n: 'Large', w: 5, h: 3 }] },
-  kpis: { nm: 'KPIs', icon: 'chart', color: '#1a7f37', desc: 'Live numbers', sizes: [{ n: 'Tile', w: 2, h: 2 }, { n: 'Row', w: 4, h: 2 }] },
-  notes: { nm: 'Notes', icon: 'note', color: '#9a6700', desc: 'Team notes', sizes: [{ n: 'Sticky', w: 2, h: 2 }] },
+  bookings: { nm: 'Booking page', icon: 'grid', color: '#0071e3', desc: 'Bookings / quotes / drafts', w: 8, h: 3, render: () => <ListScreen /> },
+  email: { nm: 'Email', icon: 'mail', color: '#5856d6', desc: 'Inbox, threads & replies', w: 8, h: 3, render: () => <EmailPanel /> },
+  customers: { nm: 'Customer screen', icon: 'users', color: '#0a8f6c', desc: 'Accounts & contacts', w: 5, h: 6, render: () => <CustomersScreen /> },
+  createbooking: { nm: 'Create booking', icon: 'plus', color: '#ff9500', desc: 'The booking wizard', w: 3, h: 6, render: () => <BookingWizard /> },
 }
 const TYPE_KEYS = Object.keys(CAT)
-
-// ── dummy content ──
-const DBK = [['Brightway', 'LS9 → WA2', '18t', 'Collected', 'hm-pg'], ['Orbit', 'LS4 → M1', 'Artic', 'En route', 'hm-pb'], ['Brightway', 'LS9 → BD1', '7.5t', 'Part DEL', 'hm-pa'], ['Orbit', 'LS4 → WA4', '7.5t', 'Failed', 'hm-pr'], ['Brightway', 'LS9 → NE1', 'Artic', 'Booked', 'hm-pb'], ['Meridian', 'M15 → L7', 'Luton', 'Due', 'hm-pa'], ['Peak', 'S9 → NG1', '7.5t', 'Booked', 'hm-pb']]
-const DML = [['SD', 'Sarah Doyle', 'URGENT — same-day Luton', '14m'], ['DW', 'Dan Whitfield', 'Regular Leeds → Manchester', '41m'], ['HC', 'Helen Cross', 'Multi-drop Friday — 4 drops', '1h'], ['ME', 'Mark Ellis', 'New account — credit terms', '1h'], ['KD', 'Karen Doyle', 'Damaged pallet claim', '2h']]
-const DPR = [['BK-100607', 'Brightway', '52m late', 'hm-pr'], ['BK-100486', 'Orbit', 'Due 15:30', 'hm-pa'], ['BK-100619', 'Brightway', 'Failed', 'hm-pr'], ['BK-100629', 'Orbit', 'Due 18:30', 'hm-pa'], ['NGL-STAND', 'Northgate', 'No access', 'hm-pr']]
-const DCU = [['BT', 'Brightway Trading', 'Gold', '£48k', '#e0b53a'], ['OR', 'Orbit Retail', 'Silver', '£31k', '#8b9aad'], ['MF', 'Meridian Foods', 'Platinum', '£62k', '#4faeec'], ['PK', 'Peak Distribution', 'New', '£0', '#9a9aa0'], ['NG', 'Northgate Logistics', 'Bronze', '£19k', '#c07e42']]
-
-function bodyHTML(type: string, w: number, h: number): string {
-  if (type === 'bookings') { const n = Math.max(2, h * 2 - 1); const cols = w >= 6
-    return `<table class="hm-tbl"><thead><tr><th>Customer</th>${cols ? '<th>Route</th>' : ''}<th>Vehicle</th><th>Status</th></tr></thead><tbody>${DBK.slice(0, n).map((r) => `<tr><td class="c">${r[0]}${cols ? '' : `<div class="sub">${r[1]}</div>`}</td>${cols ? `<td>${r[1]}</td>` : ''}<td>${r[2]}</td><td><span class="hm-pill ${r[4]}">${r[3]}</span></td></tr>`).join('')}</tbody></table>` }
-  if (type === 'email') { const reader = w >= 4, rail = w >= 6, n = Math.max(3, h)
-    const inbox = `<div class="inbox">${DML.slice(0, n).map((m, i) => `<div class="hm-mrow ${i === 0 ? 'on' : ''}"><span class="t">${m[3]}</span><div class="who">${m[1]}</div><div class="sb">${m[2]}</div></div>`).join('')}</div>`
-    const rd = reader ? `<div class="reader"><div class="who" style="font-size:12px;font-weight:600;padding:2px 2px 6px">Sarah Doyle</div><div class="hm-bub">Hi — urgent one, sorry. We need a Luton TODAY, collection M15 4FN before 13:00.</div><div class="hm-bub me">On it — I can have a Luton with you for 11:30. Confirmation to follow.</div></div>` : ''
-    const rl = rail ? `<div class="rl"><i></i><i></i><i></i></div>` : ''
-    return `<div class="hm-mail">${rl}${inbox}${rd}</div>` }
-  if (type === 'priority') { const n = Math.max(2, h * 2 - 2)
-    return `<div>${DPR.slice(0, n).map((r) => `<div class="hm-crow"><span class="hm-pill ${r[3]}" style="min-width:52px;text-align:center">${r[2]}</span><span class="nm" style="font-weight:600">${r[0]}</span><span class="sp" style="font-size:10.5px;color:var(--ink3)">${r[1]}</span></div>`).join('')}</div>` }
-  if (type === 'customers') { const n = Math.max(2, h * 2 - 1)
-    return `<div>${DCU.slice(0, n).map((r) => `<div class="hm-crow"><span class="hm-av" style="background:${r[4]}">${r[0]}</span><span class="nm">${r[1]}</span><span class="hm-tier" style="background:${r[4]}22;color:${r[4]}">${r[2]}</span><span class="sp">${r[3]}</span></div>`).join('')}</div>` }
-  if (type === 'kpis') { const two = w >= 4
-    return `<div class="hm-kpis"><div class="hm-kpi"><span class="cap">On-time today</span><span class="big">96%</span><span class="up">▲ 3%</span></div>${two ? `<div class="hm-kpi"><span class="cap">Open jobs</span><span class="big">28</span><span class="up dn">▼ 4</span></div>` : ''}</div>` }
-  if (type === 'notes') return `<div class="hm-notes">Chase <b>Brightway</b> PO · confirm <b>Friday</b> multi-drop · call <b>Peak</b> re: credit terms.</div>`
-  return ''
-}
-function widgetInnerHTML(type: string, w: number, h: number, sizeLabel?: string): string {
-  const cat = CAT[type]
-  return `<div class="hm-wc"><div class="hm-wch"><span class="hm-wci" style="background:${cat.color}">${svg(cat.icon)}</span><span class="hm-wcn">${cat.nm}</span>${sizeLabel ? `<span class="hm-wcs">${sizeLabel}</span>` : ''}</div><div class="hm-wcb">${bodyHTML(type, w, h)}</div></div>`
-}
 
 // ── the component ──
 export function WidgetHome() {
   const { pages, active, pinnedTools, setActive, renamePage, addWidget, removeWidget } = usePagesStore()
-  const go = useViewStore((s) => s.go)
   const page = pages[active]
 
   const [gal, setGal] = useState<{ r: number; c: number } | null>(null)
@@ -109,7 +80,6 @@ export function WidgetHome() {
     window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc)
   }, [])
 
-  const openWidget = (w: HWidget) => { const sc = CAT[w.type]?.screen; if (sc) go(sc) }
   const anchorPop = (e: React.MouseEvent) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); return { x: r.left, y: r.top } }
 
   return (
@@ -141,10 +111,9 @@ export function WidgetHome() {
             {Array.from({ length: HOME_ROWS * HOME_COLS }).map((_, i) => { const r = Math.floor(i / HOME_COLS), c = i % HOME_COLS
               return <div key={'c' + i} className="hm-cell" data-r={r} data-c={c} style={{ gridColumn: c + 1, gridRow: r + 1 }} /> })}
             {page.widgets.map((w) => (
-              <div key={w.id} className="hm-w" style={{ gridColumn: `${w.col + 1} / span ${w.w}`, gridRow: `${w.row + 1} / span ${w.h}` }} onClick={() => openWidget(w)}>
+              <div key={w.id} className="hm-w" style={{ gridColumn: `${w.col + 1} / span ${w.w}`, gridRow: `${w.row + 1} / span ${w.h}` }}>
                 <button className="hm-wx" title="Remove" onClick={(e) => { e.stopPropagation(); removeWidget(w.id) }}><Ic k="close" size={12} /></button>
-                {CAT[w.type]?.screen && <span className="hm-open">Open →</span>}
-                <div dangerouslySetInnerHTML={{ __html: widgetInnerHTML(w.type, w.w, w.h) }} />
+                <div className="whome-embed">{CAT[w.type]?.render()}</div>
               </div>
             ))}
           </div>
@@ -164,7 +133,7 @@ export function WidgetHome() {
 
       {/* full-screen gallery */}
       {gal && <Gallery anchor={gal} galType={galType} setGalType={setGalType} widgets={page.widgets}
-        onClose={() => setGal(null)} onAdd={(type, s) => { addWidget(type, gal.c, gal.r, s.w, s.h); setGal(null) }} />}
+        onClose={() => setGal(null)} onAdd={(type) => { const c = CAT[type]; addWidget(type, gal.c, gal.r, c.w, c.h); setGal(null) }} />}
 
       {/* tool panels */}
       {tool && <ToolPanel tool={tool} onClose={() => setTool(null)} />}
@@ -177,12 +146,14 @@ export function WidgetHome() {
 // ── gallery ──
 function Gallery({ anchor, galType, setGalType, widgets, onClose, onAdd }: {
   anchor: { r: number; c: number }; galType: string; setGalType: (t: string) => void; widgets: HWidget[]
-  onClose: () => void; onAdd: (type: string, s: Size) => void
+  onClose: () => void; onAdd: (type: string) => void
 }) {
   const { mw, mh } = maxAt(widgets, anchor.c, anchor.r)
   const cat = CAT[galType]
   const cells = HOME_COLS * HOME_ROWS
   const free = cells - widgets.reduce((a, w) => a + Math.min(w.w, HOME_COLS - w.col) * Math.min(w.h, HOME_ROWS - w.row), 0)
+  const ok = fits(widgets, anchor.c, anchor.r, cat.w, cat.h)
+  const W = cat.w * 88 + (cat.w - 1) * 8, H = cat.h * 88 + (cat.h - 1) * 8
   return (
     <div className="hm-gal">
       <div className="hm-galtop"><h2>Add a widget</h2>
@@ -198,17 +169,17 @@ function Gallery({ anchor, galType, setGalType, widgets, onClose, onAdd }: {
           ))}
         </div>
         <div className="hm-galmain">
-          <p className="hm-lead">Each size is shown full-scale with sample data so you can see exactly how it looks. You have <b>{mw} wide × {mh} tall</b> free at this spot — sizes that don’t fit are dimmed, so pick one that fits or free up space for a bigger one.</p>
-          {cat.sizes.map((s) => { const ok = fits(widgets, anchor.c, anchor.r, s.w, s.h)
-            const W = s.w * 82 + (s.w - 1) * 8, H = s.h * 82 + (s.h - 1) * 8
-            return (
-              <div key={s.n} className={'hm-sz' + (ok ? '' : ' no')}>
-                <div className="hm-szm"><span className="nm">{s.n}</span><span className="dim">{s.w}×{s.h}</span>
-                  <span className={'hm-szb ' + (ok ? 'fit' : 'no')}>{ok ? '✓ Fits here' : `Needs ${s.w}×${s.h}`}</span>
-                  <button className="hm-szadd" disabled={!ok} onClick={() => onAdd(galType, s)}>{ok ? 'Add to page' : 'Won’t fit'}</button></div>
-                <div className="hm-szp" style={{ width: W, height: H }} dangerouslySetInnerHTML={{ __html: widgetInnerHTML(galType, s.w, s.h) }} />
-              </div>
-            ) })}
+          <p className="hm-lead">These are your finalised screens as widgets — the real, workable interface renders live inside. Each has one size for now. You have <b>{mw} wide × {mh} tall</b> free at this spot.</p>
+          <div className={'hm-sz' + (ok ? '' : ' no')}>
+            <div className="hm-szm"><span className="nm">{cat.nm}</span><span className="dim">{cat.w}×{cat.h}</span>
+              <span className={'hm-szb ' + (ok ? 'fit' : 'no')}>{ok ? '✓ Fits here' : `Needs ${cat.w}×${cat.h}`}</span>
+              <button className="hm-szadd" disabled={!ok} onClick={() => onAdd(galType)}>{ok ? 'Add to page' : 'Won’t fit'}</button></div>
+            <div className="hm-szp hm-szplaceholder" style={{ width: W, height: H }}>
+              <span className="hm-szpic" style={{ background: cat.color }}><Ic k={cat.icon} size={26} /></span>
+              <span className="hm-szpnm">{cat.nm}</span>
+              <span className="hm-szpds">The live {cat.nm.toLowerCase()} — drops in here, fully workable.</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
