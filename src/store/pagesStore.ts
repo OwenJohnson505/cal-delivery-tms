@@ -36,13 +36,13 @@ interface PagesState {
 export const usePagesStore = create<PagesState>((set) => ({
   pages: [
     { id: 'p1', name: 'Operations', icon: 'truck', tools: ['assign', 'track', 'newjob'], widgets: [
-      mk('bookings', 0, 0, 8, 3), mk('email', 0, 3, 8, 3), // bookings on top, email below (full width)
+      mk('email', 0, 0, 3, 6), mk('bookings', 3, 0, 5, 6), // email column + bookings column, side by side
     ] },
     { id: 'p2', name: 'Accounts', icon: 'briefcase', tools: ['invoice', 'statement', 'credit'], widgets: [
       mk('customers', 0, 0, 5, 6), mk('createbooking', 5, 0, 3, 6),
     ] },
     { id: 'p3', name: 'Planning', icon: 'calendar', tools: ['route', 'capacity', 'newquote'], widgets: [
-      mk('bookings', 0, 0, 8, 6),
+      mk('bookings', 0, 0, 5, 6), mk('createbooking', 5, 0, 3, 6),
     ] },
   ],
   active: 0,

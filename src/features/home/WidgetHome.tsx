@@ -57,8 +57,9 @@ const PAGE_ICONS = ['truck', 'mail', 'users', 'chart', 'calendar', 'map', 'build
 // no invented sizes. (Bookings' compact/expanded is the table's own toggle, not a size.)
 type Cat = { nm: string; icon: string; color: string; desc: string; w: number; h: number; render: () => ReactNode }
 const CAT: Record<string, Cat> = {
-  bookings: { nm: 'Booking page', icon: 'grid', color: '#0071e3', desc: 'Bookings / quotes / drafts', w: 8, h: 3, render: () => <ListScreen /> },
-  email: { nm: 'Email', icon: 'mail', color: '#5856d6', desc: 'Inbox, threads & replies', w: 8, h: 3, render: () => <EmailPanel /> },
+  // sizes match how each design was actually built — tall columns, not wide blocks.
+  email: { nm: 'Email', icon: 'mail', color: '#5856d6', desc: 'Inbox, threads & replies', w: 3, h: 6, render: () => <EmailPanel /> },
+  bookings: { nm: 'Booking page', icon: 'grid', color: '#0071e3', desc: 'Bookings / quotes / drafts', w: 5, h: 6, render: () => <ListScreen /> },
   customers: { nm: 'Customer screen', icon: 'users', color: '#0a8f6c', desc: 'Accounts & contacts', w: 5, h: 6, render: () => <CustomersScreen /> },
   createbooking: { nm: 'Create booking', icon: 'plus', color: '#ff9500', desc: 'The booking wizard', w: 3, h: 6, render: () => <BookingWizard /> },
 }
