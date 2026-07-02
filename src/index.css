@@ -1546,6 +1546,12 @@ body {
   border-radius: var(--radius);
   overflow: hidden;
 }
+/* Fixed-height list page: the page itself does not scroll — the tabs/toolbars stay put
+ * and the TABLE container scrolls internally, so several containers can share the page. */
+.list-app.list-fixed { overflow: hidden; display: flex; flex-direction: column; }
+.list-app.list-fixed .list-work { flex: 1 1 auto; min-height: 0; }
+.list-app.list-fixed .list-tablewrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.list-app.list-fixed .list-table thead th { position: sticky; top: 0; z-index: 2; }
 .list-table {
   width: 100%;
   border-collapse: collapse;

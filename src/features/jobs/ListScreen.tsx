@@ -628,7 +628,7 @@ export function ListScreen() {
   // One table for everything (Compact or Expanded). Beside an open email it sits in the
   // job column; the compact table is dense enough to fit there without cards.
   return (
-    <div className={'list-app' + (emailFull ? ' email-jobs-app board-table' : '')}>
+    <div className={'list-app' + (isPriorityView ? '' : ' list-fixed') + (emailFull ? ' email-jobs-app board-table' : '')}>
       <div className="list-work wide bookings-main">
         {/* row 1: tabs + add (no page title — the active tab says where you are) */}
         <div className="bk-tabsrow">
