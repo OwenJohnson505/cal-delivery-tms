@@ -58,6 +58,9 @@ const ICONS: Record<string, string> = {
   'phone-in': '<path d="M16 3h5v5"/><path d="M21 3l-6 6"/><path d="M5 5h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 7a2 2 0 0 1 2-2"/>',
   'phone-out': '<path d="M20 8V3h-5"/><path d="M14 9l6-6"/><path d="M5 5h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 3 7a2 2 0 0 1 2-2"/>',
   more: '<circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>',
+  star: '<path d="M12 3l2.6 5.6L21 9.3l-4.5 4.3 1.1 6.4L12 17l-5.6 3 1.1-6.4L3 9.3l6.4-.7z"/>',
+  bookmark: '<path d="M6 3h12v18l-6-4-6 4z"/>',
+  alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.4"/>',
 }
 
 export type IconName = keyof typeof ICONS | string

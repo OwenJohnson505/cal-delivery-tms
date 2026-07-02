@@ -15,6 +15,7 @@ import { useCustomersStore, type Customer } from '@/store/customersStore.ts'
 import { useViewsStore, COLUMNS, type ColumnKey } from '@/store/viewsStore.ts'
 import { useEmailsStore } from '@/store/emailsStore.ts'
 import { useUiStore } from '@/store/uiStore.ts'
+import { useFilterStore, type FilterId, type SavedView } from '@/store/filterStore.ts'
 import { ColumnsMenu } from './ColumnsMenu.tsx'
 import { PriorityQueue } from './PriorityQueue.tsx'
 import { outcode } from '@/lib/index.ts'
@@ -87,6 +88,24 @@ function actionLabel(tab: ListTab): string {
   return tab === 'bookings' ? 'Booked by' : tab === 'quotes' ? 'Quoted by' : 'Drafted by'
 }
 
+// ── bookings chip filters ─────────────────────────────────────────────────────
+/** The seven toolbar filters: icon + full label. Options are derived from the searched
+ * jobs (below) except Late status, which is a fixed list. */
+const FILTER_META: Record<FilterId, { full: string; icon: string }> = {
+  sales: { full: 'Salesperson', icon: 'user' },
+  late: { full: 'Late status', icon: 'alert' },
+  team: { full: 'Team / dept', icon: 'users' },
+  customer: { full: 'Customer', icon: 'building' },
+  collregion: { full: 'Collection region', icon: 'pin' },
+  delregion: { full: 'Delivery region', icon: 'pin' },
+  vehicle: { full: 'Vehicle size', icon: 'truck' },
+}
+const FILTER_IDS = Object.keys(FILTER_META) as FilterId[]
+const LATE_OPTIONS = ['Late collection', 'Late delivery', 'On time'] as const
+/** The postcode AREA (leading letters) of an outcode, e.g. "LS10" → "LS". */
+const pcArea = (pc: string) => outcode(pc).replace(/\d.*$/, '')
+const isLateCls = (cls: string) => cls === 'd-amber' || cls === 'd-red'
+
 /** Small self-contained editor for the ETA popover (own state, saves via the store). */
 function EtaEditor({ initial, label, onSave }: { initial: string; label: string; onSave: (v: string) => void }) {
   const [v, setV] = useState(initial)
@@ -105,6 +124,33 @@ function EtaEditor({ initial, label, onSave }: { initial: string; label: string;
       <div className="cp-actions">
         <button className="btn sm primary" disabled={!valid} onClick={() => onSave(v)}>Save ETA</button>
       </div>
+    </div>
+  )
+}
+
+/** Inline "name & save" footer for saving a preset/view (own input state). */
+function SaveRow({ placeholder, onSave }: { placeholder: string; onSave: (name: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  if (!open) {
+    return (
+      <button className="bkf-mbtn" onClick={() => setOpen(true)}>
+        <Icon name="star" size={12} /> {placeholder}
+      </button>
+    )
+  }
+  const go = () => { onSave(name.trim() || 'Untitled'); setName(''); setOpen(false) }
+  return (
+    <div className="bkf-saverow">
+      <input
+        className="bkf-pinput"
+        placeholder="Name…"
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') go() }}
+      />
+      <button className="bkf-mbtn pri" onClick={go}>Save</button>
     </div>
   )
 }
@@ -151,32 +197,20 @@ export function ListScreen() {
   const etaClickTimer = useRef<number | null>(null)
 
   const custById = useMemo(() => Object.fromEntries(customers.map((c) => [c.id, c])), [customers])
+  // The signed-in user's default view scope — applied as the team chip's initial value
+  // (team-level → their team; department-level → their department; otherwise all).
   const scope = useMemo(() => userScope(currentUserId, departments, teams), [currentUserId, departments, teams])
-  const defaultKey = scope.level === 'team' ? `team:${scope.teamId}` : scope.level === 'department' ? `dep:${scope.departmentId}` : 'all'
-  const [filterKey, setFilterKey] = useState(defaultKey)
-  // Re-apply the default whenever the signed-in user (and so their scope) changes.
-  useEffect(() => { setFilterKey(defaultKey) }, [defaultKey])
 
-  const matchesScope = (j: SavedJob) => {
-    if (filterKey === 'all') return true
-    const c = custById[j.snapshot.book.cust ?? '']
-    if (!c) return false
-    if (filterKey.startsWith('team:')) return c.teamId === filterKey.slice(5)
-    if (filterKey.startsWith('dep:')) return c.departmentId === filterKey.slice(4)
-    return true
-  }
-
-  const scoped = useMemo(() => jobs.filter(matchesScope), [jobs, filterKey, custById]) // eslint-disable-line react-hooks/exhaustive-deps
-
+  // Tab counts reflect all jobs per status; team/dept scoping is now a chip filter (below).
   const counts = useMemo(() => {
     const c: Record<ListTab, number> = { bookings: 0, quotes: 0, drafts: 0 }
-    scoped.forEach((j) => {
+    jobs.forEach((j) => {
       ;(Object.keys(TAB_STATUSES) as ListTab[]).forEach((t) => {
         if (TAB_STATUSES[t].includes(j.status)) c[t]++
       })
     })
     return c
-  }, [scoped])
+  }, [jobs])
 
   // Search looks inside the job, not just the visible table: ref, names, route,
   // vehicle, supplier, status, custom ref, every stop's address/ref/contact, and notes.
@@ -196,10 +230,10 @@ export function ListScreen() {
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return scoped
+    return jobs
       .filter((j) => TAB_STATUSES[tab].includes(j.status))
       .filter((j) => !q || haystack(j).includes(q))
-  }, [scoped, tab, query]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jobs, tab, query]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── per-column sorting & filtering ──────────────────────────────────────────
   // Each column declares its sortable fields and filterable facets. Merged columns
@@ -278,6 +312,120 @@ export function ListScreen() {
   const [colFilters, setColFilters] = useState<Record<string, string[]>>({})
   const [headerMenu, setHeaderMenu] = useState<{ key: ColumnKey; x: number; y: number } | null>(null)
 
+  // ── bookings chip filters ─────────────────────────────────────────────────
+  // Persisted (per-user) config: which filters are pinned, saved presets, saved views.
+  const pinned = useFilterStore((s) => s.pinned)
+  const presets = useFilterStore((s) => s.presets)
+  const savedViews = useFilterStore((s) => s.views)
+  const setPinned = useFilterStore((s) => s.setPinned)
+  const addPreset = useFilterStore((s) => s.addPreset)
+  const deletePreset = useFilterStore((s) => s.deletePreset)
+  const addView = useFilterStore((s) => s.addView)
+  const deleteView = useFilterStore((s) => s.deleteView)
+
+  // Applied filter values — ephemeral (like colFilters), reset on reload. Seeded with the
+  // user's default team/dept scope so the list opens scoped to their team.
+  const [chipFilters, setChipFilters] = useState<Partial<Record<FilterId, string[]>>>({})
+  const scopeKey = scope.level === 'team' ? `team:${scope.teamId}` : scope.level === 'department' ? `dep:${scope.departmentId}` : ''
+  useEffect(() => {
+    setChipFilters(scopeKey ? { team: [scopeKey] } : {})
+  }, [scopeKey])
+  // Chip value/more/gear/views popovers (single at a time), positioned like headerMenu.
+  const [fpop, setFpop] = useState<{ kind: 'value' | 'more' | 'gear' | 'views'; filterId?: FilterId; x: number; y: number } | null>(null)
+  const openFpop = (e: React.MouseEvent, kind: 'value' | 'more' | 'gear' | 'views', filterId?: FilterId) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setFpop({ kind, filterId, x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 6 })
+  }
+
+  const collStop = (j: SavedJob) => j.snapshot.stops.find((s) => s.type === 'Collection' || s.type === 'Both')
+  const delStop = (j: SavedJob) => [...j.snapshot.stops].reverse().find((s) => s.type === 'Delivery' || s.type === 'Both')
+  /** Late tags for a job (a job can be both late collection & late delivery). */
+  const lateTags = (j: SavedJob): string[] => {
+    const collTime = (j.collectAt.split(' ')[1]) || ''
+    const delTime = (j.deliverAt.split(' ')[1]) || ''
+    // Same delta logic the live board uses: amber/red on the collection/delivery cell = late.
+    // (deltaInfo returns d-red immediately when the delivery failed, even with no ETA.)
+    const lateColl = isLateCls(deltaInfo(collTime, j.collectEta).cls)
+    const lateDel = isLateCls(deltaInfo(delTime, j.deliverEta, j.progress === 'Failed').cls)
+    const tags: string[] = []
+    if (lateColl) tags.push('Late collection')
+    if (lateDel) tags.push('Late delivery')
+    if (!tags.length) tags.push('On time')
+    return tags
+  }
+  // Team/dept option keys present on a job's customer (matches the option values below).
+  const teamKeys = (j: SavedJob): string[] => {
+    const c = custById[j.snapshot.book.cust ?? '']
+    if (!c) return []
+    const out: string[] = []
+    if (c.departmentId) out.push(`dep:${c.departmentId}`)
+    if (c.teamId) out.push(`team:${c.teamId}`)
+    return out
+  }
+  /** The value(s) a job holds for a given filter — matched against the selected set. */
+  const filterGet = (fid: FilterId, j: SavedJob): string[] => {
+    switch (fid) {
+      case 'sales': return [j.actorName].filter(Boolean)
+      case 'late': return lateTags(j)
+      case 'team': return teamKeys(j)
+      case 'customer': return [displayNameOf(j)].filter(Boolean)
+      case 'collregion': return [pcArea(collStop(j)?.addr.pc ?? '')].filter(Boolean)
+      case 'delregion': return [pcArea(delStop(j)?.addr.pc ?? '')].filter(Boolean)
+      case 'vehicle': return [j.vehicle].filter(Boolean)
+    }
+  }
+  /** Human label for an option value (team/dept keys → their names; else the value). */
+  const optLabelFor = (fid: FilterId, val: string): string => {
+    if (fid === 'team') {
+      if (val.startsWith('team:')) return teams.find((t) => t.id === val.slice(5))?.name ?? val
+      if (val.startsWith('dep:')) return departments.find((d) => d.id === val.slice(4))?.name ?? val
+    }
+    return val
+  }
+  // Options for each filter = the distinct values present in the currently-searched jobs,
+  // except Late (a fixed list). Built once from `searched`.
+  const filterOptions = useMemo(() => {
+    const m = {} as Record<FilterId, string[]>
+    FILTER_IDS.forEach((fid) => {
+      if (fid === 'late') { m[fid] = [...LATE_OPTIONS]; return }
+      const set = new Set<string>()
+      searched.forEach((j) => filterGet(fid, j).forEach((v) => v && set.add(v)))
+      m[fid] = [...set].sort((a, b) => optLabelFor(fid, a).localeCompare(optLabelFor(fid, b)))
+    })
+    return m
+  }, [searched]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setChip = (fid: FilterId, vals: string[]) =>
+    setChipFilters((p) => {
+      const next = { ...p }
+      if (vals.length) next[fid] = vals
+      else delete next[fid]
+      return next
+    })
+  const toggleChipVal = (fid: FilterId, val: string) =>
+    setChipFilters((p) => {
+      const cur = new Set(p[fid] ?? [])
+      cur.has(val) ? cur.delete(val) : cur.add(val)
+      const next = { ...p }
+      if (cur.size) next[fid] = [...cur]
+      else delete next[fid]
+      return next
+    })
+  const clearChip = (fid: FilterId) => setChip(fid, [])
+  const clearAllChips = () => setChipFilters({} as Record<FilterId, string[]>)
+  const chipCount = (Object.values(chipFilters) as string[][]).reduce((n, s) => n + s.length, 0)
+  const applyView = (view: SavedView) => setChipFilters({ ...(view.f as Record<FilterId, string[]>) })
+  const viewApplied = (view: SavedView): boolean => {
+    const keys = Object.keys(view.f) as FilterId[]
+    const curKeys = Object.keys(chipFilters) as FilterId[]
+    if (keys.length !== curKeys.length) return false
+    return keys.every((fid) => {
+      const cur = chipFilters[fid]
+      const want = view.f[fid] ?? []
+      return cur && cur.length === want.length && want.every((x) => cur.includes(x))
+    })
+  }
+
   const toggleFacetValue = (facetId: string, val: string) =>
     setColFilters((p) => {
       const cur = new Set(p[facetId] ?? [])
@@ -289,8 +437,10 @@ export function ListScreen() {
     })
 
   const rows = useMemo(() => {
+    const chipEntries = Object.entries(chipFilters) as [FilterId, string[]][]
     let out = searched.filter((j) =>
-      Object.entries(colFilters).every(([fid, vals]) => !vals.length || !facetById[fid] || vals.includes(facetById[fid].get(j))),
+      Object.entries(colFilters).every(([fid, vals]) => !vals.length || !facetById[fid] || vals.includes(facetById[fid].get(j))) &&
+      chipEntries.every(([fid, vals]) => !vals.length || filterGet(fid, j).some((v) => vals.includes(v))),
     )
     if (sort) {
       const def = colMeta[sort.col]?.sorts.find((s) => s.id === sort.sortId)
@@ -304,10 +454,9 @@ export function ListScreen() {
       }
     }
     return out
-  }, [searched, colFilters, sort, facetById]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searched, colFilters, chipFilters, sort, facetById]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const colIsFiltered = (key: ColumnKey) => (colMeta[key]?.facets ?? []).some((f) => colFilters[f.id]?.length)
-  const anyColFilter = Object.keys(colFilters).length > 0
 
   // ── per-customer custom-field columns ───────────────────────────────────────
   // Available ONLY while the list is filtered to ONE customer (otherwise the column
@@ -629,81 +778,87 @@ export function ListScreen() {
   // job column; the compact table is dense enough to fit there without cards.
   return (
     <div className={'list-app' + (isPriorityView ? '' : ' list-fixed') + (emailFull ? ' email-jobs-app board-table' : '')}>
-      <div className="list-work wide bookings-main">
-        {/* row 1: tabs + add (no page title — the active tab says where you are) */}
-        <div className="bk-tabsrow">
-          <div className="list-tabs">
-            {(Object.keys(TAB_LABEL) as ListTab[]).map((t) => (
-              <button
-                key={t}
-                className={'list-tab' + (t === tab ? ' on' : '')}
-                onClick={() => setListTab(t)}
-              >
-                {TAB_LABEL[t]} <span className="list-tab-n">{counts[t]}</span>
-              </button>
-            ))}
-          </div>
-          <span className="db-spacer" />
-          <button className="btn primary" onClick={addNew}>
-            <Icon name="plus" size={15} /> Add new booking
-          </button>
-        </div>
-
-        {/* row 2: search + data filters */}
-        <div className="list-toolbar">
-          <div className="tb-search">
-            <Icon name="search" size={15} />
-            <input
-              type="text"
-              placeholder="Search ref, customer, route or vehicle…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <label className="tb-field">
-            <span>Team / dept</span>
-            <select className="tb-select" value={filterKey} onChange={(e) => setFilterKey(e.target.value)}>
-              <option value="all">All bookings</option>
-              {departments.map((dep) => (
-                <optgroup key={dep.id} label={dep.name}>
-                  <option value={`dep:${dep.id}`}>All of {dep.name}</option>
-                  {teams.filter((t) => t.departmentId === dep.id).map((t) => (
-                    <option key={t.id} value={`team:${t.id}`}>{t.name}</option>
-                  ))}
-                </optgroup>
+      <div className={'list-work wide bookings-main bkf-main' + (!isPriorityView && density === 'compact' ? ' bkf-hug' : '')}>
+        {/* row 1: tabs · spacer · density · columns · Add — fused to the table below */}
+        <div className="bkf-thead">
+          <div className="bkf-trow">
+            <div className="list-tabs">
+              {(Object.keys(TAB_LABEL) as ListTab[]).map((t) => (
+                <button
+                  key={t}
+                  className={'list-tab' + (t === tab ? ' on' : '')}
+                  onClick={() => setListTab(t)}
+                >
+                  {TAB_LABEL[t]} <span className="list-tab-n">{counts[t]}</span>
+                </button>
               ))}
-            </select>
-          </label>
-          <span className="list-count">{rows.length} {rows.length === 1 ? 'item' : 'items'}</span>
-          {anyColFilter && (
-            <button className="cm-link" onClick={() => setColFilters({})}>Clear filters</button>
-          )}
-        </div>
-
-        {/* row 3: view configuration — the saved-view switcher is always visible; the
-            density toggle + column picker only apply to the table layouts. */}
-        <div className="list-toolbar bk-viewrow">
-          <ColumnsMenu
-            showColumns={!isPriorityView && density === 'expanded'}
-            extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
-            extraColumns={cfColumns}
-            activeExtra={validActiveCf}
-            onToggleExtra={toggleCf}
-            extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
-          />
-          <div className="viewtoggle" role="group" aria-label="Table density">
-            {isPriorityView ? (
-              <>
-                <button className={'vt-btn vt-wide' + (pqDensity === 'compact' ? ' on' : '')} onClick={() => setPqDensity('compact')}>Compact</button>
-                <button className={'vt-btn vt-wide' + (pqDensity === 'expanded' ? ' on' : '')} onClick={() => setPqDensity('expanded')}>Expanded</button>
-              </>
-            ) : (
-              <>
-                <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into a few columns">Compact</button>
-                <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
-              </>
-            )}
+            </div>
+            <span className="bkf-sp" />
+            <div className="viewtoggle" role="group" aria-label="Table density">
+              {isPriorityView ? (
+                <>
+                  <button className={'vt-btn vt-wide' + (pqDensity === 'compact' ? ' on' : '')} onClick={() => setPqDensity('compact')}>Compact</button>
+                  <button className={'vt-btn vt-wide' + (pqDensity === 'expanded' ? ' on' : '')} onClick={() => setPqDensity('expanded')}>Expanded</button>
+                </>
+              ) : (
+                <>
+                  <button className={'vt-btn vt-wide' + (density === 'compact' ? ' on' : '')} onClick={() => setTableDensity('compact')} title="Compact — related data grouped into a few columns">Compact</button>
+                  <button className={'vt-btn vt-wide' + (density === 'expanded' ? ' on' : '')} onClick={() => setTableDensity('expanded')} title="Expanded — every data point in its own column">Expanded</button>
+                </>
+              )}
+            </div>
+            <ColumnsMenu
+              showColumns={!isPriorityView && density === 'expanded'}
+              extraTitle={singleCustomer ? `Custom fields · ${singleCustomer.displayName || singleCustomer.companyName}` : undefined}
+              extraColumns={cfColumns}
+              activeExtra={validActiveCf}
+              onToggleExtra={toggleCf}
+              extraHint="Filter the Customer column to a single customer to add their custom fields as columns."
+            />
+            <button className="btn primary bkf-add" onClick={addNew}>
+              <Icon name="plus" size={15} /> <span className="bkf-lb">Add booking</span>
+            </button>
           </div>
+
+          {/* row 2: search · chips · +More · count · saved views · gear */}
+          {!isPriorityView && (
+            <div className="bkf-trow bkf-filterrow">
+              <div className="bkf-search">
+                <Icon name="search" size={15} />
+                <input
+                  type="text"
+                  placeholder="Search ref, customer, route or vehicle…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <div className="bkf-chips">
+                {pinned.map((fid) => {
+                  const on = (chipFilters[fid]?.length ?? 0) > 0
+                  return (
+                    <button
+                      key={fid}
+                      className={'bkf-chip' + (on ? ' active' : '')}
+                      title={FILTER_META[fid].full + (on ? ' · filter active' : '')}
+                      onClick={(e) => openFpop(e, 'value', fid)}
+                    >
+                      <Icon name={FILTER_META[fid].icon} size={14} />
+                    </button>
+                  )
+                })}
+              </div>
+              <button className="bkf-addchip" title="More filters" onClick={(e) => openFpop(e, 'more')}>
+                <Icon name="plus" size={14} />
+              </button>
+              <span className="list-count bkf-count">{rows.length} {rows.length === 1 ? 'item' : 'items'}</span>
+              <button className="bkf-iconbtn" title="Saved views & clear filters" onClick={(e) => openFpop(e, 'views')}>
+                <Icon name="bookmark" size={15} />
+              </button>
+              <button className="bkf-iconbtn" title="Customize quick filters" onClick={(e) => openFpop(e, 'gear')}>
+                <Icon name="cog" size={15} />
+              </button>
+            </div>
+          )}
         </div>
 
         {isPriorityView ? (
@@ -837,6 +992,176 @@ export function ListScreen() {
           </>
         )
       })()}
+
+      {fpop && (
+        <>
+          <div className="cc-pop-scrim" onClick={() => setFpop(null)} />
+          <div className="bkf-menu" style={{ left: fpop.x, top: fpop.y }}>
+            {fpop.kind === 'value' && fpop.filterId && (() => {
+              const fid = fpop.filterId
+              const F = FILTER_META[fid]
+              const opts = filterOptions[fid]
+              const sel = chipFilters[fid] ?? []
+              const filterPresets = presets[fid] ?? []
+              return (
+                <>
+                  <div className="bkf-mhead">
+                    <h5>{F.full}</h5>
+                    <span className="bkf-mall">
+                      <a onClick={() => setChip(fid, [...opts])}>Select all</a>
+                      <a onClick={() => clearChip(fid)}>Clear</a>
+                    </span>
+                  </div>
+                  {filterPresets.length > 0 && (
+                    <>
+                      <div className="bkf-mpsec">Presets</div>
+                      {filterPresets.map((p, i) => (
+                        <div key={i} className="bkf-mprow" onClick={() => setChip(fid, [...p.vals])}>
+                          <span className="bkf-mi star"><Icon name="star" size={14} /></span>
+                          <span className="bkf-mpname">{p.name}</span>
+                          <span className="bkf-mpn">{p.vals.length}</span>
+                          <button
+                            className="bkf-pdel"
+                            title="Delete preset"
+                            onClick={(e) => { e.stopPropagation(); deletePreset(fid, i) }}
+                          >
+                            <Icon name="trash" size={13} />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="bkf-msep" />
+                    </>
+                  )}
+                  {opts.map((v) => (
+                    <div
+                      key={v}
+                      className={'bkf-mrow' + (sel.includes(v) ? ' on' : '')}
+                      onClick={() => toggleChipVal(fid, v)}
+                    >
+                      <span className="bkf-ck"><Icon name="check" size={11} /></span>
+                      {optLabelFor(fid, v)}
+                    </div>
+                  ))}
+                  {!opts.length && <div className="bkf-mrow muted">Nothing to filter.</div>}
+                  <div className="bkf-msep" />
+                  <div className="bkf-mfoot">
+                    <SaveRow
+                      placeholder="Save selection as preset"
+                      onSave={(name) => addPreset(fid, { name, vals: [...(chipFilters[fid] ?? [])] })}
+                    />
+                  </div>
+                </>
+              )
+            })()}
+
+            {fpop.kind === 'more' && (() => {
+              const unpinned = FILTER_IDS.filter((f) => !pinned.includes(f))
+              return (
+                <>
+                  <h5>More filters</h5>
+                  {unpinned.map((fid) => (
+                    <div key={fid} className="bkf-mrow" onClick={(e) => openFpop(e, 'value', fid)}>
+                      <span className="bkf-mi"><Icon name={FILTER_META[fid].icon} size={15} /></span>
+                      {FILTER_META[fid].full}
+                    </div>
+                  ))}
+                  {!unpinned.length && <div className="bkf-mrow muted">All filters pinned.</div>}
+                </>
+              )
+            })()}
+
+            {fpop.kind === 'gear' && (
+              <>
+                <h5>Pin as quick filters</h5>
+                {FILTER_IDS.map((fid) => {
+                  const isPinned = pinned.includes(fid)
+                  return (
+                    <div
+                      key={fid}
+                      className={'bkf-mrow' + (isPinned ? ' on' : '')}
+                      onClick={() => setPinned(isPinned ? pinned.filter((x) => x !== fid) : [...pinned, fid])}
+                    >
+                      <span className="bkf-ck"><Icon name="check" size={11} /></span>
+                      <span className="bkf-mi"><Icon name={FILTER_META[fid].icon} size={15} /></span>
+                      {FILTER_META[fid].full}
+                    </div>
+                  )
+                })}
+                <div className="bkf-msep" />
+                <div className="bkf-mfoot">
+                  <span className="bkf-saved">Pinned filters are saved as your default.</span>
+                </div>
+              </>
+            )}
+
+            {fpop.kind === 'views' && (() => {
+              const anyApplied = savedViews.some((v) => viewApplied(v))
+              return (
+                <>
+                  <h5>Saved views</h5>
+                  {chipCount > 0 && !anyApplied && (
+                    <>
+                      <div className="bkf-mrow clr" onClick={() => { clearAllChips(); setFpop(null) }}>
+                        <span className="bkf-mi vb"><Icon name="close" size={13} /></span>
+                        Clear all filters
+                      </div>
+                      <div className="bkf-msep" />
+                    </>
+                  )}
+                  {savedViews.map((v, i) => {
+                    const on = viewApplied(v)
+                    return (
+                      <div
+                        key={i}
+                        className={'bkf-mprow' + (on ? ' sel' : '')}
+                        onClick={() => { applyView(v); setFpop(null) }}
+                      >
+                        <span className="bkf-mi vb"><Icon name={on ? 'check' : 'bookmark'} size={14} /></span>
+                        <span className="bkf-mpname">{v.name}</span>
+                        <span className="bkf-mpn">{Object.keys(v.f).length} filters</span>
+                        {on ? (
+                          <button
+                            className="bkf-pclr"
+                            onClick={(e) => { e.stopPropagation(); clearAllChips(); setFpop(null) }}
+                          >
+                            <Icon name="close" size={10} /> Clear
+                          </button>
+                        ) : (
+                          <button
+                            className="bkf-pdel"
+                            title="Delete view"
+                            onClick={(e) => { e.stopPropagation(); deleteView(i) }}
+                          >
+                            <Icon name="trash" size={13} />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {!savedViews.length && <div className="bkf-mrow muted">No saved views yet.</div>}
+                  <div className="bkf-msep" />
+                  <div className="bkf-mfoot">
+                    {chipCount > 0 ? (
+                      <SaveRow
+                        placeholder="Save current filters as a view"
+                        onSave={(name) => {
+                          const f: SavedView['f'] = {}
+                          ;(Object.entries(chipFilters) as [FilterId, string[]][]).forEach(([fid, vals]) => {
+                            if (vals.length) f[fid] = [...vals]
+                          })
+                          addView({ name, f })
+                        }}
+                      />
+                    ) : (
+                      <span className="bkf-saved">Apply some filters to save them as a view.</span>
+                    )}
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </>
+      )}
 
       {notesJob && (
         <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && setNotesJob(null)}>
