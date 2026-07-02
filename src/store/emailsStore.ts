@@ -39,6 +39,11 @@ export interface EmailMsg {
   at: string // dd-mm-yy HH:MM
   outbound?: boolean
   attachments?: EmailAttachment[]
+  /** A system / job-lifecycle event (booking created, allocated, collected, ETA changed…)
+   * shown inline on the thread timeline as a compact audit row rather than an email. */
+  event?: boolean
+  /** Icon name for an event row (e.g. plus / truck / flag / box / clock). */
+  icon?: string
 }
 
 export interface EmailComment {
@@ -199,7 +204,7 @@ function applyRulesTo(t: EmailThread, rules: EmailRule[]): EmailThread {
 
 // ── seed threads ────────────────────────────────────────────────────────────────
 type ThreadSeed = Omit<EmailThread, 'category' | 'priority' | 'assigneeId' | 'comments' | 'snoozedUntil' | 'reminderAt' | 'conversationId' | 'participants' | 'tags' | 'lane' | 'linkedJobRef' | 'status' | 'resolutionReason' | 'assignedAt' | 'lastActivityAt' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'archived'> &
-  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'draftPresence' | 'status' | 'expectingResponse' | 'chaseDueAt'>>
+  Partial<Pick<EmailThread, 'tags' | 'lane' | 'linkedJobRef' | 'viewingBy' | 'draftPresence' | 'status' | 'expectingResponse' | 'chaseDueAt' | 'readBy' | 'assigneeId' | 'manuallyAssigned'>>
 
 function seedThreads(rules: EmailRule[]): EmailThread[] {
   const base = (t: ThreadSeed): EmailThread => {
@@ -244,6 +249,7 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
     }),
     base({
       id: 'th-3', read: true, mailbox: 'bookings@cal.delivery', subject: 'Driver details for BK-100479', linkedJobRef: 'BK-100479',
+      readBy: { 'USR-1004': minsAgo(70), 'USR-1005': minsAgo(64) },
       msgs: [{ id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(78),
         body: 'Morning — site security needs the driver name and vehicle registration for BK-100479 before arrival. Could you send the driver details over?\n\nPriya',
         attachments: [{ id: uid(), name: 'site-access-form.pdf' }] }],
@@ -306,6 +312,90 @@ function seedThreads(rules: EmailRule[]): EmailThread[] {
       id: 'th-11', read: true, mailbox: 'accounts@cal.delivery', subject: 'Invoice query — INV-3391',
       msgs: [{ id: uid(), from: { name: 'Karen Doyle', email: 'ap@meridianfoods.com' }, at: minsAgo(140),
         body: 'Hi, invoice INV-3391 shows a £35 handballing charge we were not expecting on the M15 to L7 job. Could you confirm what this relates to?\n\nKaren (Meridian AP)' }],
+    }),
+    // ── multi-message back-and-forth conversations ──
+    base({
+      id: 'th-12', read: true, mailbox: 'bookings@cal.delivery', subject: 'Regular Leeds → Manchester run — rates?',
+      lane: 'In progress', assigneeId: 'USR-1005', manuallyAssigned: true,
+      readBy: { 'USR-1005': minsAgo(120), 'USR-1001': minsAgo(90) },
+      msgs: [
+        { id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(310),
+          body: 'Morning,\n\nWe are looking for a regular 18t run, Leeds (LS9) to Manchester (M17), three days a week from next month. Can you price it?\n\nDan' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(295), outbound: true,
+          body: 'Hi Dan,\n\nHappy to. Roughly how many pallets per run, and what collection window are you after?\n\nTom' },
+        { id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(250),
+          body: 'Around 6 pallets each trip, Mon / Wed / Fri, collecting about 08:00. Curtainsider, no tail lift.\n\nDan' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(230), outbound: true,
+          body: 'Great — on a standing basis we can do £210 per run, all-in.\n\nTom' },
+        { id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(140),
+          body: 'Can you hold it at £195? We will commit to a 12-week contract.\n\nDan' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(120), outbound: true,
+          body: 'Let us meet in the middle at £200 per run for the 12 weeks and I will set it up.\n\nTom' },
+        { id: uid(), from: { name: 'Dan Whitfield', email: 'transport@northgatelogistics.co.uk' }, at: minsAgo(35),
+          body: 'Deal — £200 works. Please book it from Monday, our ref NGL-STAND-01.\n\nDan' },
+      ],
+    }),
+    base({
+      id: 'th-13', read: false, mailbox: 'bookings@cal.delivery', subject: 'ETA — where is BK-100479?', linkedJobRef: 'BK-100479',
+      assigneeId: 'USR-1005', manuallyAssigned: true,
+      readBy: { 'USR-1005': minsAgo(45), 'USR-1002': minsAgo(40) },
+      msgs: [
+        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(58),
+          body: 'Hi — the site expected BK-100479 by 10:00 and there is no sign of the driver. Can you check?\n\nPriya' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(52), outbound: true,
+          body: 'Hi Priya,\n\nChecking with the driver now — back to you in a couple of minutes.\n\nTom' },
+        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(38),
+          body: 'It is 10:40 now and still nothing. This is holding up the bay.\n\nPriya' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(30), outbound: true,
+          body: 'Apologies Priya — he hit heavy traffic on the M60 and is 20 minutes out. I will credit the late fee on this one.\n\nTom' },
+        { id: uid(), from: { name: 'Priya Shah', email: 'priya@orbitretail.com' }, at: minsAgo(12),
+          body: 'OK, thanks for chasing it and for the update.\n\nPriya' },
+      ],
+    }),
+    base({
+      id: 'th-14', read: true, mailbox: 'sarah@cal.delivery', subject: 'Re: Weekly pallet contract', lane: 'Done',
+      assigneeId: 'USR-1002', manuallyAssigned: true,
+      readBy: { 'USR-1002': minsAgo(200), 'USR-1003': minsAgo(180) },
+      msgs: [
+        { id: uid(), from: { name: 'Rachel Innes', email: 'r.innes@forsythretail.co.uk' }, at: minsAgo(400),
+          body: 'Hi Sarah,\n\nWe would like to move our weekly pallet work over to you. Can you take 10–12 pallets every Thursday, Sheffield to Hull?\n\nRachel' },
+        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: minsAgo(380), outbound: true,
+          body: 'Hi Rachel,\n\nAbsolutely. £340 per week on a standing Thursday slot — first collection this week?\n\nSarah' },
+        { id: uid(), from: { name: 'Rachel Innes', email: 'r.innes@forsythretail.co.uk' }, at: minsAgo(360),
+          body: 'Perfect, yes please start this Thursday. PO FSR-2231 to follow.\n\nRachel' },
+        { id: uid(), from: { name: 'Sarah Doyle', email: 'sarah@cal.delivery' }, at: minsAgo(350), outbound: true,
+          body: 'All booked in and the standing order is set up. Thanks Rachel!\n\nSarah' },
+      ],
+    }),
+    // Full audit log inside a thread: customer/us emails interleaved with job-lifecycle
+    // events (created → allocated → ETA change → arrived → collected → ETA change).
+    base({
+      id: 'th-15', read: false, mailbox: 'bookings@cal.delivery', subject: 'New booking — 8 pallets Leeds → Birmingham', linkedJobRef: 'BK-100486',
+      assigneeId: 'USR-1005', manuallyAssigned: true, readBy: { 'USR-1005': minsAgo(60) },
+      msgs: [
+        { id: uid(), from: { name: 'Helen Cross', email: 'h.cross@brightway.co.uk' }, at: minsAgo(255),
+          body: 'Hi — can we book 8 pallets from our Leeds DC (LS9 0PX) to the Birmingham store (B1 1AA) today? Site closes at 17:00.\n\nHelen' },
+        { id: uid(), event: true, icon: 'plus', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(252),
+          body: 'Booking created · BK-100486' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(250), outbound: true,
+          body: 'Hi Helen,\n\nBooked in as BK-100486 — planning collection around 13:00, delivery this afternoon.\n\nTom' },
+        { id: uid(), event: true, icon: 'truck', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(210),
+          body: 'Allocated to driver M. Reid (YJ71 KXP)' },
+        { id: uid(), from: { name: 'Helen Cross', email: 'h.cross@brightway.co.uk' }, at: minsAgo(150),
+          body: 'Thanks — any update on timing? The bay needs to be clear before close.\n\nHelen' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(146), outbound: true,
+          body: 'On track — collection ~13:00, delivery ETA about 15:30.\n\nTom' },
+        { id: uid(), event: true, icon: 'clock', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(95),
+          body: 'Collection ETA changed → 13:40 (M62 delay)' },
+        { id: uid(), event: true, icon: 'flag', from: { name: 'M. Reid · driver', email: 'mreid@hauliers.co.uk' }, at: minsAgo(55),
+          body: 'Driver arrived on site — collection' },
+        { id: uid(), event: true, icon: 'box', from: { name: 'M. Reid · driver', email: 'mreid@hauliers.co.uk' }, at: minsAgo(48),
+          body: 'Collected — 8 pallets, POD started' },
+        { id: uid(), from: { name: 'Tom Baker', email: 'tom@cal.delivery' }, at: minsAgo(45), outbound: true,
+          body: 'Collected and en route — delivery ETA around 16:00.\n\nTom' },
+        { id: uid(), event: true, icon: 'clock', from: { name: 'System', email: 'system@cal.delivery' }, at: minsAgo(10),
+          body: 'Delivery ETA changed → 16:20 (traffic)' },
+      ],
     }),
   ]
 }

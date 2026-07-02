@@ -1026,20 +1026,23 @@ body {
 .cust-stack .cust-name { white-space: nowrap; }
 
 /* ── app shell: job column on the left, the email client on the right ── */
-.shell { display: flex; height: 100vh; overflow: hidden; --jobcol-w: clamp(520px, 35vw, 600px); }
+.shell { display: flex; height: 100vh; overflow: hidden; --jobcol-w: clamp(520px, 35vw, 600px); --email-w: clamp(400px, 27vw, 460px); }
 .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
 
 /* Email OPEN: the email client takes most of the width (it's a full client); the job
  * column is a NARROW fixed strip — cards use HEIGHT not width, and the SAME width
  * serves an open booking, so opening a job never widens anything. */
 .shell.panel-open .shell-main { flex: 0 0 var(--jobcol-w); min-width: 0; overflow: auto; }
-.shell.panel-open .email-panel { flex: 1 1 auto; min-width: 0; }
+/* Email OPEN keeps the SAME fixed width as the inbox list — it does not stretch to fill.
+ * The freed space is left empty on purpose (reserved for future use), so opening an
+ * email never widens the channel or creates dead space inside it. */
+.shell.panel-open .email-panel { flex: 0 0 var(--email-w); min-width: 0; }
 
 /* ── SIDE mode (email collapsed to 'list' or 'mini') ──
  * The main area is the NORMAL app (full table / normal horizontal wizard); the email
  * sits as a fixed-width panel ('list' = inbox list only) or a thin rail ('mini') on
  * the right, like a secondary sidebar. */
-.shell.email-side { --email-side-w: clamp(300px, 22vw, 360px); }
+.shell.email-side { --email-side-w: var(--email-w); }
 .shell.email-side.email-mini { --email-side-w: 38px; }
 .shell.email-side .shell-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
 .shell.email-side .email-panel { flex: 0 0 var(--email-side-w); min-width: 0; }
@@ -1065,12 +1068,6 @@ body {
 .email-reopen-badge {
   min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff;
   font-size: 10px; font-weight: 800; display: inline-grid; place-items: center;
-}
-
-/* customer-name chip on email rows (who emailed us) */
-.ep-custchip {
-  flex: none; font-size: 9.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
-  border-radius: 999px; padding: 1px 7px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* An open booking inside the narrow column → a VERTICAL, scrolling form (the wide
@@ -1259,131 +1256,14 @@ body {
   background: var(--panel); border-left: 1px solid var(--line);
   height: 100vh; display: flex; flex-direction: column;
 }
-.ep-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
-.ep-unread { font-size: 10.5px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 999px; padding: 1px 7px; }
-.ep-list { flex: none; max-height: 32%; overflow: auto; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; }
-.ep-row { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 14px; border: none; background: none; border-bottom: 1px solid var(--field); font: inherit; cursor: pointer; }
-.ep-row:hover { background: var(--field); }
-.ep-row.on { background: var(--accent-soft); }
-.ep-row.unread .ep-row-from, .ep-row.unread .ep-row-subj { font-weight: 700; color: var(--ink); }
-.ep-row-top { display: flex; justify-content: space-between; gap: 8px; }
-.ep-row-from { font-size: 12.5px; font-weight: 600; color: var(--ink); }
-.ep-row-at { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
-.ep-row-subj { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-reader { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.ep-fields { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; flex: none; }
-.ep-frow { display: flex; gap: 8px; font-size: 12px; min-width: 0; }
-.ep-frow > span { width: 54px; flex: none; color: var(--muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding-top: 1px; }
-.ep-frow b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-tools { margin-top: 6px; }
-.ep-msgs { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
-.ep-msg { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: #fff; max-width: 92%; align-self: flex-start; }
-.ep-msg.out { align-self: flex-end; background: var(--accent-soft); border-color: #dbe7fb; }
-.ep-msg-meta { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; }
-.ep-msg-body { font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; }
-.ep-compose { flex: none; border-top: 1px solid var(--line); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end; }
-.ep-compose textarea { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 12.5px; resize: none; height: auto; }
-.ep-empty { padding: 20px; color: var(--muted); font-size: 12.5px; }
+/* ── email panel: layout GLUE only (internal UI now lives in features/email/email.css) ──
+ * The shell rules below (.shell.panel-open/.email-side/.email-left/.email-injob/
+ * .email-listonly/.email-solo) size and position the panel via these structural class
+ * names, so they are kept: .email-panel, .ep-body, .ep-listcol, .ep-readcol, .ep-list. */
+.ep-list { flex: none; max-height: 32%; overflow: auto; display: flex; flex-direction: column; }
 /* clickable job/customer references inside email bodies */
 .email-ref { display: inline; border: none; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: inherit; font-weight: 700; border-radius: 6px; padding: 0 4px; cursor: pointer; }
 .email-ref:hover { text-decoration: underline; }
-
-/* ── email CRM additions ── */
-/* inbox filter tabs */
-.ep-views { display: flex; gap: 4px; padding: 7px 12px; border-bottom: 1px solid var(--line); flex: none; }
-.ep-view { height: 24px; padding: 0 11px; border: 1px solid var(--line); background: #fff; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
-.ep-view.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-/* triage category chips (priority colours are the point — keep them) */
-.cat-chip { font-size: 9.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
-.cat-urgent { color: #b91c1c; background: #fde0e0; }
-.cat-eta { color: #b45309; background: #fdeccb; }
-.cat-driver { color: #0e7490; background: #d7f1f6; }
-.cat-general { color: #475569; background: #eef1f5; }
-/* row extras */
-.ep-row-right { display: inline-flex; align-items: center; gap: 6px; }
-.ep-ava { width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 8.5px; font-weight: 800; display: inline-grid; place-items: center; }
-.ep-flag { font-size: 11px; }
-.ep-row-tags { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
-.ep-snoozed, .ep-remind-tag { font-size: 10px; color: var(--muted); }
-/* reminder-due banner */
-.ep-banner { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 7px 14px; background: var(--warn-soft, #fff7e6); border-bottom: 1px solid #f0c36d; font-size: 12px; flex: none; }
-/* assigned select */
-.ep-assign { width: auto; height: 24px; font-size: 11.5px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; background: #fff; }
-/* reader toolbar + dropdown menus */
-.ep-tools { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
-.ep-menu-wrap { position: relative; display: inline-flex; }
-.ep-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; min-width: 150px; background: #fff; border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 10px 28px rgba(16,24,40,.18); padding: 4px; display: flex; flex-direction: column; }
-.ep-menu button { text-align: left; border: none; background: none; font: inherit; font-size: 12px; padding: 6px 9px; border-radius: 6px; cursor: pointer; }
-.ep-menu button:hover { background: var(--field); }
-/* internal comment bubble (never sent) */
-.ep-msg.note { background: #fff8e1; border-color: #f0dfa3; align-self: stretch; max-width: 100%; }
-/* composer mode + template picker */
-.ep-compose-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px 0; border-top: 1px solid var(--line); flex: none; }
-.ep-mode { display: inline-flex; gap: 4px; }
-.ep-mode button { height: 22px; padding: 0 10px; border: 1px solid var(--line); background: #fff; border-radius: 999px; font: inherit; font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; }
-.ep-mode button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
-.ep-tpl-pick { margin-left: auto; width: auto; height: 22px; font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; background: #fff; color: var(--muted); }
-.ep-compose { border-top: none; }
-.ep-compose.commenting textarea { background: #fff8e1; border-color: #f0dfa3; }
-/* settings view */
-.ep-settings { flex: 1; min-height: 0; overflow: auto; padding: 10px 14px 20px; display: flex; flex-direction: column; gap: 14px; }
-.ep-set-h { display: flex; }
-.ep-set-sec { display: flex; flex-direction: column; gap: 8px; }
-.ep-set-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--head); display: flex; flex-direction: column; gap: 2px; }
-.ep-set-title .cf-hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
-.ep-rule { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
-.ep-rule-top { display: flex; align-items: center; gap: 8px; }
-.ep-rule-top .chk { flex: 1; display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
-.ep-rule-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
-.ep-rule-row input, .ep-rule-row select, .ep-rule-new input, .ep-rule-new textarea { height: 26px; font-size: 11.5px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; background: #fff; width: 100%; }
-.ep-rule-row select { width: auto; }
-.ep-rule-new textarea { height: auto; padding: 6px 8px; resize: vertical; }
-.ep-rule-new .btn { align-self: flex-start; }
-.ep-tpl { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 12px; }
-.ep-tpl .ep-tpl-preview { flex: 1; min-width: 0; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-head .iconbtn.on { color: var(--accent); }
-
-/* ── email CRM phase 1 additions ── */
-.ep-kbd { color: var(--muted); cursor: help; font-size: 13px; }
-.ep-filters { display: flex; align-items: center; gap: 6px; padding: 7px 12px 0; flex: none; flex-wrap: wrap; }
-.ep-search { flex: 1; min-width: 120px; height: 26px; border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font: inherit; font-size: 11.5px; background: #fff; }
-.ep-saveview input { height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; font: inherit; font-size: 11px; width: 110px; }
-/* lanes */
-.ep-lanes { display: flex; gap: 4px; padding: 7px 12px; border-bottom: 1px solid var(--line); flex: none; flex-wrap: wrap; }
-.ep-lane i { font-style: normal; font-size: 9.5px; opacity: .75; margin-left: 3px; }
-.ep-lane.drop-hot { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-/* bulk bar */
-.ep-bulk { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--accent-soft); border-bottom: 1px solid var(--line); font-size: 11.5px; flex: none; flex-wrap: wrap; }
-.ep-bulk-tag { height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; font: inherit; font-size: 11px; width: 90px; }
-/* rows */
-.ep-check { margin: 0 2px 0 0; }
-.ep-presence { font-size: 11px; }
-.ep-row.muted { opacity: .55; }
-.ep-row { cursor: pointer; }
-/* tags */
-.ep-tag { font-size: 9.5px; font-weight: 700; color: #475569; background: #eef1f5; border-radius: 999px; padding: 1px 7px; display: inline-flex; align-items: center; gap: 3px; }
-.ep-tag i { font-style: normal; cursor: pointer; opacity: .6; }
-.ep-tag-job { color: var(--accent); background: var(--accent-soft); }
-.ep-tagedit { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
-.ep-tagedit input { width: 64px; height: 20px; border: 1px dashed var(--line); border-radius: 999px; padding: 0 7px; font: inherit; font-size: 10.5px; }
-/* job context card */
-.ep-job { margin: 8px 14px 0; border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; display: flex; flex-direction: column; gap: 6px; background: #fafbfd; flex: none; }
-.ep-job-acct { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.ep-job-h { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
-.ep-job-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 2px 8px; font-size: 11.5px; }
-.ep-job-grid span { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding-top: 1px; }
-.ep-job-grid b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ep-job-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.ep-job-note input { height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; font: inherit; font-size: 11px; width: 170px; }
-.ep-job-files { display: flex; flex-direction: column; gap: 3px; }
-.ep-att { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
-/* reader extras */
-.ep-collapse { border: 1px dashed var(--line); background: #fff; border-radius: 999px; font: inherit; font-size: 11px; color: var(--muted); padding: 4px 12px; cursor: pointer; align-self: center; }
-.ep-collapse:hover { color: var(--ink); border-color: var(--line-strong); }
-.ep-split { border: none; background: none; font: inherit; font-size: 10px; color: var(--muted); cursor: pointer; margin-left: 6px; }
-.ep-split:hover { color: var(--accent); }
-.ep-banner-presence { background: var(--accent-soft); border-bottom-color: #dbe7fb; }
-.ep-banner-undo { background: #fff8e1; border-top: 1px solid #f0dfa3; border-bottom: none; }
 
 /* ── email panel: two-column, width-first redesign ──
  * Inbox list (left) · reader (right) so the message body gets the height.
@@ -1407,61 +1287,6 @@ body {
   .ep-body.has-thread .ep-readcol { flex: 1; }
   .ep-back { display: inline-grid; }
 }
-
-/* compact two-line inbox rows: category dot + sender + meta / subject */
-.ep-row { padding: 5px 10px; gap: 1px; }
-.ep-row-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.ep-catdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.ep-catdot.cat-urgent { background: #b91c1c; }
-.ep-catdot.cat-eta { background: #d97706; }
-.ep-catdot.cat-driver { background: #0e7490; }
-.ep-catdot.cat-general { background: #c4ccd6; }
-.ep-row-from { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ep-row-subj { flex: 1; min-width: 0; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
-.ep-row.unread .ep-row-subj { color: var(--ink); font-weight: 600; }
-.ep-row-at { font-size: 10px; color: var(--muted); white-space: nowrap; }
-.ep-mini { font-size: 10px; flex: none; }
-.ep-check { width: 12px; height: 12px; margin: 0; opacity: 0; flex: none; }
-.ep-row:hover .ep-check, .ep-check:checked { opacity: 1; }
-.ep-ava { width: 16px; height: 16px; font-size: 8px; }
-
-/* reader: one tight header block (title · meta · toolbar) */
-.ep-rhead { padding: 8px 12px 7px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; flex: none; }
-.ep-rtitle { display: flex; align-items: center; gap: 7px; font-size: 13px; min-width: 0; }
-.ep-rtitle b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-rmeta { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ep-rtools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-
-/* linked-job strip (one line, expandable) */
-/* job context as its own little island floating on the reader canvas */
-.ep-jobwrap { flex: none; margin: 10px 14px 0; border: 1px solid var(--line-strong); border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
-.ep-jobstrip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 11.5px; min-width: 0; }
-.ep-js-acct { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
-.ep-js-acct i { font-style: normal; color: var(--muted); font-weight: 400; }
-.ep-js-eta { color: var(--muted); white-space: nowrap; }
-.ep-js-toggle { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 11px; padding: 0 4px; }
-.ep-js-toggle:hover { color: var(--ink); }
-.ep-jobwrap .ep-job { margin: 0; border: none; border-top: 1px dashed var(--line); border-radius: 0; }
-
-/* the ⋯ More menu (right-aligned, with section labels) */
-.ep-menu-right { left: auto; right: 0; z-index: 482; max-height: 320px; overflow: auto; }
-.ep-menu-sec { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 5px 9px 2px; }
-
-/* composer: textarea + side column (template picker above Send) */
-.ep-compose { align-items: stretch; }
-.ep-compose-side { display: flex; flex-direction: column; gap: 6px; justify-content: flex-end; flex: none; }
-
-/* pop-out internal comments drawer */
-.ep-cdrawer {
-  position: absolute; top: 0; left: 0; bottom: 0; width: min(320px, 86%);
-  background: #fffdf2; border-right: 1px solid #f0dfa3;
-  box-shadow: 8px 0 24px rgba(16, 24, 40, .12); z-index: 60;
-  display: flex; flex-direction: column;
-}
-.ep-cdrawer-h { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #f0dfa3; font-size: 12.5px; flex: none; }
-.ep-cdrawer-list { flex: 1; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-.ep-cdrawer-add { border-top: 1px solid #f0dfa3; padding: 8px 12px; display: flex; gap: 6px; align-items: flex-end; flex: none; }
-.ep-cdrawer-add textarea { flex: 1; border: 1px solid #f0dfa3; border-radius: 8px; font: inherit; font-size: 12px; padding: 6px 8px; resize: none; background: #fff; }
 
 /* ── jobs as a narrow single-column card list (while the email panel is open) ── */
 .email-jobs-app { padding-top: 0; }
@@ -1492,24 +1317,6 @@ body {
 .jcard-foot { display: flex; align-items: center; gap: 8px; font-size: 12px; min-width: 0; }
 .jcard-route { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jcard-sup { white-space: nowrap; }
-
-/* ── proper email composer (Reply / Reply all / Forward) ── */
-.ep-actionbar { flex: none; border-top: 1px solid var(--line); padding: 9px 12px; display: flex; gap: 8px; }
-.ep-composer {
-  flex: none; height: 46%; min-height: 200px; max-height: 60%;
-  border-top: 2px solid var(--line-strong); background: #fff;
-  display: flex; flex-direction: column;
-}
-.ep-composer-h { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex: none; }
-.ep-composer-h > b { font-size: 12px; white-space: nowrap; }
-.ep-to { flex: 1; min-width: 0; height: 26px; border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font: inherit; font-size: 12px; }
-.ep-composer-sub { padding: 5px 12px; font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--field); flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ep-composer textarea { flex: 1; min-height: 0; border: none; outline: none; resize: none; padding: 10px 12px; font: inherit; font-size: 13px; line-height: 1.55; }
-.ep-composer-f { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); flex: none; }
-.ep-hint { font-size: 10.5px; color: var(--muted); }
-
-/* readable message width on very wide panels */
-.ep-msg { max-width: 720px; }
 
 /* "live" jobs table — content-sized: every column crops to its longest entry and
  * the card hugs the table (scrolling only if it genuinely can't fit) */
@@ -2082,103 +1889,6 @@ body {
 .shell.email-left.panel-open .drawer,
 .shell.email-left.panel-open.nav-pinned .drawer { left: 0; }
 
-/* reader's close-to-list button */
-.ep-closebody { color: var(--muted); }
-.ep-closebody:hover { color: var(--accent); }
-
-/* ── Email search: predictive suggestions + advanced query ──────────────────────── */
-/* the search pill holds a leading icon, the input, a clear ×, and the advanced toggle */
-.ep-searchbox {
-  position: relative; flex: 1; min-width: 170px;
-  display: flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 5px 0 10px;
-  border: 1px solid var(--line); border-radius: 999px; background: #fff;
-}
-.ep-searchbox > .ic-svg { color: var(--muted); flex: none; }
-.ep-searchbox .ep-search { flex: 1; min-width: 0; height: 100%; border: none; border-radius: 0; padding: 0; background: none; }
-.ep-searchbox .ep-search:focus { outline: none; }
-.ep-search-x { flex: none; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
-.ep-search-x:hover { color: var(--ink); }
-.ep-adv-toggle { flex: none; width: 22px; height: 22px; border: none; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
-.ep-adv-toggle:hover { background: var(--accent-soft); color: var(--accent); }
-.ep-adv-toggle.on { background: var(--accent); color: #fff; }
-
-/* predictive dropdown (People + Emails, each paginated in 3s) */
-.ep-suggest {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;
-  background: #fff; border: 1px solid var(--line-strong); border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(16, 24, 40, .14); max-height: 60vh; overflow-y: auto;
-}
-.ep-sug-sec + .ep-sug-sec { border-top: 1px solid var(--line); }
-.ep-sug-h { padding: 7px 12px 4px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.ep-sug-row { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 7px 12px; border: none; background: none; font: inherit; cursor: pointer; }
-.ep-sug-row:hover { background: var(--accent-soft); }
-.ep-sug-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.ep-sug-main b { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-sug-sub { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-sug-meta { flex: none; font-size: 10px; color: var(--muted); }
-.ep-ava.sug { width: 24px; height: 24px; font-size: 9.5px; flex: none; }
-.ep-sug-more, .ep-list-more {
-  display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: none;
-  font: inherit; font-size: 11px; font-weight: 700; color: var(--accent); cursor: pointer;
-}
-.ep-sug-more:hover, .ep-list-more:hover { background: var(--field); }
-.ep-list-more { border-top: 1px solid var(--line); text-align: center; }
-
-/* advanced search panel — a roomy popover anchored under the search box. It's free to
- * overlap the inbox beneath; what matters is comfortable value fields. Fixed width
- * (not stretched to the search box) so the rows never collapse. */
-.ep-advpanel {
-  position: absolute; top: calc(100% + 4px); left: 0; right: auto; z-index: 40;
-  width: 420px; max-width: 92vw;
-  background: #fff; border: 1px solid var(--line-strong); border-radius: 10px;
-  box-shadow: 0 10px 28px rgba(16, 24, 40, .16); padding: 12px 14px; display: flex; flex-direction: column; gap: 9px;
-}
-.ep-adv-h { display: flex; align-items: center; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.ep-adv-row { display: flex; align-items: center; gap: 8px; }
-.ep-adv-lbl { flex: none; width: 56px; font-size: 11.5px; font-weight: 700; color: var(--head); }
-/* explicit widths beat the global `input,select,textarea { width:100% }`, which would
- * otherwise make the operator select swallow the whole row */
-.ep-adv-op { flex: none; width: 96px; height: 28px; font-size: 11.5px; border-radius: 8px; }
-.ep-adv-val { flex: 1 1 auto; width: auto; min-width: 0; height: 28px; font-size: 12px; border-radius: 8px; }
-.ep-adv-date { flex: 1 1 0; width: auto; min-width: 0; height: 28px; font-size: 12px; border-radius: 8px; padding-right: 6px; }
-.ep-adv-to { flex: none; font-size: 11px; color: var(--muted); }
-.ep-adv-foot { display: flex; align-items: center; font-size: 11px; color: var(--muted); padding-top: 2px; }
-
-/* ── Email workflow: status model, chase clocks, expecting-a-response (spec §2/§4) ── */
-.ep-status { flex: none; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
-.st-new { background: #e7f0fe; color: #1d6fe0; }
-.st-assigned { background: #eef2f6; color: #5b6470; }
-.st-progress { background: #fff3d6; color: #8a6100; }
-.st-awaiting { background: #fde9d4; color: #b4530a; }
-.st-action { background: #e1f5ee; color: #0b7a55; }
-.st-resolved { background: #eceff3; color: #8b95a3; }
-
-/* top-bar status filter chips */
-.ep-topfilter { gap: 4px; flex-wrap: wrap; }
-.ep-tf i { font-style: normal; font-size: 9.5px; opacity: .7; margin-left: 4px; }
-
-/* third row line: status + assigned/idle clock + chase + read-by */
-.ep-row-wf { gap: 6px; align-items: center; }
-.ep-clk { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
-.ep-chase { font-size: 9.5px; font-weight: 700; padding: 0 6px; border-radius: 999px; white-space: nowrap; }
-.ep-chase.ok { color: var(--muted); }
-.ep-chase.amber { background: #fde9d4; color: #b4530a; }
-.ep-chase.red { background: #fde3e3; color: #c0271b; }
-.ep-readby { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
-
-/* chase banner in the reader */
-.ep-chasebanner { display: flex; align-items: center; gap: 8px; }
-.ep-chasebanner.amber { background: #fdf1e3; color: #8a4708; }
-.ep-chasebanner.red { background: #fdeaea; color: #a31f15; }
-
-/* expecting-a-response picker in the composer */
-.ep-expect { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
-.ep-expect-tog { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--head); cursor: pointer; white-space: nowrap; }
-.ep-expect-tog input { width: auto; height: auto; margin: 0; }
-.ep-expect-lbl { font-size: 10.5px; color: var(--muted); }
-.ep-expect-when { width: auto; height: 26px; font-size: 11.5px; }
-
 /* ── Form Builder: Settings screen ──────────────────────────────────────────────── */
 .screen-title { font-size: 18px; font-weight: 800; color: var(--head); margin: 0; }
 .fm-live { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
@@ -2252,168 +1962,8 @@ body {
 .fb-livewrap { overflow: auto; padding: 0 0 24px; }
 .fb-live-banner { font-size: 11px; color: var(--accent); background: var(--accent-soft); padding: 7px 14px; }
 
-/* ── Email list rows: Front-style (sender › assignee · subject), reduced blue ──────── */
-/* dot hangs to the LEFT of line 1; both lines start at the same x; time pinned top-right */
-.ep-row { display: block; position: relative; padding: 11px 14px 12px 30px; border-bottom: 1px solid #e2e8f0; }
-.ep-row.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-.ep-row .ep-check { position: absolute; left: 11px; top: 13px; }
-.ep-row-when { position: absolute; top: 12px; right: 14px; display: flex; align-items: center; gap: 6px; }
-.ep-rbody { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.ep-row-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.ep-line-top { position: relative; padding-right: 74px; }   /* clear the pinned time / chase badge */
-/* the unread dot, vertically centred on line 1, hanging in the left margin */
-.ep-unread-dot { position: absolute; left: -17px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.ep-row:hover .ep-unread-dot { opacity: 0; }   /* checkbox takes its place on hover */
-/* line 1: sender (bold when unread) › assignee (the Front-style owner link) */
-.ep-row-from { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
-.ep-row.unread .ep-row-from { font-weight: 800; }
-.ep-sep { color: var(--muted); font-size: 13px; flex: none; }
-.ep-assignee { font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 40px; }
-.ep-unassigned { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: #b45309; background: #fdeccb; padding: 1px 7px; border-radius: 999px; flex: none; }
-.ep-row-at { font-size: 10.5px; color: var(--muted); white-space: nowrap; flex: none; }
-/* line 2: subject · status/attachments/snooze (no body preview) */
-.ep-row-subj { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
-.ep-attn { font-size: 10px; color: var(--muted); white-space: nowrap; flex: none; }
-/* typing / collaborative draft indicator (replaces the viewing eye) */
-.ep-typing { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: #0b7a55; cursor: pointer; padding: 1px 0 0 0; }
-.ep-typing:hover { text-decoration: underline; }
-.ep-typing-dots { display: inline-flex; gap: 2px; flex: none; }
-.ep-typing-dots i { width: 4px; height: 4px; border-radius: 50%; background: #16a36f; display: inline-block; animation: ep-typing-b 1s infinite ease-in-out; }
-.ep-typing-dots i:nth-child(2) { animation-delay: .15s; }
-.ep-typing-dots i:nth-child(3) { animation-delay: .3s; }
-@keyframes ep-typing-b { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
-.ep-draftbanner { display: flex; align-items: center; gap: 8px; background: #e6f6ef; color: #0b6a4b; }
-/* neutralise avatars (suggestions etc.) — were blue */
-.ep-ava { background: #eceff3; color: #5b6470; }
-
-/* ── Email reader: Front-style grey message canvas + white message cards ─────────── */
-.ep-msgs { background: #f4f6f9; gap: 12px; padding: 14px; }
-.ep-msg { max-width: none; align-self: stretch; border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 0; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
-.ep-msg.out { align-self: stretch; background: #fff; border-color: var(--line); }
-.ep-msg.out .ep-msg-ava { background: var(--accent-soft); color: var(--accent); }
-.ep-msg-head { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-bottom: 1px solid var(--field); }
-.ep-msg-ava { width: 28px; height: 28px; border-radius: 50%; background: #eceff3; color: #5b6470; font-size: 10px; font-weight: 800; display: grid; place-items: center; flex: none; }
-.ep-msg-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-.ep-msg-name { font-size: 12.5px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 6px; }
-.ep-msg-tag { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--accent); background: var(--accent-soft); padding: 0 5px; border-radius: 999px; }
-.ep-msg-addr { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-msg-time { font-size: 10.5px; color: var(--muted); white-space: nowrap; flex: none; }
-.ep-msg-body { padding: 11px 13px 12px; font-size: 12.5px; line-height: 1.55; }
-.ep-msg .ep-att { display: inline-flex; margin: 0 13px 11px; }
-.ep-split { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 4px; flex: none; }
-.ep-split:hover { color: var(--accent); }
-
-/* internal comments: warm "note" tint + a clean Front-style composer */
-.ep-msg.note { background: #fffaf0; border-color: #f1e3c6; }
-.ep-cdrawer-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.ep-cdrawer-hint { font-size: 10.5px; color: #8a6d3b; }
-
-/* email-rules settings screen (moved out of the inbox UI) */
+/* email-rules settings screen container (the rules UI lives in EmailRulesScreen) */
 .emailrules-wrap { max-width: 760px; }
-.emailrules-wrap .ep-settings { padding: 0; overflow: visible; }
-
-/* ── Consolidated filter menu (mailbox · smart folder · snoozed · saved views) ───── */
-.ep-filterwrap { position: relative; flex: none; }
-.ep-filter-btn { width: 30px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
-.ep-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
-.ep-filter-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.ep-filtermenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 490; width: 244px; background: #fff; border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 10px 28px rgba(16, 24, 40, .16); padding: 11px 13px; display: flex; flex-direction: column; gap: 9px; }
-.ep-fm-row { display: flex; align-items: center; gap: 8px; }
-.ep-fm-lbl { width: 56px; flex: none; font-size: 10.5px; font-weight: 700; color: var(--muted); }
-.ep-fm-row select { flex: 1; min-width: 0; height: 28px; }
-.ep-fm-chk { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--head); }
-.ep-fm-chk input { width: auto; height: auto; margin: 0; }
-.ep-fm-sec { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 2px; border-top: 1px solid var(--line); padding-top: 9px; }
-.ep-fm-empty { font-size: 11px; color: var(--muted); }
-.ep-fm-view { text-align: left; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 5px 9px; font: inherit; font-size: 12px; cursor: pointer; }
-.ep-fm-view:hover { border-color: var(--accent); color: var(--accent); }
-.ep-fm-save { align-self: flex-start; }
-
-/* primary status tabs (clean underline tabs, not a wall of pills) */
-.ep-topfilter { gap: 2px; padding: 5px 10px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.ep-topfilter .ep-tf { border: none; background: none; border-radius: 0; height: 30px; padding: 0 9px; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.ep-topfilter .ep-tf:hover { color: var(--ink); background: none; }
-.ep-topfilter .ep-tf.on { color: var(--accent); border-bottom-color: var(--accent); background: none; }
-
-/* ── Inline shared draft (Front-style live draft in the thread) ──────────────────── */
-.ep-shared { border: 1px dashed #c9b6e8; border-radius: 12px; background: #faf7ff; overflow: hidden; }
-.ep-shared-h { display: flex; align-items: center; gap: 6px; padding: 6px 11px; font-size: 11px; color: #6d4ea8; background: #f1ebfb; border-bottom: 1px solid #e7ddf6; }
-.ep-shared-h b { color: #5b3f93; }
-.ep-shared-sub { color: #9a86c0; }
-.ep-shared-editing { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: #6d4ea8; }
-.ep-shared .ep-typing-dots i { background: #8a6fc7; }
-.ep-shared-msg { border: none; border-radius: 0; box-shadow: none; background: transparent; }
-.ep-shared-msg .ep-msg-head { border-bottom-color: #ece3fa; }
-.ep-shared-msg .ep-msg-ava { background: #ece3fa; color: #6d4ea8; }
-.ep-draft-caret { display: inline-block; width: 2px; height: 14px; background: #6d4ea8; margin-left: 1px; vertical-align: text-bottom; animation: ep-caret 1s steps(1) infinite; }
-@keyframes ep-caret { 50% { opacity: 0; } }
-
-/* message card header: name <email> on one line (email grey), "To: …" beneath — the
-   sender/recipient addresses live here only, not duplicated under the subject */
-.ep-msg-name { min-width: 0; flex-wrap: wrap; }
-.ep-msg-email { font-weight: 400; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-
-/* clickable sender name → contact popover (copy / call / write) */
-.ep-namewrap { position: relative; display: inline-block; }
-.ep-name-btn { border: none; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; }
-.ep-name-btn:hover { color: var(--accent); text-decoration: underline; }
-.cc-contact-pop button.ccp-row { border: none; background: none; width: 100%; text-align: left; font: inherit; font-size: 12.5px; cursor: pointer; }
-.ccp-sub { font-weight: 500; color: var(--muted); margin-left: 6px; }
-.ccp-copy { margin-left: auto; font-style: normal; color: var(--muted); cursor: pointer; padding: 0 4px; }
-.ccp-copy:hover { color: var(--accent); }
-.ccp-note { font-size: 10.5px; color: var(--muted); padding: 4px 8px 2px; }
-
-/* internal comments collected at the foot of the thread — grey, rounded, clickable to
-   jump to the email they were left on (Front-style, not yellow) */
-/* WhatsApp-style: each bubble is only as wide/tall as its content, left-aligned */
-.ep-comments { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-top: 6px; padding-top: 9px; border-top: 1px dashed var(--line-strong); }
-.ep-cnote { display: inline-block; width: auto; max-width: 85%; text-align: left; border: 1px solid #d3d9e2; background: #e7ebf1; border-radius: 12px; padding: 5px 11px 6px; cursor: pointer; font: inherit; }
-.ep-cnote:hover { background: #dfe4ec; border-color: #c6cdda; }
-.ep-cnote-head { display: flex; align-items: baseline; gap: 7px; font-size: 10.5px; }
-.ep-cnote-head b { color: var(--ink); }
-.ep-cnote-time { font-size: 9.5px; color: var(--muted); }
-.ep-cnote-body { display: block; font-size: 12.5px; line-height: 1.35; color: var(--ink); margin-top: 1px; white-space: pre-wrap; }
-
-/* brief highlight when a comment jumps you to its email */
-.ep-msg.flash { box-shadow: 0 0 0 2px var(--accent); }
-
-/* two-level filter: scope (Assigned to me / All) segmented control */
-.ep-scope { display: flex; padding: 7px 12px 0; }
-.ep-scope-btn { flex: 1; height: 28px; border: 1px solid var(--line-strong); background: #fff; font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
-.ep-scope-btn:first-child { border-radius: 8px 0 0 8px; }
-.ep-scope-btn:last-child { border-radius: 0 8px 8px 0; border-left: none; }
-.ep-scope-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-/* expect-a-response picker (lives in the composer footer now) */
-.ep-composer-f { flex-wrap: wrap; row-gap: 8px; }
-.ep-expect { padding: 0; }
-.ep-expect-opts { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-.ep-expect-preset { height: 24px; padding: 0 9px; min-width: 32px; }
-.ep-expect-num { width: 50px; height: 24px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: inherit; font-size: 11.5px; text-align: center; }
-.ep-unit-toggle { height: 24px; min-width: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); font: inherit; font-size: 11px; font-weight: 700; color: var(--head); cursor: pointer; }
-.ep-unit-toggle:hover { border-color: var(--accent); color: var(--accent); }
-.ep-expect-or { font-size: 10px; color: var(--muted); }
-.ep-setdt { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 11px; color: var(--muted); cursor: pointer; white-space: nowrap; }
-.ep-setdt.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-.ep-setdt input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-
-/* always-on internal-comment composer (chat-style: type + Enter) */
-.ep-cbar { flex: none; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-top: 1px solid var(--line); background: var(--panel); }
-.ep-cbar-lock { font-size: 13px; flex: none; }
-.ep-cbar-input { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 14px; font: inherit; font-size: 12.5px; background: var(--field); }
-.ep-cbar-input:focus { background: #fff; outline: none; border-color: var(--accent); }
-.ep-cbar-send { flex: none; width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer; display: grid; place-items: center; }
-.ep-cbar-send:disabled { opacity: .4; cursor: default; }
-
-/* compose a new email */
-.ep-newmail { background: #fff; }
-.ep-newmail-fields { flex: none; padding: 4px 14px 0; }
-.ep-nm-row { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
-.ep-nm-row span { width: 56px; flex: none; font-size: 11px; font-weight: 700; color: var(--muted); }
-.ep-nm-row input { flex: 1; min-width: 0; border: none; height: 38px; background: none; font: inherit; font-size: 13px; }
-.ep-nm-row input:focus { outline: none; }
-.ep-newmail-body { flex: 1; min-height: 120px; margin: 12px 14px; border: 1px solid var(--line); border-radius: 10px; padding: 11px; font: inherit; font-size: 13px; resize: none; }
-.ep-newmail-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid var(--line); }
 
 /* ── Email automation studio (rules / macros / templates / AI builder) ──────────── */
 .ar-screen { padding: 16px 22px; max-width: 940px; }
@@ -2492,12 +2042,6 @@ body {
 .sh-count { background: var(--accent-soft); color: var(--accent); border-radius: 999px; font-size: 9.5px; font-weight: 800; padding: 0 6px; margin-left: 4px; }
 .panelbox.collapsed { min-height: 0; }
 
-/* viewer header: subject is the only big thing; status/category drop to a quiet meta
- * line below it, separated from the tools row by a thin underline */
-.ep-rtitle b { font-size: 14.5px; font-weight: 700; }
-.ep-rmeta2 { display: flex; align-items: center; gap: 7px; margin-top: 5px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
-.ep-rtools { padding-top: 9px; }
-
 /* Service & vehicle — summarised box with Edit toggle */
 .svc-head { display: flex; align-items: center; gap: 8px; }
 .svc-head h3 { margin: 0; }
@@ -2508,40 +2052,13 @@ body {
 .svc-chip { background: #eef1f5; border-radius: 6px; padding: 2px 8px; font-size: 11.5px; font-weight: 600; }
 .svc-sum-empty { color: var(--muted); font-weight: 400; font-size: 12px; }
 
-/* sub-status tabs as icons (the words wrapped to two lines in the narrow column) */
-.ep-topfilter .ep-tf-ico { display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; }
-.ep-topfilter .ep-tf-ico .ic-svg { color: currentColor; }
-
-/* reader: a grey canvas so the white job island and message cards float (Front-style) */
-.ep-reader { background: #f4f6f9; }
-.ep-rhead { background: #fff; }
-.ep-actionbar, .ep-composer { background: var(--panel); }
-
 /* job status pill sits at the top next to the customer name */
 .bar-status { flex: none; margin-left: 2px; }
 
-/* ── Tighten the email list column (recover ~12% width without squashing) ────────── */
-.ep-listcol { width: 252px; }
-/* New email button pulled inward + a touch smaller */
-.ep-head { padding: 9px 12px; }
-.ep-head .ep-compose-btn { height: 26px; padding: 0 9px; }
-/* smaller scope toggle (Assigned to me / All) */
-.ep-scope { padding: 6px 10px 0; }
-.ep-scope-btn { height: 25px; font-size: 11px; }
-/* slimmer search box → filter/saved-views sit further in */
-.ep-filters { padding: 7px 10px 0; gap: 5px; }
-.ep-searchbox { height: 27px; min-width: 140px; padding: 0 4px 0 9px; }
-/* timestamps + attachment counts pulled in from the edge */
-.ep-row { padding-left: 28px; padding-right: 11px; }
-.ep-row .ep-check { left: 9px; }
-.ep-row-when { right: 11px; }
-.ep-line-top { padding-right: 70px; }
-/* sub-status icon tabs spread evenly (more space; adapts to 3 vs 4 tabs) */
-.ep-topfilter { justify-content: space-around; gap: 0; padding: 6px 6px 0; }
-.ep-topfilter .ep-tf-ico { padding: 0 8px; }
-/* the SENDER (who's emailing) keeps its full name; the assignee truncates first */
-.ep-line-top .ep-row-from { flex: 0 0 auto; }
-.ep-line-top .ep-assignee { flex: 0 1 auto; min-width: 0; }
+/* the list column has a fixed base width in the two-pane layout; the reader flexes.
+ * (Internal defaults now live in features/email/email.css; the width sits here as glue
+ * because the shell rules below transition/override it per email mode.) */
+.ep-listcol { width: 300px; }
 
 /* ── Inside a job (full-email mode) → collapse the inbox list (2-way split) ───────── */
 .ep-listcol { transition: width .18s ease; }
