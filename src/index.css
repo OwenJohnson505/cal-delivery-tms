@@ -1361,10 +1361,14 @@ body {
  * header always matches the table and the space to the right is freed. Scoped to the
  * list screen; leaves the .list-fixed fixed-height + internal-scroll layout intact. ── */
 .bkf-main.bkf-hug { width: fit-content; max-width: 100%; align-self: flex-start; }
-/* the wrapper must fill the hugged card (not shrink to the table's own content, which
-   left a dead strip on the right); the table then fills the wrapper */
-.bkf-main.bkf-hug .list-tablewrap { width: 100%; align-self: stretch; }
-.bkf-main.bkf-hug .jobs-table.compact { width: 100%; }
+/* the wrapper must fill the hugged card (not shrink to its own content, which left a dead
+   strip on the right). Extra specificity (.list-fixed …) so it beats the older, later
+   `.list-tablewrap:has(.jobs-table.compact){width:fit-content}` rule. */
+.list-fixed .bkf-main.bkf-hug .list-tablewrap { width: 100%; max-width: 100%; align-self: stretch; }
+.list-fixed .bkf-main.bkf-hug .jobs-table.compact { width: 100%; }
+/* in compact, drop the Add label to an icon so the top row stays within the table width
+   and the whole card hugs close to the table */
+.bkf-main.bkf-hug .bkf-add .bkf-lb { display: none; }
 
 /* ── email panel ── */
 .email-panel {
