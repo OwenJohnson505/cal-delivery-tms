@@ -788,7 +788,7 @@ export function ListScreen() {
   // job column; the compact table is dense enough to fit there without cards.
   return (
     <div className={'list-app' + (isPriorityView ? '' : ' list-fixed') + (emailFull ? ' email-jobs-app board-table' : '')}>
-      <div className={'list-work wide bookings-main bkf-main' + (!isPriorityView && density === 'compact' ? ' bkf-hug' : '')}>
+      <div className={'list-work wide bookings-main bkf-main' + (isPriorityView ? '' : ' bkf-hug' + (density === 'compact' ? ' bkf-compact' : ''))}>
         {/* row 1: tabs · spacer · density · columns · Add — fused to the table below */}
         <div className="bkf-thead">
           <div className="bkf-trow">

@@ -1357,18 +1357,22 @@ body {
 .bkf-pinput:focus { border-color: var(--accent); }
 .bkf-saved { font-size: 11px; color: var(--muted); padding: 4px 6px; }
 
-/* ── COMPACT-HUG: shrink the whole container to the compact table's width so the
- * header always matches the table and the space to the right is freed. Scoped to the
- * list screen; leaves the .list-fixed fixed-height + internal-scroll layout intact. ── */
+/* ── HUG: the bookings container hugs its content in BOTH densities, so neither the
+ * toolbar nor the table stretches to fill leftover width (which just padded dead space
+ * inside the card). Any free width is left OUTSIDE the card. Scoped to the list screen;
+ * leaves the .list-fixed fixed-height + internal-scroll layout intact. Higher specificity
+ * (.list-fixed …) so it beats the older `.list-tablewrap:has(.jobs-table.compact)` rules. ── */
 .bkf-main.bkf-hug { width: fit-content; max-width: 100%; align-self: flex-start; }
-/* the wrapper must fill the hugged card (not shrink to its own content, which left a dead
-   strip on the right). Extra specificity (.list-fixed …) so it beats the older, later
-   `.list-tablewrap:has(.jobs-table.compact){width:fit-content}` rule. */
-.list-fixed .bkf-main.bkf-hug .list-tablewrap { width: 100%; max-width: 100%; align-self: stretch; }
+/* COMPACT — the card is driven by the toolbar; the wrapper + table fill it so there's no
+   dead strip on the right. */
+.list-fixed .bkf-main.bkf-hug .list-tablewrap:has(.jobs-table.compact) { width: 100%; max-width: 100%; align-self: stretch; }
 .list-fixed .bkf-main.bkf-hug .jobs-table.compact { width: 100%; }
-/* in compact, drop the Add label to an icon so the top row stays within the table width
-   and the whole card hugs close to the table */
-.bkf-main.bkf-hug .bkf-add .bkf-lb { display: none; }
+/* EXPANDED — the card hugs the table's OWN width (columns sized to content, never stretched
+   to fill); scroll horizontally if the table is wider than the viewport. */
+.list-fixed .bkf-main.bkf-hug .list-tablewrap:has(.jobs-table:not(.compact)) { width: fit-content; max-width: 100%; align-self: flex-start; overflow-x: auto; }
+.list-fixed .bkf-main.bkf-hug .jobs-table:not(.compact) { width: max-content; max-width: none; }
+/* keep the Add label as an icon only in compact, so the tight card stays close to the table */
+.bkf-main.bkf-compact .bkf-add .bkf-lb { display: none; }
 
 /* ── email panel ── */
 .email-panel {
