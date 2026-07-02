@@ -207,7 +207,6 @@ export function EmailPanel() {
 
   const composeRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const historyRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLElement>(null)
 
   const openCompose = (to = '') => { setComposeNew({ to, subject: '', body: '' }); setPanelState('full') }
@@ -434,19 +433,13 @@ export function EmailPanel() {
   const newestId = ([...msgs].reverse().find((m) => !m.event)?.id) ?? msgs[msgs.length - 1]?.id
   const newestIdx = msgs.findIndex((m) => m.id === newestId)
   const olderCutoff = newestIdx < 0 ? msgs.length - 1 : newestIdx // emails before the newest are "older" (greyed)
-  // Previous communication is grouped into a greyed, scroll-up box; the newest email (the one
-  // we're working on) sits below it in a clean white container with the reply controls.
-  const historyMsgs = newestIdx <= 0 ? [] : msgs.slice(0, newestIdx)
-  const currentMsgs = newestIdx < 0 ? msgs : msgs.slice(newestIdx)
 
-  // Open with the newest email high in view: the history box is pinned to its newest (bottom)
-  // so scrolling up reveals older mail, while the outer column rests at the top.
+  // Open scrolled to the bottom: the newest email sits low with the reply, and you scroll up
+  // through the greyed history for older mail.
   useEffect(() => {
     if (panelState !== 'full' || !thread || composeNew) return
-    window.setTimeout(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = 0
-      if (historyRef.current) historyRef.current.scrollTop = historyRef.current.scrollHeight
-    }, 0)
+    const el = scrollRef.current
+    if (el) window.setTimeout(() => { el.scrollTop = el.scrollHeight }, 0)
   }, [selectedId, panelState, composeNew, thread])
 
   // IntersectionObserver: greyed older messages fade to full colour as they scroll in.
@@ -978,16 +971,24 @@ export function EmailPanel() {
               Conversation
               <button className="exall" onClick={() => setExpandAll((o) => !o)}>{expandAll ? 'Collapse older' : 'Expand all'}</button>
             </div>
-            {/* previous communication — grouped in a greyed box; scroll up inside it for older mail */}
-            {historyMsgs.length > 0 && (
-              <div className="nx-history" ref={historyRef}>
-                {historyMsgs.map((m) => renderMsg(m, msgs.indexOf(m)))}
-              </div>
-            )}
+            {/* ONE conversation container: previous mail reads grey; the email you're actually
+                viewing (the newest, or any you click to expand) pops to a white card. No nested
+                scroll box — the whole thing flows and scrolls in the outer column, hugged to the
+                bottom so the newest sits low with the reply, and you scroll up for older mail. */}
+            <div className="nx-convo">
+              {msgs.map((m) => renderMsg(m, msgs.indexOf(m)))}
 
-            {/* the email we're working on — a clean white container with the reply controls */}
-            <div className="nx-current">
-              {currentMsgs.map((m) => renderMsg(m, msgs.indexOf(m)))}
+              {/* internal comments — click one to jump to the email it was left on */}
+              {thread.comments.length > 0 && (
+                <div className="nx-comments">
+                  {[...thread.comments].sort((a, b) => atKey(a.at).localeCompare(atKey(b.at))).map((c) => (
+                    <button key={c.id} className="nx-cnote" onClick={() => goToComment(c)} title="Jump to the email this was left on">
+                      <span className="nx-cnote-head"><b>{c.by}</b><span className="nx-cnote-time">{c.at}</span></span>
+                      <span className="nx-cnote-body">{c.text}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* shared live draft (a colleague drafting) — take it over to edit + send */}
               {thread.draftPresence && (
@@ -1035,18 +1036,6 @@ export function EmailPanel() {
                 </div>
               )}
             </div>
-
-            {/* internal comments — click one to jump to the email it was left on */}
-            {thread.comments.length > 0 && (
-              <div className="nx-comments">
-                {[...thread.comments].sort((a, b) => atKey(a.at).localeCompare(atKey(b.at))).map((c) => (
-                  <button key={c.id} className="nx-cnote" onClick={() => goToComment(c)} title="Jump to the email this was left on">
-                    <span className="nx-cnote-head"><b>{c.by}</b><span className="nx-cnote-time">{c.at}</span></span>
-                    <span className="nx-cnote-body">{c.text}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* compact send bar — the writing happens up in the thread */}
