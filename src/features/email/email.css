@@ -386,7 +386,8 @@
 
 /* ── the email being worked on: clean white container, prominent ── */
 .nx-current { background: #fff; border: 1px solid var(--nx-hair-2); border-radius: 12px; padding: 2px 12px 8px; margin: 0 0 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
-.nx-current > .nx-msg:last-of-type .nx-mnode::before { display: none; }
+/* drop the timeline connector on the last message in the box (whether the reply is open or not) */
+.nx-current > .nx-msg:not(:has(~ .nx-msg)) .nx-mnode::before { display: none; }
 
 /* reply arrows sit under the current email, aligned with its body, until one is clicked */
 .nx-replybar { display: flex; gap: 4px; padding-left: 37px; margin-top: 2px; }
